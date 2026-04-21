@@ -5,6 +5,7 @@ import remarkMath from "remark-math";
 import remarkRehype from "remark-rehype";
 import rehypeKatex from "rehype-katex";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import rehypeShiki from "@shikijs/rehype";
 import rehypeStringify from "rehype-stringify";
 
 const sanitizeSchema = {
@@ -38,6 +39,7 @@ export async function renderMarkdown(md: string): Promise<string> {
     .use(remarkMath)
     .use(remarkRehype, { allowDangerousHtml: false })
     .use(rehypeKatex, { throwOnError: false, errorColor: "#cc0000" })
+    .use(rehypeShiki, { theme: "github-dark" })
     .use(rehypeSanitize, sanitizeSchema)
     .use(rehypeStringify);
   const file = await processor.process(md);

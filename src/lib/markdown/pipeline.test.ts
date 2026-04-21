@@ -18,4 +18,13 @@ describe("renderMarkdown", () => {
     expect(html).not.toContain("<script");
     expect(html).toContain("<h1>ok</h1>");
   });
+
+  it("renders shiki-highlighted code blocks", async () => {
+    const html = await renderMarkdown("```ts\nconst a: number = 1;\n```\n");
+    expect(html).toContain("<pre");
+    // @shikijs/rehype emits inline background + per-token color spans;
+    // no class="shiki" in the modern API, so we assert the styling instead.
+    expect(html).toMatch(/background-color:#[0-9a-fA-F]{3,8}/);
+    expect(html).toMatch(/<span style="color:#[0-9a-fA-F]{3,8}/);
+  });
 });
