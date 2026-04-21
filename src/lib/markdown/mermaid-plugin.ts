@@ -3,7 +3,16 @@ import type { Root, Element } from "hast";
 import { visit } from "unist-util-visit";
 import mermaid from "mermaid";
 
-mermaid.initialize({ startOnLoad: false });
+// securityLevel: "loose" keeps mermaid from prefixing ids / re-sanitizing
+// the SVG it generates (it has its own DOMPurify call when the level is
+// "strict"). We sanitize once at the safeReplaceChildren boundary.
+mermaid.initialize({
+  startOnLoad: false,
+  securityLevel: "loose",
+  theme: "default",
+  fontFamily:
+    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+});
 
 export const rehypeMermaidInline: Plugin<[], Root> = () => {
   return async (tree) => {
