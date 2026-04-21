@@ -1,4 +1,4 @@
-use crate::types::{FileRead, FileWritten, FsError};
+use crate::types::{DirEntry, FileRead, FileWritten, FsError};
 use std::fs as stdfs;
 use std::io::Write;
 use std::path::Path;
@@ -68,4 +68,23 @@ pub fn create(path: &str) -> Result<(), FsError> {
 
 pub fn rename(from: &str, to: &str) -> Result<(), FsError> {
     stdfs::rename(from, to).map_err(|e| FsError::Io(e.to_string()))
+}
+
+pub fn list(path: &str) -> Result<Vec<DirEntry>, FsError> {
+    let p = Path::new(path);
+    let read = stdfs::read_dir(p).map_err(|e| FsError::Io(e.to_string()))?;
+    let mut out = Vec::new();
+    for entry in read.flatten() {
+        let ep = entry.path();
+        let is_dir = ep.is_dir();
+        let name = ep.file_name().unwrap_or_default().to_string_lossy().to_string();
+        if name.starts_with('.') { continue; }
+        if !is_dir {
+            let ext = ep.extension().and_then(|s| s.to_str()).unwrap_or("");
+            if ext != "md" && ext != "markdown" { continue; }
+        }
+        out.push(DirEntry { name, path: ep.to_string_lossy().to_string(), is_dir });
+    }
+    out.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then(a.name.cmp(&b.name)));
+    Ok(out)
 }
