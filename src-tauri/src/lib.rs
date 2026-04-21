@@ -3,7 +3,6 @@ pub mod fs;
 pub mod watcher;
 pub mod commands;
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use tauri::Emitter;
@@ -14,10 +13,6 @@ pub struct AppState {
     pub watcher: Arc<Mutex<watcher::Watcher>>,
 }
 
-/// When true, the main window's CloseRequested is no longer intercepted —
-/// the webview has finished its flush and wants the native close to proceed.
-/// Flipped via the `allow_close` command from App.tsx's close handler.
-pub static ALLOW_CLOSE: AtomicBool = AtomicBool::new(false);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -26,6 +21,11 @@ pub fn run() {
         Watcher::new(tx).expect("watcher init"),
     ));
 
+    // Note: we intentionally do NOT intercept CloseRequested. The webview's
+    // autosave hook flushes every 2 s and on edit, so the native close
+    // path is safe for the default configuration. If we ever add a
+    // confirm-on-dirty dialog back, it has to live behind a mechanism that
+    // can't itself block the close (e.g., a synchronous Rust-side flush).
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -45,14 +45,6 @@ pub fn run() {
             });
             Ok(())
         })
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main" && !ALLOW_CLOSE.load(Ordering::Relaxed) {
-                    api.prevent_close();
-                    let _ = window.emit("app.close-requested", ());
-                }
-            }
-        })
         .invoke_handler(tauri::generate_handler![
             commands::fs_read,
             commands::fs_write,
@@ -62,8 +54,7 @@ pub fn run() {
             commands::watcher_subscribe,
             commands::window_open_preview,
             commands::window_close,
-            commands::allow_close,
-            commands::app_exit
+            commands::app_exit,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

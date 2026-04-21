@@ -1,10 +1,8 @@
-use std::sync::atomic::Ordering;
-
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 use crate::fs;
 use crate::types::{DirEntry, FileRead, FileWritten, FsError};
-use crate::{AppState, ALLOW_CLOSE};
+use crate::AppState;
 
 #[tauri::command]
 pub fn fs_read(path: String) -> Result<FileRead, FsError> {
@@ -68,17 +66,9 @@ pub fn window_close(app: AppHandle, label: String) -> Result<(), FsError> {
     Ok(())
 }
 
-/// Flip the ALLOW_CLOSE flag so the next `CloseRequested` for the main
-/// window bypasses the intercept in `on_window_event` and closes natively.
-/// Called by the webview after it finishes its flush-on-close flow.
-#[tauri::command]
-pub fn allow_close() {
-    ALLOW_CLOSE.store(true, Ordering::Relaxed);
-}
-
-/// Exit the whole process cleanly. This is the last-resort close path the
-/// webview uses if the cooperative close (allow_close + window.close) fails
-/// for any reason.
+/// Exit the whole process cleanly. Used by future menu items like Cmd-Q;
+/// not on the red-X path (native close handles that directly now that the
+/// window-event intercept is gone).
 #[tauri::command]
 pub fn app_exit(app: AppHandle) {
     app.exit(0);

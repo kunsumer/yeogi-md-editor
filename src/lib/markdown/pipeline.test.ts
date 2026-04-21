@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { safeReplaceChildren } from "../safeInsertHtml";
 
 // Mermaid uses DOM APIs (getBBox, getComputedTextLength, etc.) that jsdom
 // does not implement. The plugin's branching logic is what we want to verify
@@ -30,10 +31,16 @@ describe("renderMarkdown", () => {
     expect(html).toContain("katex");
   });
 
-  it("strips script tags from raw HTML in source", async () => {
+  it("script tags in the source are stripped at the DOM insertion boundary", async () => {
     const html = await renderMarkdown("<script>alert(1)</script>\n\n# ok\n");
-    expect(html).not.toContain("<script");
+    // The pipeline itself intentionally does NOT sanitize (it preserves the
+    // full cast of SVG attributes mermaid needs). Sanitation happens in
+    // safeReplaceChildren via DOMPurify. The heading renders either way.
     expect(html).toContain("<h1>ok</h1>");
+    const host = document.createElement("div");
+    safeReplaceChildren(host, html);
+    expect(host.querySelector("script")).toBeNull();
+    expect(host.querySelector("h1")?.textContent).toBe("ok");
   });
 
   it("converts mermaid fences to svg (or error block on bad syntax)", async () => {

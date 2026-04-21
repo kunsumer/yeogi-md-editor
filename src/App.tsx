@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { invoke } from "@tauri-apps/api/core";
-import { emit, listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { confirm } from "@tauri-apps/plugin-dialog";
 import { ConflictBanner } from "./components/ConflictBanner";
 import { Editor } from "./components/Editor";
 import { FileTree } from "./components/FileTree";
@@ -130,83 +126,18 @@ export default function App() {
     flushRef.current = flush;
   }, [flush]);
 
+  // Best-effort flush on page hide: if the webview is going away (window
+  // close, navigation, reload) and autosave was armed, try one last
+  // synchronous-ish fsWrite. The window may close before it resolves, but
+  // that's fine — autosave runs every 2 s during editing, so the on-disk
+  // version is never more than a couple of seconds stale anyway.
   useEffect(() => {
-    async function finishClose() {
-      console.log("[close] flushing previews…");
-      try {
-        await emit("editor.closed");
-      } catch (e) {
-        console.warn("[close] editor.closed emit failed:", e);
-      }
-      console.log("[close] invoking app_exit");
-      // app.exit(0) is the nuclear-option close: it bypasses
-      // CloseRequested entirely and ends the process. Primary path.
-      try {
-        await invoke("app_exit");
-        return;
-      } catch (e) {
-        console.warn("[close] app_exit failed, falling through:", e);
-      }
-      // Cooperative path (kept as a fallback in case app_exit is ever
-      // restricted): flip ALLOW_CLOSE and ask the window to close.
-      try {
-        await invoke("allow_close");
-        await getCurrentWindow().close();
-        return;
-      } catch (e) {
-        console.warn("[close] cooperative close failed:", e);
-      }
-      // Last resort.
-      try {
-        await getCurrentWindow().destroy();
-      } catch (e) {
-        console.error("[close] destroy() also failed:", e);
-      }
-    }
-
-    console.log("[close] registering app.close-requested listener");
-    const p = listen("app.close-requested", async () => {
-      console.log("[close] received app.close-requested");
-      try {
-        const dirty = useDocuments.getState().documents.filter((d) => d.isDirty);
-        if (usePreferences.getState().autosaveEnabled) {
-          if (flushRef.current) {
-            try {
-              await flushRef.current();
-            } catch (e) {
-              console.warn("[close] flush failed:", e);
-            }
-          }
-          await finishClose();
-          return;
-        }
-        if (dirty.length === 0) {
-          await finishClose();
-          return;
-        }
-        const ok = await confirm(
-          `You have ${dirty.length} unsaved document(s). Close without saving?`,
-          { title: "Unsaved changes", kind: "warning" },
-        );
-        if (ok) {
-          await finishClose();
-        }
-      } catch (e) {
-        console.error("[close] handler threw; exiting:", e);
-        try {
-          await invoke("app_exit");
-        } catch {
-          try {
-            await getCurrentWindow().destroy();
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-    });
-    return () => {
-      p.then((fn) => fn());
+    const handler = () => {
+      if (!flushRef.current) return;
+      flushRef.current().catch((e) => console.warn("flush on pagehide failed:", e));
     };
+    window.addEventListener("pagehide", handler);
+    return () => window.removeEventListener("pagehide", handler);
   }, []);
 
   async function openFile(path: string) {
