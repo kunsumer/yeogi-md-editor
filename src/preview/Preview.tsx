@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { renderMarkdown } from "../lib/markdown/pipeline";
 import { safeReplaceChildren } from "../lib/safeInsertHtml";
+import "../components/PreviewPane/preview-content.css";
 
 interface Props {
   docId: string;
@@ -36,7 +37,7 @@ export function Preview({ docId }: Props) {
           Editor closed — this preview is read-only.
         </div>
       )}
-      <div ref={hostRef} />
+      <div ref={hostRef} className="preview-content" />
     </div>
   );
 }
@@ -51,13 +52,14 @@ function attachCopyButtons(host: HTMLElement) {
     btn.type = "button";
     btn.textContent = "Copy";
     btn.setAttribute("aria-label", "Copy code to clipboard");
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
       await navigator.clipboard.writeText(code.textContent || "");
       btn.textContent = "Copied";
       setTimeout(() => {
         btn.textContent = "Copy";
       }, 1500);
     });
-    pre.prepend(btn);
+    pre.appendChild(btn);
   });
 }

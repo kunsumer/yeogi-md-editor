@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { renderMarkdown } from "../../lib/markdown/pipeline";
 import { safeReplaceChildren } from "../../lib/safeInsertHtml";
+import "./preview-content.css";
 
 interface Props {
   content: string;
@@ -18,9 +19,6 @@ const inner: React.CSSProperties = {
   maxWidth: 760,
   margin: "0 auto",
   padding: "32px 40px 64px",
-  fontSize: 15,
-  lineHeight: 1.7,
-  color: "var(--text)",
 };
 
 export function PreviewPane({ content }: Props) {
@@ -41,7 +39,7 @@ export function PreviewPane({ content }: Props) {
 
   return (
     <div style={wrap}>
-      <div ref={hostRef} style={inner} />
+      <div ref={hostRef} className="preview-content" style={inner} />
     </div>
   );
 }
@@ -56,13 +54,14 @@ function attachCopyButtons(host: HTMLElement) {
     btn.type = "button";
     btn.textContent = "Copy";
     btn.setAttribute("aria-label", "Copy code to clipboard");
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
       await navigator.clipboard.writeText(code.textContent || "");
       btn.textContent = "Copied";
       setTimeout(() => {
         btn.textContent = "Copy";
       }, 1500);
     });
-    pre.prepend(btn);
+    pre.appendChild(btn);
   });
 }
