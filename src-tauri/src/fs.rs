@@ -58,3 +58,14 @@ pub fn write(path: &str, content: &str) -> Result<FileWritten, FsError> {
         .map(|d| d.as_millis() as i64).unwrap_or(0);
     Ok(FileWritten { mtime_ms })
 }
+
+pub fn create(path: &str) -> Result<(), FsError> {
+    let p = Path::new(path);
+    if p.exists() { return Err(FsError::Io(format!("path exists: {path}"))); }
+    stdfs::File::create(p).map_err(|e| FsError::Io(e.to_string()))?;
+    Ok(())
+}
+
+pub fn rename(from: &str, to: &str) -> Result<(), FsError> {
+    stdfs::rename(from, to).map_err(|e| FsError::Io(e.to_string()))
+}
