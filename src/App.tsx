@@ -3,6 +3,7 @@ import type { EditorView } from "@codemirror/view";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { confirm } from "@tauri-apps/plugin-dialog";
+import { ConflictBanner } from "./components/ConflictBanner";
 import { Editor } from "./components/Editor";
 import { FolderPicker } from "./components/FolderPicker";
 import { fsList, fsRead, fsWrite, watcherSubscribe, type DirEntry } from "./lib/ipc/commands";
@@ -114,17 +115,35 @@ export default function App() {
           <FolderPicker onPick={setFolder} />
         )}
       </aside>
-      <main style={{ height: "100vh" }}>
-        {active ? (
-          <Editor
-            docId={active.id}
-            value={active.content}
-            onChange={(next) => setContent(active.id, next)}
-            readOnly={active.readOnly}
-            onReady={(view) => {
-              viewRef.current = view;
+      <main style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+        {active?.conflict && (
+          <ConflictBanner
+            onKeep={async () => {
+              useDocuments.getState().setConflict(active.id, null);
+              if (flushRef.current) await flushRef.current();
             }}
+            onReload={async () => {
+              if (!active.path) return;
+              const r = await fsRead(active.path);
+              useDocuments
+                .getState()
+                .replaceContentFromDisk(active.id, { content: r.content, mtimeMs: r.mtime_ms });
+            }}
+            onDiff={() => console.log("diff viewer is post-v1")}
           />
+        )}
+        {active ? (
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <Editor
+              docId={active.id}
+              value={active.content}
+              onChange={(next) => setContent(active.id, next)}
+              readOnly={active.readOnly}
+              onReady={(view) => {
+                viewRef.current = view;
+              }}
+            />
+          </div>
         ) : (
           <div style={{ padding: 24 }}>No file open.</div>
         )}
