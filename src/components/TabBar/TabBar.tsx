@@ -9,6 +9,7 @@ interface Props {
   activeId: string | null;
   onActivate(id: string): void;
   onClose(id: string): void;
+  onNew?: () => void;
 }
 
 const tablistStyle: React.CSSProperties = {
@@ -75,7 +76,26 @@ const titleStyle: React.CSSProperties = {
   flex: 1,
 };
 
-export function TabBar({ docs, activeId, onActivate, onClose }: Props) {
+const newTabBtnStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 28,
+  height: 28,
+  marginLeft: 4,
+  marginBottom: 2,
+  padding: 0,
+  border: 0,
+  borderRadius: 6,
+  background: "transparent",
+  color: "var(--text-on-dark-muted)",
+  cursor: "pointer",
+  fontSize: 18,
+  lineHeight: 1,
+  alignSelf: "center",
+};
+
+export function TabBar({ docs, activeId, onActivate, onClose, onNew }: Props) {
   return (
     <div role="tablist" style={tablistStyle}>
       {docs.map((d) => {
@@ -130,6 +150,25 @@ export function TabBar({ docs, activeId, onActivate, onClose }: Props) {
           </div>
         );
       })}
+      {onNew && (
+        <button
+          type="button"
+          aria-label="Open new file"
+          title="Open file(s)…"
+          onClick={onNew}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-tabbar-hover)";
+            (e.currentTarget as HTMLButtonElement).style.color = "var(--text-on-dark)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+            (e.currentTarget as HTMLButtonElement).style.color = "var(--text-on-dark-muted)";
+          }}
+          style={newTabBtnStyle}
+        >
+          +
+        </button>
+      )}
     </div>
   );
 }

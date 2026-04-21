@@ -320,6 +320,7 @@ export default function App() {
         onClose={async (id) => {
           useDocuments.getState().closeDocument(id);
         }}
+        onNew={() => pickAndOpenFiles().catch(console.error)}
       />
       <div style={bodyStyle}>
         {sidebarVisible && (
