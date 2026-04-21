@@ -13,6 +13,7 @@ import { StatusBar } from "./components/StatusBar";
 import { TabBar } from "./components/TabBar";
 import { TOC } from "./components/TOC";
 import { TopBar } from "./components/TopBar";
+import { Tutorial } from "./components/Tutorial";
 import { ensureWelcomeFile, fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
 import { extractHeadings } from "./lib/toc";
 import { useDocuments, type ViewMode } from "./state/documents";
@@ -98,6 +99,7 @@ export default function App() {
   const [watcherOffline, setWatcherOffline] = useState<string | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [zoom, setZoom] = useState(1);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   useWatcherEvents(setWatcherOffline);
   const { documents, activeId, openDocument, setActive, setContent } = useDocuments();
   const { markSaved, markSaveStarted, markSaveFailed } = useDocuments.getState();
@@ -213,8 +215,8 @@ export default function App() {
         }
         return;
       }
-      // Fresh start (nothing persisted). Seed a welcome file once per machine
-      // so the app opens with something interesting rather than an empty state.
+      // Fresh start (nothing persisted). Seed a welcome file + show the
+      // first-run tutorial once per machine.
       const welcomeKey = "evhan-md-editor:welcome-shown";
       if (localStorage.getItem(welcomeKey)) return;
       try {
@@ -222,6 +224,9 @@ export default function App() {
         if (cancelled) return;
         await openFile(welcomePath);
         localStorage.setItem(welcomeKey, "true");
+        if (!localStorage.getItem("evhan-md-editor:tutorial-shown")) {
+          setTutorialOpen(true);
+        }
       } catch (e) {
         console.warn("welcome file setup failed:", e);
       }
@@ -229,6 +234,25 @@ export default function App() {
     return () => {
       cancelled = true;
       stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Finder "Open With" routes through RunEvent::Opened on the Rust side,
+  // which emits "files-opened" with the selected paths. Wire each through
+  // the normal openFile flow; openDocument dedupes by path.
+  useEffect(() => {
+    const p = listen<string[]>("files-opened", async (e) => {
+      for (const path of e.payload) {
+        try {
+          await openFile(path);
+        } catch (err) {
+          console.warn("files-opened: skipping", path, err);
+        }
+      }
+    });
+    return () => {
+      p.then((fn) => fn());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -275,6 +299,9 @@ export default function App() {
           break;
         case "view:zoom-reset":
           setZoom(1);
+          break;
+        case "help:show-tutorial":
+          setTutorialOpen(true);
           break;
         default:
           console.info("menu:", id);
@@ -425,6 +452,14 @@ export default function App() {
           />
         </main>
       </div>
+      {tutorialOpen && (
+        <Tutorial
+          onClose={() => {
+            setTutorialOpen(false);
+            localStorage.setItem("evhan-md-editor:tutorial-shown", "true");
+          }}
+        />
+      )}
     </div>
   );
 }

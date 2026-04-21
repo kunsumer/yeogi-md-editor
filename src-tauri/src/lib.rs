@@ -64,6 +64,22 @@ pub fn run() {
             commands::app_exit,
             commands::ensure_welcome_file,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            // Finder "Open With" on a .md file sends a RunEvent::Opened
+            // carrying the file URLs. Forward their filesystem paths to the
+            // webview so App.tsx can openFile each one. Paths the webview
+            // already has open are deduped by useDocuments.openDocument.
+            if let tauri::RunEvent::Opened { urls } = event {
+                let paths: Vec<String> = urls
+                    .iter()
+                    .filter_map(|u| u.to_file_path().ok())
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect();
+                if !paths.is_empty() {
+                    let _ = app.emit("files-opened", paths);
+                }
+            }
+        });
 }

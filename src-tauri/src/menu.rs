@@ -109,7 +109,14 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .item(&PredefinedMenuItem::close_window(app, None)?)
         .build()?;
 
+    let help = SubmenuBuilder::new(app, "Help")
+        .item(
+            &MenuItemBuilder::with_id("help:show-tutorial", "Show Tutorial")
+                .build(app)?,
+        )
+        .build()?;
+
     MenuBuilder::new(app)
-        .items(&[&app_menu, &file, &edit, &view, &window])
+        .items(&[&app_menu, &file, &edit, &view, &window, &help])
         .build()
 }
