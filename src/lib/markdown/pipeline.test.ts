@@ -43,6 +43,12 @@ describe("renderMarkdown", () => {
     expect(bad).toContain("mermaid-error");
   });
 
+  it("continues rendering when math is malformed", async () => {
+    const html = await renderMarkdown("# Ok\n\n$\\frac{}{}$ $E=mc^2$\n");
+    expect(html).toContain("<h1>Ok</h1>");
+    expect(html).toContain("katex");
+  });
+
   it("renders shiki-highlighted code blocks", async () => {
     const html = await renderMarkdown("```ts\nconst a: number = 1;\n```\n");
     expect(html).toContain("<pre");
