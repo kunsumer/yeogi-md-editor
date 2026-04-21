@@ -46,11 +46,18 @@ interface DocumentsState {
 let seq = 0;
 const newId = () => `doc-${++seq}-${Date.now()}`;
 
-export const useDocuments = create<DocumentsState>((set) => ({
+export const useDocuments = create<DocumentsState>((set, get) => ({
   documents: [],
   activeId: null,
 
   openDocument({ path, content, savedMtime, encoding, readOnly = false }) {
+    if (path) {
+      const existing = get().documents.find((d) => d.path === path);
+      if (existing) {
+        set({ activeId: existing.id });
+        return existing.id;
+      }
+    }
     const id = newId();
     const doc: Document = {
       id,

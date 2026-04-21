@@ -8,7 +8,14 @@ export interface PersistedSession {
 }
 
 function snapshot(state: ReturnType<typeof useDocuments.getState>): PersistedSession {
-  const paths = state.documents.map((d) => d.path).filter((p): p is string => !!p);
+  const seen = new Set<string>();
+  const paths: string[] = [];
+  for (const d of state.documents) {
+    if (d.path && !seen.has(d.path)) {
+      seen.add(d.path);
+      paths.push(d.path);
+    }
+  }
   const active = state.documents.find((d) => d.id === state.activeId);
   return { paths, activePath: active?.path ?? null };
 }

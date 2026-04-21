@@ -23,6 +23,23 @@ describe("useDocuments", () => {
     expect(useDocuments.getState().documents[0].isDirty).toBe(true);
   });
 
+  it("openDocument with the same path returns the existing id, no duplicate", () => {
+    const { openDocument } = useDocuments.getState();
+    const id1 = openDocument({ path: "/a.md", content: "v1", savedMtime: 1, encoding: "utf-8" });
+    const id2 = openDocument({ path: "/a.md", content: "v1", savedMtime: 1, encoding: "utf-8" });
+    expect(id2).toBe(id1);
+    expect(useDocuments.getState().documents).toHaveLength(1);
+    expect(useDocuments.getState().activeId).toBe(id1);
+  });
+
+  it("openDocument allows multiple Untitled (path: null) buffers", () => {
+    const { openDocument } = useDocuments.getState();
+    const id1 = openDocument({ path: null, content: "", savedMtime: 0, encoding: "utf-8" });
+    const id2 = openDocument({ path: null, content: "", savedMtime: 0, encoding: "utf-8" });
+    expect(id2).not.toBe(id1);
+    expect(useDocuments.getState().documents).toHaveLength(2);
+  });
+
   it("markSaved clears dirty and updates savedMtime", () => {
     const { openDocument, setContent, markSaved } = useDocuments.getState();
     const id = openDocument({ path: "/a.md", content: "orig", savedMtime: 1, encoding: "utf-8" });
