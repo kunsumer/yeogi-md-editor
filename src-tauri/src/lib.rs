@@ -2,6 +2,7 @@
 
 pub mod types;
 pub mod fs;
+pub mod watcher;
 pub mod commands;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
