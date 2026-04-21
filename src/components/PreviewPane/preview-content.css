@@ -82,12 +82,13 @@
   line-height: 1.5;
 }
 .preview-content thead th {
-  background: var(--bg-sidebar);
+  background: #eceef1;
   font-weight: 600;
   color: var(--text);
+  border-bottom: 1px solid var(--border-strong);
 }
 .preview-content tbody tr:nth-child(even) td {
-  background: rgba(0, 0, 0, 0.015);
+  background: #f6f7f9;
 }
 
 /* Inline code — Meva-style gray pill */
