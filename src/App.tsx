@@ -9,11 +9,14 @@ import { fsList, fsRead, fsWrite, watcherSubscribe, type DirEntry } from "./lib/
 import { useDocuments } from "./state/documents";
 import { usePreferences } from "./state/preferences";
 import { useAutosave } from "./hooks/useAutosave";
+import { useWatcherEvents } from "./hooks/useWatcherEvents";
 import { flushRef } from "./state/flushRef";
 
 export default function App() {
   const [folder, setFolder] = useState<string | null>(null);
   const [entries, setEntries] = useState<DirEntry[]>([]);
+  const [, setWatcherOffline] = useState<string | null>(null);
+  useWatcherEvents(setWatcherOffline);
   const { documents, activeId, openDocument, setActive, setContent } = useDocuments();
   const { markSaved, markSaveStarted, markSaveFailed } = useDocuments.getState();
   const autosaveEnabled = usePreferences((s) => s.autosaveEnabled);
