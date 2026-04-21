@@ -15,6 +15,7 @@ import { usePreferences } from "./state/preferences";
 import { useAutosave } from "./hooks/useAutosave";
 import { useWatcherEvents } from "./hooks/useWatcherEvents";
 import { flushRef } from "./state/flushRef";
+import { loadPersistedSession, startSessionPersistence } from "./state/sessionPersistence";
 
 export default function App() {
   const [folder, setFolder] = useState<string | null>(null);
@@ -70,7 +71,7 @@ export default function App() {
   }, []);
 
   async function openFile(path: string) {
-    const existing = documents.find((d) => d.path === path);
+    const existing = useDocuments.getState().documents.find((d) => d.path === path);
     if (existing) {
       setActive(existing.id);
       return;
@@ -85,6 +86,35 @@ export default function App() {
     await watcherSubscribe(path);
     setActive(id);
   }
+
+  useEffect(() => {
+    let cancelled = false;
+    const persisted = loadPersistedSession();
+    const stop = startSessionPersistence();
+    if (persisted && persisted.paths.length > 0) {
+      (async () => {
+        for (const path of persisted.paths) {
+          if (cancelled) return;
+          try {
+            await openFile(path);
+          } catch (e) {
+            console.warn("session restore: skipping", path, e);
+          }
+        }
+        if (!cancelled && persisted.activePath) {
+          const doc = useDocuments
+            .getState()
+            .documents.find((d) => d.path === persisted.activePath);
+          if (doc) setActive(doc.id);
+        }
+      })();
+    }
+    return () => {
+      cancelled = true;
+      stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", height: "100vh" }}>
