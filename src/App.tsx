@@ -7,6 +7,7 @@ import { ConflictBanner } from "./components/ConflictBanner";
 import { Editor } from "./components/Editor";
 import { FileTree } from "./components/FileTree";
 import { FolderPicker } from "./components/FolderPicker";
+import { StatusBar } from "./components/StatusBar";
 import { TabBar } from "./components/TabBar";
 import { fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
 import { useDocuments } from "./state/documents";
@@ -17,7 +18,7 @@ import { flushRef } from "./state/flushRef";
 
 export default function App() {
   const [folder, setFolder] = useState<string | null>(null);
-  const [, setWatcherOffline] = useState<string | null>(null);
+  const [watcherOffline, setWatcherOffline] = useState<string | null>(null);
   useWatcherEvents(setWatcherOffline);
   const { documents, activeId, openDocument, setActive, setContent } = useDocuments();
   const { markSaved, markSaveStarted, markSaveFailed } = useDocuments.getState();
@@ -144,8 +145,14 @@ export default function App() {
             />
           </div>
         ) : (
-          <div style={{ padding: 24 }}>No file open.</div>
+          <div style={{ padding: 24, flex: 1 }}>No file open.</div>
         )}
+        <StatusBar
+          isDirty={active?.isDirty ?? false}
+          saveState={active?.saveState ?? "idle"}
+          wordCount={(active?.content ?? "").trim().split(/\s+/).filter(Boolean).length}
+          watcherOffline={watcherOffline}
+        />
       </main>
     </div>
   );
