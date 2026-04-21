@@ -2,58 +2,57 @@
 
 ## Current state
 
-Phases 0–8 + Phase 7.5 of PLAN.md complete. On `main` branch, HEAD `912d44d`.
+Phases 0–9 + Phase 7.5 of PLAN.md complete. On `main` branch, HEAD at the CSP commit.
 
 - Tauri 2 + Vite + React 18 + TypeScript + Vitest + Playwright + GitHub Actions CI.
-- Rust backend: `types.rs`, `fs.rs`, `watcher.rs` (debounced), `commands.rs` (6 commands). `lib.rs::run()` owns mpsc → `file.changed` / `watcher.lost`, intercepts main-window close.
-- Frontend primitives: typed IPC wrappers (`mtime_ms: number`), `decideOnExternalChange`, `useDocuments` (path-idempotent `openDocument`), `usePreferences`, `sessionPersistence` (localStorage subscribe + restore, dedupes paths).
+- Rust backend: `types.rs`, `fs.rs`, `watcher.rs`, `commands.rs` (8 commands now: 5 fs + watcher_subscribe + window_open_preview + window_close). `lib.rs::run()` owns mpsc → `file.changed` / `watcher.lost`, intercepts main-window close.
+- Frontend primitives: typed IPC wrappers, `decideOnExternalChange`, `useDocuments` (path-idempotent `openDocument`), `usePreferences`, `sessionPersistence`.
 - Hooks: `useAutosave`, `useWatcherEvents`.
-- Shell components: `Editor`, `OpenButtons` (multi-file + folder), `FileTree`, `TabBar`, `ConflictBanner`, `StatusBar`.
-- Markdown rendering pipeline (Phase 8):
-  - `src/lib/markdown/pipeline.ts` — `renderMarkdown(md): Promise<string>`. Pipeline: parse → GFM → math → rehype (allowDangerousHtml:true) → rehypeMermaidInline → rehypeRaw → rehypeKatex (throwOnError:false) → @shikijs/rehype (github-dark) → rehypeSanitize (custom schema whitelisting className/style + SVG tag set) → stringify.
-  - `src/lib/markdown/mermaid-plugin.ts` — visits `pre > code.language-mermaid`, calls `mermaid.render`, replaces with `<div class="mermaid">{svg}</div>` or `<pre class="mermaid-error">` on failure.
-  - `rehype-raw` re-parses raw nodes (mermaid SVG + raw HTML in source) into proper hast elements before sanitize sees them, so SVG flows through and `<script>` tags get stripped.
-  - 5 pipeline tests: GFM tables, KaTeX, script-strip, Mermaid (mocked — jsdom lacks getBBox), Shiki inline-style assertions, malformed-math smoke.
-  - Swapped `rehype-shiki@0.0.9` (CommonJS, abandoned, broke under unified 11) for `@shikijs/rehype@4`. Added `rehype-raw` and `@types/hast`.
-- App composition: sidebar (OpenButtons + optional FileTree) | TabBar → ConflictBanner (when `active.conflict`) → Editor (flex-1) → StatusBar.
-- Tauri capabilities: `core:default`, `core:window:allow-destroy`, `dialog:default`.
-- 16 Rust tests, 32 TS tests (11 test files), `pnpm lint` clean, `cargo build` clean.
+- Markdown pipeline (Phase 8): `renderMarkdown` (parse → GFM → math → rehype + rehypeMermaidInline + rehype-raw → KaTeX → @shikijs/rehype → sanitize → stringify).
+- Preview window (Phase 9):
+  - `src/lib/safeInsertHtml.ts` — `sanitizeHtml` (DOMPurify) + `safeReplaceChildren` (DOMParser + replaceChildren). The single DOM insertion path for rendered HTML.
+  - `preview.html` + `src/preview/main.tsx` + `src/preview/Preview.tsx` — separate Vite entry; Preview listens for `preview.contentUpdate` (filtered by docId), pipes through `renderMarkdown` + `safeReplaceChildren`, attaches Copy buttons to each `<pre>`. Listens for `editor.closed` to show an orphan banner.
+  - `vite.config.ts` — `build.rollupOptions.input` map for both entries.
+  - Rust `window_open_preview` (idempotent on existing label) + `window_close` commands; `src-tauri/capabilities/preview.json` grants `core:default` to `preview-*` windows.
+  - App `togglePreview` is wired to a temporary StatusBar button (Phase 10 moves it into a toolbar). 200 ms debounced `emit("preview.contentUpdate")` on `active.content` change while the preview is open.
+  - `app.close-requested` handler now `emit("editor.closed")` before destroying so previews flip to orphan.
+- CSP re-enabled in `tauri.conf.json`: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: asset: http://asset.localhost; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost ws://localhost:1420 http://localhost:1420`.
+- Tauri capabilities: `default` (main window: core + window_destroy + dialog) and `preview` (preview-* windows: core).
+- 16 Rust tests, 36 TS tests (12 test files), `pnpm lint` clean, `cargo build` clean, multi-entry `pnpm build` produces both `dist/index.html` and `dist/preview.html`.
 
 ## In progress
 
-None. Ready to resume at **Phase 9 — Preview window** (4 tasks: `safeReplaceChildren` helper, preview entry + component that calls `renderMarkdown` and pipes through the helper, "Open preview" wiring with 200ms sync debounce, orphan banner + tab-close closes preview). Phase 9 is also the natural moment to re-enable `csp` in `tauri.conf.json` since the preview window is the surface where rendered HTML actually hits the DOM.
+None. Ready to resume at **Phase 10 — Word-like formatting toolbar** (2 tasks: CodeMirror transaction helpers for bold/italic/etc., and a Toolbar component that uses the helpers via the editor view ref). Phase 10 also moves the temporary StatusBar preview button into the toolbar.
 
 ## Decisions carried forward (read before resuming)
 
 - **Execution mode:** `superpowers:subagent-driven-development` pragmatic cadence.
-- **Architecture override to PLAN.md:** `main.rs` stays a thin caller; `pub fn run()` lives in `lib.rs`. Treat "rewrite `main.rs`" as "update `lib.rs::run()`".
-- **ts-rs 8.1 export path quirk:** `#[ts(type = "number")]` works, but ts-rs 8.1 resolves `export_to` relative to cwd at test time, so the fresh file lands at `src-tauri/src/lib/ipc/types.ts` (gitignored). Committed `src/lib/ipc/types.ts` is frozen with `bigint`. IPC wrappers mask with `as unknown as`.
-- **Close flow uses `destroy()` not `close()`:** Rust `on_window_event` unconditionally prevents `CloseRequested`. Tauri 2 API is `getCurrentWindow()`. Needs `core:window:allow-destroy`.
-- **Preview-window wiring is forward-looking:** `TabBar` `onClose` calls `invoke("window_close", { label })` if `previewWindowLabel` is set — Phase 9 introduces both. Inert in Phases 7–8.
-- **WKWebView DevTools quirk:** Safari Web Inspector does NOT allow top-level `await`. Diagnostic snippets must use an async IIFE or `.then(...)` chain.
-- **Session persistence:** localStorage key `evhan-md-editor:session`. Stores `{ paths, activePath }`. Subscribe writes on `useDocuments` change (deduped by serialized form). Restore silently drops files that fail `fsRead`. `openDocument` is now path-idempotent so concurrent opens (Strict Mode double-mount, repeated clicks) cannot create duplicate tabs.
-- **`@types/react` / `@types/react-dom`** pinned to `^18` to match runtime.
-- **`"csp": null`** in `tauri.conf.json` — restore in Phase 9. Existing UI uses inline styles heavily and CodeMirror injects `<style>` tags dynamically, so the CSP needs `style-src 'self' 'unsafe-inline'` at minimum. Restoring CSP without that audit would break the editor.
-- **Mermaid + jsdom:** mermaid is mocked in `pipeline.test.ts` because jsdom doesn't implement `getBBox` etc. Real-browser behavior must be smoke-tested manually in Phase 9.
+- **Architecture override to PLAN.md:** `main.rs` stays a thin caller; `pub fn run()` lives in `lib.rs`.
+- **ts-rs 8.1 export path quirk:** generated file at `src-tauri/src/lib/ipc/types.ts` (gitignored), committed `src/lib/ipc/types.ts` frozen with `bigint`. IPC wrappers cast.
+- **Close flow uses `destroy()` not `close()`:** Tauri 2 API is `getCurrentWindow()`, needs `core:window:allow-destroy`.
+- **WKWebView DevTools quirk:** Safari Web Inspector does NOT allow top-level `await`. Use IIFE or `.then(...)`.
+- **Session persistence:** localStorage key `evhan-md-editor:session`. `openDocument` is path-idempotent.
+- **`@types/react` / `@types/react-dom`** pinned to `^18`.
+- **Mermaid + jsdom:** mocked in pipeline.test.ts because jsdom doesn't implement `getBBox`; real-browser behavior must be smoke-tested.
+- **CSP is permissive in v1** — Phase 13 will tighten (drop dev-only `ws://localhost:1420 http://localhost:1420`, narrow `asset:` etc.). Inline styles are load-bearing for CodeMirror, Shiki, and the inline `style={{...}}` JSX patterns we use everywhere.
 - **Phase 5 deviations:** `getCurrentWindow` + `destroy()`.
-- **Phase 6 deviations:** `useWatcherEvents(setWatcherOffline)` passes the stable setter directly.
-- **Phase 7 deviations:** `FileTree` Node renders icon and name in separate `<span>`s; imports `DirEntry` from `./lib/ipc/commands`.
-- **Phase 7.5 (added 2026-04-21):** OpenButtons + session restore. `openFile`'s dedupe reads `useDocuments.getState()` (live state).
-- **Phase 8 deviations from PLAN.md:**
-  - Swapped `rehype-shiki@0.0.9` for `@shikijs/rehype@4` (the old plugin was CommonJS using a removed shiki API). Test asserts inline color styles (the modern API's output) instead of a `class="shiki"` (old API's output).
-  - Added `rehype-raw` between mermaid and sanitize. Plan didn't include it; without it, the SVG that mermaid injects as a raw node gets dropped by `rehype-sanitize` and the mermaid block ends up empty.
-  - Added `@types/hast` for the `Plugin<[], Root>` cast on rehypeRaw (unified's chain types narrow as plugins stack and rehype-raw's overloads don't infer cleanly).
-  - CSP re-enable deferred to Phase 9 (where the preview window is the first surface that actually displays rendered HTML to the DOM).
+- **Phase 6 deviations:** `useWatcherEvents(setWatcherOffline)` passes the stable setter.
+- **Phase 7 deviations:** `FileTree` Node uses split spans; imports `DirEntry` from `./lib/ipc/commands`.
+- **Phase 7.5:** OpenButtons + session restore, `openFile` uses `getState()` for live-state dedupe.
+- **Phase 8 deviations:** swapped `rehype-shiki` for `@shikijs/rehype`; added `rehype-raw` (mermaid SVG bridge); added `@types/hast`; CSP deferred from 8 to 9.
+- **Phase 9 deviations from PLAN.md:**
+  - The plan placed the preview button "in StatusBar" temporarily (Phase 10 moves it). Wired StatusBar to accept optional `onTogglePreview` + `previewOpen` props rather than poking a button into App's render tree directly. Same end state, cleaner contract.
+  - The plan's "extend the close handler" only mentions one branch. Extended all three (autosave-on, clean, confirm-then-destroy) since each one calls `destroy()` independently.
 
 ## Risks
 
-- **Mermaid in WKWebView:** Mermaid's render path uses lots of layout APIs (getBBox, getComputedTextLength, canvas TextMetrics). It works in WebKit, but version-to-version regressions are possible. The `mermaid-error` fallback keeps a bad block from breaking the rest of the page.
-- **Shiki bundle size:** `@shikijs/rehype` bundles language grammars and themes. Default config pulls a lot. Phase 13 perf pass should consider lazy-loading per-language grammars.
+- **CSP runtime breakage:** the CSP was set without a manual smoke test. Most likely failure is HMR if the dev URL or port is different on a contributor's machine, or KaTeX fonts loaded over `https:` rather than data:. Easy to relax if it bites; revert is one config flip.
+- **Preview window event ordering:** if a preview is opened in the same tick a user closes the app, `editor.closed` may fire before the preview's `listen` resolves. Low-impact (preview just won't show the orphan banner; window will still close eventually).
 
 ## Next milestone
 
-Phase 9 — preview window (`safeReplaceChildren` + `Preview` route + open / sync / close wiring). Re-enable CSP. Then Phase 10 — Word-like formatting toolbar.
+Phase 10 — Word-like formatting toolbar (CM6 transaction helpers + Toolbar component, move preview button into the toolbar). Then Phase 11 — TOC + copy-button tests.
 
 ## How to resume
 
-In a new Claude Code session at `/Users/peter/Documents/evhan-md-editor/`, say: `Resume the implementation plan at docs/claude-code/specs/2026-04-21-markdown-editor/PLAN.md. We're at Phase 9. Read this STATUS.md first.`
+In a new Claude Code session at `/Users/peter/Documents/evhan-md-editor/`, say: `Resume the implementation plan at docs/claude-code/specs/2026-04-21-markdown-editor/PLAN.md. We're at Phase 10. Read this STATUS.md first.`
