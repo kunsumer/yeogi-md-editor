@@ -2,19 +2,44 @@ import { useEffect, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import { Editor } from "./components/Editor";
 import { FolderPicker } from "./components/FolderPicker";
-import { fsList, fsRead, watcherSubscribe, type DirEntry } from "./lib/ipc/commands";
+import { fsList, fsRead, fsWrite, watcherSubscribe, type DirEntry } from "./lib/ipc/commands";
 import { useDocuments } from "./state/documents";
+import { usePreferences } from "./state/preferences";
+import { useAutosave } from "./hooks/useAutosave";
+import { flushRef } from "./state/flushRef";
 
 export default function App() {
   const [folder, setFolder] = useState<string | null>(null);
   const [entries, setEntries] = useState<DirEntry[]>([]);
   const { documents, activeId, openDocument, setActive, setContent } = useDocuments();
+  const { markSaved, markSaveStarted, markSaveFailed } = useDocuments.getState();
+  const autosaveEnabled = usePreferences((s) => s.autosaveEnabled);
+  const autosaveDebounceMs = usePreferences((s) => s.autosaveDebounceMs);
   const active = documents.find((d) => d.id === activeId) ?? null;
   const viewRef = useRef<EditorView | null>(null);
 
   useEffect(() => {
     if (folder) fsList(folder).then(setEntries).catch(console.error);
   }, [folder]);
+
+  const { flush } = useAutosave({
+    enabled: autosaveEnabled && !!active?.path && !active?.readOnly,
+    debounceMs: autosaveDebounceMs,
+    content: active?.content ?? "",
+    save: async (value) => {
+      if (!active?.path) return;
+      try {
+        markSaveStarted(active.id);
+        const r = await fsWrite(active.path, value);
+        markSaved(active.id, { content: value, mtimeMs: r.mtime_ms });
+      } catch (e) {
+        markSaveFailed(active.id, String(e));
+      }
+    },
+  });
+  useEffect(() => {
+    flushRef.current = flush;
+  }, [flush]);
 
   async function openFile(path: string) {
     const existing = documents.find((d) => d.path === path);
