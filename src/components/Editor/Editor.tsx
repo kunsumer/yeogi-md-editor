@@ -4,7 +4,46 @@ import { EditorView, keymap, lineNumbers, highlightActiveLine } from "@codemirro
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { search, searchKeymap } from "@codemirror/search";
-import { oneDark } from "@codemirror/theme-one-dark";
+
+// Make the CodeMirror view fill its flex parent and scroll internally
+// instead of growing beyond it. Also gives the editor a calm light surface
+// that matches the Meva-style chrome.
+const editorTheme = EditorView.theme({
+  "&": {
+    height: "100%",
+    fontSize: "14px",
+    backgroundColor: "#ffffff",
+    color: "#1a1a1a",
+  },
+  "&.cm-focused": {
+    outline: "none",
+  },
+  ".cm-scroller": {
+    overflow: "auto",
+    fontFamily:
+      'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+    lineHeight: "1.6",
+    padding: "16px 24px",
+  },
+  ".cm-content": {
+    caretColor: "#1a1a1a",
+  },
+  ".cm-gutters": {
+    backgroundColor: "#fafafa",
+    color: "#9ca3af",
+    border: "none",
+    borderRight: "1px solid #eeeeee",
+  },
+  ".cm-activeLineGutter": {
+    backgroundColor: "#f1f5f9",
+  },
+  ".cm-activeLine": {
+    backgroundColor: "rgba(0, 0, 0, 0.02)",
+  },
+  ".cm-selectionBackground, ::selection": {
+    backgroundColor: "#cfe4ff !important",
+  },
+});
 
 interface Props {
   docId: string;
@@ -28,12 +67,13 @@ export function Editor({ docId, value, onChange, readOnly, onReady }: Props) {
         history(),
         markdown(),
         search({ top: true }),
+        EditorView.lineWrapping,
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
         EditorState.readOnly.of(readOnly),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) onChange(u.state.doc.toString());
         }),
-        oneDark,
+        editorTheme,
       ],
     });
     const view = new EditorView({ state, parent: hostRef.current });

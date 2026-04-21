@@ -10,6 +10,7 @@ import { FileTree } from "./components/FileTree";
 import { OpenButtons } from "./components/OpenButtons";
 import { StatusBar } from "./components/StatusBar";
 import { TabBar } from "./components/TabBar";
+import { TopBar } from "./components/TopBar";
 import { fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
 import { useDocuments } from "./state/documents";
 import { usePreferences } from "./state/preferences";
@@ -17,6 +18,88 @@ import { useAutosave } from "./hooks/useAutosave";
 import { useWatcherEvents } from "./hooks/useWatcherEvents";
 import { flushRef } from "./state/flushRef";
 import { loadPersistedSession, startSessionPersistence } from "./state/sessionPersistence";
+
+const shellStyle: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  height: "100vh",
+  width: "100vw",
+  overflow: "hidden",
+  background: "var(--bg)",
+};
+
+const bodyStyle: React.CSSProperties = {
+  flex: 1,
+  minHeight: 0,
+  display: "grid",
+  gridTemplateColumns: "260px 1fr",
+};
+
+const asideStyle: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  background: "var(--bg-sidebar)",
+  borderRight: "1px solid var(--border)",
+  minWidth: 0,
+  overflow: "hidden",
+};
+
+const asideHeaderStyle: React.CSSProperties = {
+  padding: "14px 14px 10px",
+  borderBottom: "1px solid var(--border)",
+  flexShrink: 0,
+};
+
+const asideBodyStyle: React.CSSProperties = {
+  flex: 1,
+  minHeight: 0,
+  overflow: "auto",
+  padding: "8px 10px 16px",
+};
+
+const asideFolderLabelStyle: React.CSSProperties = {
+  fontSize: 11,
+  letterSpacing: 0.4,
+  textTransform: "uppercase",
+  color: "var(--text-faint)",
+  padding: "8px 6px 4px",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const mainStyle: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  minWidth: 0,
+  minHeight: 0,
+  overflow: "hidden",
+};
+
+const emptyStateStyle: React.CSSProperties = {
+  flex: 1,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "var(--text-faint)",
+  fontSize: 13,
+};
+
+const brandStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  fontWeight: 600,
+  fontSize: 13,
+  color: "var(--text)",
+};
+
+const brandDotStyle: React.CSSProperties = {
+  width: 18,
+  height: 18,
+  borderRadius: 4,
+  background: "linear-gradient(135deg, var(--accent) 0%, #7c3aed 100%)",
+};
 
 export default function App() {
   const [folder, setFolder] = useState<string | null>(null);
@@ -123,8 +206,6 @@ export default function App() {
     }
   }
 
-  // Debounced preview sync: when an active doc has an open preview window,
-  // re-emit its content 200 ms after the last change.
   useEffect(() => {
     if (!active?.previewWindowLabel) return;
     const t = setTimeout(() => {
@@ -162,109 +243,103 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const wordCount = (active?.content ?? "").trim().split(/\s+/).filter(Boolean).length;
+
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "260px 1fr",
-        height: "100vh",
-        width: "100vw",
-        overflow: "hidden",
-      }}
-    >
-      <aside
-        style={{
-          borderRight: "1px solid #ccc",
-          padding: 8,
-          overflow: "auto",
-          minWidth: 0,
+    <div style={shellStyle}>
+      <TabBar
+        docs={documents.map((d) => ({
+          id: d.id,
+          title: d.path ? d.path.split("/").pop()! : "Untitled",
+          isDirty: d.isDirty,
+        }))}
+        activeId={activeId}
+        onActivate={setActive}
+        onClose={async (id) => {
+          const doc = useDocuments.getState().documents.find((d) => d.id === id);
+          if (doc?.previewWindowLabel) {
+            await invoke("window_close", { label: doc.previewWindowLabel });
+          }
+          useDocuments.getState().closeDocument(id);
         }}
-      >
-        <OpenButtons
-          onPickFiles={async (paths) => {
-            for (const p of paths) {
-              try {
-                await openFile(p);
-              } catch (e) {
-                console.error("openFile failed:", p, e);
-              }
-            }
-          }}
-          onPickFolder={setFolder}
-        />
-        {folder && (
-          <>
-            <div style={{ fontSize: 12, opacity: 0.6 }}>{folder}</div>
-            <FileTree root={folder} onOpenFile={openFile} />
-          </>
-        )}
-      </aside>
-      <main
-        style={{
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
-          overflow: "hidden",
-        }}
-      >
-        <TabBar
-          docs={documents.map((d) => ({
-            id: d.id,
-            title: d.path ? d.path.split("/").pop()! : "Untitled",
-            isDirty: d.isDirty,
-          }))}
-          activeId={activeId}
-          onActivate={setActive}
-          onClose={async (id) => {
-            const doc = useDocuments.getState().documents.find((d) => d.id === id);
-            if (doc?.previewWindowLabel) {
-              const { invoke } = await import("@tauri-apps/api/core");
-              await invoke("window_close", { label: doc.previewWindowLabel });
-            }
-            useDocuments.getState().closeDocument(id);
-          }}
-        />
-        {active?.conflict && (
-          <ConflictBanner
-            onKeep={async () => {
-              useDocuments.getState().setConflict(active.id, null);
-              if (flushRef.current) await flushRef.current();
-            }}
-            onReload={async () => {
-              if (!active.path) return;
-              const r = await fsRead(active.path);
-              useDocuments
-                .getState()
-                .replaceContentFromDisk(active.id, { content: r.content, mtimeMs: r.mtime_ms });
-            }}
-            onDiff={() => console.log("diff viewer is post-v1")}
-          />
-        )}
-        {active ? (
-          <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden" }}>
-            <Editor
-              docId={active.id}
-              value={active.content}
-              onChange={(next) => setContent(active.id, next)}
-              readOnly={active.readOnly}
-              onReady={(view) => {
-                viewRef.current = view;
-              }}
-            />
+      />
+      <div style={bodyStyle}>
+        <aside style={asideStyle}>
+          <div style={asideHeaderStyle}>
+            <div style={brandStyle}>
+              <span aria-hidden="true" style={brandDotStyle} />
+              <span>evhan-md</span>
+            </div>
           </div>
-        ) : (
-          <div style={{ padding: 24, flex: 1 }}>No file open.</div>
-        )}
-        <StatusBar
-          isDirty={active?.isDirty ?? false}
-          saveState={active?.saveState ?? "idle"}
-          wordCount={(active?.content ?? "").trim().split(/\s+/).filter(Boolean).length}
-          watcherOffline={watcherOffline}
-          onTogglePreview={active ? togglePreview : undefined}
-          previewOpen={!!active?.previewWindowLabel}
-        />
-      </main>
+          <div style={asideBodyStyle}>
+            <OpenButtons
+              onPickFiles={async (paths) => {
+                for (const p of paths) {
+                  try {
+                    await openFile(p);
+                  } catch (e) {
+                    console.error("openFile failed:", p, e);
+                  }
+                }
+              }}
+              onPickFolder={setFolder}
+            />
+            {folder && (
+              <>
+                <div style={asideFolderLabelStyle} title={folder}>
+                  {folder.split("/").pop() ?? folder}
+                </div>
+                <FileTree root={folder} onOpenFile={openFile} />
+              </>
+            )}
+          </div>
+        </aside>
+        <main style={mainStyle}>
+          <TopBar
+            path={active?.path ?? null}
+            wordCount={wordCount}
+            saveState={active?.saveState ?? "idle"}
+            isDirty={active?.isDirty ?? false}
+            onTogglePreview={active ? togglePreview : undefined}
+            previewOpen={!!active?.previewWindowLabel}
+          />
+          {active?.conflict && (
+            <ConflictBanner
+              onKeep={async () => {
+                useDocuments.getState().setConflict(active.id, null);
+                if (flushRef.current) await flushRef.current();
+              }}
+              onReload={async () => {
+                if (!active.path) return;
+                const r = await fsRead(active.path);
+                useDocuments
+                  .getState()
+                  .replaceContentFromDisk(active.id, { content: r.content, mtimeMs: r.mtime_ms });
+              }}
+              onDiff={() => console.log("diff viewer is post-v1")}
+            />
+          )}
+          {active ? (
+            <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden" }}>
+              <Editor
+                docId={active.id}
+                value={active.content}
+                onChange={(next) => setContent(active.id, next)}
+                readOnly={active.readOnly}
+                onReady={(view) => {
+                  viewRef.current = view;
+                }}
+              />
+            </div>
+          ) : (
+            <div style={emptyStateStyle}>No file open. Use the sidebar to open one.</div>
+          )}
+          <StatusBar
+            saveState={active?.saveState ?? "idle"}
+            watcherOffline={watcherOffline}
+          />
+        </main>
+      </div>
     </div>
   );
 }

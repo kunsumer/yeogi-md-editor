@@ -5,6 +5,13 @@ interface Props {
   onPickFolder: (path: string) => void;
 }
 
+const wrap: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+  paddingBottom: 4,
+};
+
 export function OpenButtons({ onPickFiles, onPickFolder }: Props) {
   async function handleFiles() {
     const picked = await open({
@@ -21,9 +28,13 @@ export function OpenButtons({ onPickFiles, onPickFolder }: Props) {
   }
 
   return (
-    <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-      <button onClick={handleFiles}>Open file(s)…</button>
-      <button onClick={handleFolder}>Open folder…</button>
+    <div style={wrap}>
+      <button className="btn-primary" onClick={handleFiles} style={{ justifyContent: "center" }}>
+        Open file(s)…
+      </button>
+      <button className="btn-ghost" onClick={handleFolder} style={{ justifyContent: "center" }}>
+        Open folder…
+      </button>
     </div>
   );
 }
