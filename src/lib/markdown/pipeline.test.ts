@@ -1,4 +1,21 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+// Mermaid uses DOM APIs (getBBox, getComputedTextLength, etc.) that jsdom
+// does not implement. The plugin's branching logic is what we want to verify
+// here; the actual SVG rasterization is mermaid's responsibility and gets
+// exercised manually in the real WebKit window.
+vi.mock("mermaid", () => ({
+  default: {
+    initialize: vi.fn(),
+    render: vi.fn(async (_id: string, code: string) => {
+      if (!code.startsWith("flowchart") && !code.startsWith("sequenceDiagram")) {
+        throw new Error("Parse error: not a recognized diagram");
+      }
+      return { svg: "<svg viewBox='0 0 100 100'><g/></svg>" };
+    }),
+  },
+}));
+
 import { renderMarkdown } from "./pipeline";
 
 describe("renderMarkdown", () => {
@@ -17,6 +34,13 @@ describe("renderMarkdown", () => {
     const html = await renderMarkdown("<script>alert(1)</script>\n\n# ok\n");
     expect(html).not.toContain("<script");
     expect(html).toContain("<h1>ok</h1>");
+  });
+
+  it("converts mermaid fences to svg (or error block on bad syntax)", async () => {
+    const good = await renderMarkdown("```mermaid\nflowchart TD; A-->B;\n```\n");
+    expect(good).toMatch(/<svg/);
+    const bad = await renderMarkdown("```mermaid\nthis is not mermaid\n```\n");
+    expect(bad).toContain("mermaid-error");
   });
 
   it("renders shiki-highlighted code blocks", async () => {

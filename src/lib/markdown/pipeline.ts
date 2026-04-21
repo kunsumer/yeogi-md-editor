@@ -4,9 +4,13 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import remarkRehype from "remark-rehype";
 import rehypeKatex from "rehype-katex";
+import rehypeRaw from "rehype-raw";
+import type { Plugin } from "unified";
+import type { Root } from "hast";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import rehypeShiki from "@shikijs/rehype";
 import rehypeStringify from "rehype-stringify";
+import { rehypeMermaidInline } from "./mermaid-plugin";
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -37,7 +41,9 @@ export async function renderMarkdown(md: string): Promise<string> {
     .use(remarkParse)
     .use(remarkGfm)
     .use(remarkMath)
-    .use(remarkRehype, { allowDangerousHtml: false })
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeMermaidInline)
+    .use(rehypeRaw as Plugin<[], Root>)
     .use(rehypeKatex, { throwOnError: false, errorColor: "#cc0000" })
     .use(rehypeShiki, { theme: "github-dark" })
     .use(rehypeSanitize, sanitizeSchema)
