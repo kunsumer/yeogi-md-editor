@@ -13,7 +13,7 @@ import { StatusBar } from "./components/StatusBar";
 import { TabBar } from "./components/TabBar";
 import { TOC } from "./components/TOC";
 import { TopBar } from "./components/TopBar";
-import { fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
+import { ensureWelcomeFile, fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
 import { extractHeadings } from "./lib/toc";
 import { useDocuments, type ViewMode } from "./state/documents";
 import { usePreferences } from "./state/preferences";
@@ -195,8 +195,8 @@ export default function App() {
     let cancelled = false;
     const persisted = loadPersistedSession();
     const stop = startSessionPersistence();
-    if (persisted && persisted.paths.length > 0) {
-      (async () => {
+    (async () => {
+      if (persisted && persisted.paths.length > 0) {
         for (const path of persisted.paths) {
           if (cancelled) return;
           try {
@@ -211,8 +211,21 @@ export default function App() {
             .documents.find((d) => d.path === persisted.activePath);
           if (doc) setActive(doc.id);
         }
-      })();
-    }
+        return;
+      }
+      // Fresh start (nothing persisted). Seed a welcome file once per machine
+      // so the app opens with something interesting rather than an empty state.
+      const welcomeKey = "evhan-md-editor:welcome-shown";
+      if (localStorage.getItem(welcomeKey)) return;
+      try {
+        const welcomePath = await ensureWelcomeFile();
+        if (cancelled) return;
+        await openFile(welcomePath);
+        localStorage.setItem(welcomeKey, "true");
+      } catch (e) {
+        console.warn("welcome file setup failed:", e);
+      }
+    })();
     return () => {
       cancelled = true;
       stop();

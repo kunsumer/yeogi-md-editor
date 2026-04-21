@@ -73,3 +73,26 @@ pub fn window_close(app: AppHandle, label: String) -> Result<(), FsError> {
 pub fn app_exit(app: AppHandle) {
     app.exit(0);
 }
+
+/// Content of the bundled welcome / test document. Compiled into the binary
+/// so the installed .app is self-contained — no external resource lookup,
+/// no path-relative fragility.
+const WELCOME_CONTENT: &str = include_str!("../resources/welcome.md");
+
+/// On first run, seeds a "Welcome.md" file in the user's Documents folder
+/// and returns its path. Subsequent calls return the same path without
+/// overwriting, so the user's edits stick.
+#[tauri::command]
+pub fn ensure_welcome_file(app: AppHandle) -> Result<String, FsError> {
+    let docs = app
+        .path()
+        .document_dir()
+        .map_err(|e| FsError::Io(format!("document_dir: {}", e)))?;
+    let app_dir = docs.join("Evhan .MD Editor");
+    std::fs::create_dir_all(&app_dir).map_err(|e| FsError::Io(e.to_string()))?;
+    let file_path = app_dir.join("Welcome.md");
+    if !file_path.exists() {
+        std::fs::write(&file_path, WELCOME_CONTENT).map_err(|e| FsError::Io(e.to_string()))?;
+    }
+    Ok(file_path.to_string_lossy().to_string())
+}
