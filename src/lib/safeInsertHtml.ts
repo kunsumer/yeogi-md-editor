@@ -36,8 +36,19 @@ const EXTRA_SVG_ATTRS = [
 const EXTRA_TAGS = ["foreignObject", "style"];
 
 export function sanitizeHtml(html: string): string {
+  // DROP USE_PROFILES on purpose. Profiles are a restrictive allowlist —
+  // when set, DOMPurify ignores anything outside the named profiles. That
+  // played badly with mermaid's ER diagrams, whose entity labels live
+  // inside <foreignObject><div> HTML islands embedded in SVG. The HTML
+  // island inside the SVG got treated as SVG-profile-only and its <div>
+  // contents collapsed.
+  //
+  // DOMPurify's DEFAULT allowlist (no USE_PROFILES) already permits the
+  // full HTML + SVG + MathML union and handles foreignObject content
+  // correctly. ADD_TAGS + ADD_ATTR add the handful of extras mermaid
+  // needs on top. <script>, <iframe>, on*-handlers still get stripped
+  // — the security boundary is unchanged.
   return DOMPurify.sanitize(html, {
-    USE_PROFILES: { html: true, svg: true, svgFilters: true, mathMl: true },
     ADD_TAGS: EXTRA_TAGS,
     ADD_ATTR: EXTRA_SVG_ATTRS,
   });
