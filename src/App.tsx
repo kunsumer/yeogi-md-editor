@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
+import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import { Editor } from "./components/Editor";
 import { FolderPicker } from "./components/FolderPicker";
 import { fsList, fsRead, fsWrite, watcherSubscribe, type DirEntry } from "./lib/ipc/commands";
@@ -40,6 +43,29 @@ export default function App() {
   useEffect(() => {
     flushRef.current = flush;
   }, [flush]);
+
+  useEffect(() => {
+    const p = listen("app.close-requested", async () => {
+      const dirty = useDocuments.getState().documents.filter((d) => d.isDirty);
+      if (usePreferences.getState().autosaveEnabled) {
+        if (flushRef.current) await flushRef.current();
+        await getCurrentWindow().destroy();
+        return;
+      }
+      if (dirty.length === 0) {
+        await getCurrentWindow().destroy();
+        return;
+      }
+      const ok = await confirm(
+        `You have ${dirty.length} unsaved document(s). Close without saving?`,
+        { title: "Unsaved changes", kind: "warning" },
+      );
+      if (ok) await getCurrentWindow().destroy();
+    });
+    return () => {
+      p.then((fn) => fn());
+    };
+  }, []);
 
   async function openFile(path: string) {
     const existing = documents.find((d) => d.path === path);
