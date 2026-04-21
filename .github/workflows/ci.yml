@@ -1,0 +1,20 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  scaffold-check:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify scaffold integrity
+        run: |
+          test -f CLAUDE.md
+          test -f .claude/settings.json
+          test -f docs/claude-code/PROJECT_PROFILE.md
+          test -f docs/claude-code/UI_ARCHITECTURE.md
+          test -f docs/claude-code/UX_STATES.md
+          echo "Replace with real install, lint, typecheck, test, and build steps once the stack is chosen."

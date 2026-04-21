@@ -1,0 +1,24 @@
+.claude/settings.local.json
+.claude/logs/
+.claude/tmp/
+.superpowers/
+.env
+.env.*
+secrets/
+
+# build artifacts
+build/
+dist/
+DerivedData/
+.build/
+target/
+coverage/
+
+# macOS
+.DS_Store
+
+# stack-specific (uncomment once chosen)
+# node_modules/
+# src-tauri/target/
+# *.xcodeproj/xcuserdata/
+# *.xcworkspace/xcuserdata/
