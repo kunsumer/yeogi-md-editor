@@ -10,11 +10,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify scaffold integrity
-        run: |
-          test -f CLAUDE.md
-          test -f .claude/settings.json
-          test -f docs/claude-code/PROJECT_PROFILE.md
-          test -f docs/claude-code/UI_ARCHITECTURE.md
-          test -f docs/claude-code/UX_STATES.md
-          echo "Replace with real install, lint, typecheck, test, and build steps once the stack is chosen."
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - uses: pnpm/action-setup@v3
+        with: { version: 9 }
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
