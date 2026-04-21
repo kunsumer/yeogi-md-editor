@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { renderMarkdown } from "../../lib/markdown/pipeline";
 import { safeReplaceChildren } from "../../lib/safeInsertHtml";
 import "./preview-content.css";
@@ -37,9 +38,29 @@ export function PreviewPane({ content }: Props) {
     };
   }, [content]);
 
+  // Intercept link clicks and open in the OS default browser so the webview
+  // isn't navigated away from the app.
+  function onHostClick(e: React.MouseEvent<HTMLDivElement>) {
+    const anchor = (e.target as HTMLElement).closest("a");
+    if (!anchor) return;
+    const href = anchor.getAttribute("href");
+    if (!href) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (/^(https?:|mailto:)/.test(href)) {
+      openUrl(href).catch((err) => console.warn("openUrl failed:", href, err));
+    }
+    // In-document fragment links (#heading) fall through intentionally so
+    // clicking a TOC-rendered anchor still scrolls the preview.
+    if (href.startsWith("#") && hostRef.current) {
+      const target = hostRef.current.querySelector(`[id="${CSS.escape(href.slice(1))}"]`);
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
   return (
     <div style={wrap}>
-      <div ref={hostRef} className="preview-content" style={inner} />
+      <div ref={hostRef} className="preview-content" style={inner} onClick={onHostClick} />
     </div>
   );
 }

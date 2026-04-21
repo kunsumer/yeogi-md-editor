@@ -4,6 +4,7 @@
   "description": "Capability for preview-* windows (read-only markdown preview)",
   "windows": ["preview-*"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "opener:default"
   ]
 }

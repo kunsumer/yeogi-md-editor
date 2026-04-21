@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { renderMarkdown } from "../lib/markdown/pipeline";
 import { safeReplaceChildren } from "../lib/safeInsertHtml";
 import "../components/PreviewPane/preview-content.css";
@@ -30,6 +31,22 @@ export function Preview({ docId }: Props) {
     };
   }, [docId]);
 
+  function onHostClick(e: React.MouseEvent<HTMLDivElement>) {
+    const anchor = (e.target as HTMLElement).closest("a");
+    if (!anchor) return;
+    const href = anchor.getAttribute("href");
+    if (!href) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (/^(https?:|mailto:)/.test(href)) {
+      openUrl(href).catch((err) => console.warn("openUrl failed:", href, err));
+    }
+    if (href.startsWith("#") && hostRef.current) {
+      const target = hostRef.current.querySelector(`[id="${CSS.escape(href.slice(1))}"]`);
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
   return (
     <div style={{ padding: 24, maxWidth: 800, margin: "0 auto" }}>
       {orphan && (
@@ -37,7 +54,7 @@ export function Preview({ docId }: Props) {
           Editor closed — this preview is read-only.
         </div>
       )}
-      <div ref={hostRef} className="preview-content" />
+      <div ref={hostRef} className="preview-content" onClick={onHostClick} />
     </div>
   );
 }

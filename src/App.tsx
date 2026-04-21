@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { confirm } from "@tauri-apps/plugin-dialog";
@@ -135,39 +136,66 @@ export default function App() {
   }, [flush]);
 
   useEffect(() => {
-    const p = listen("app.close-requested", async () => {
-      const dirty = useDocuments.getState().documents.filter((d) => d.isDirty);
-      const notifyPreviews = async () => {
+    async function finishClose() {
+      // Let preview windows flip to orphan before we go.
+      try {
+        await emit("editor.closed");
+      } catch (e) {
+        console.warn("editor.closed emit failed, closing anyway:", e);
+      }
+      // Flip the Rust flag so the next CloseRequested isn't intercepted,
+      // then ask the window to close natively. Falls back to destroy() if
+      // close() rejects (e.g., permission hiccup).
+      try {
+        await invoke("allow_close");
+      } catch (e) {
+        console.warn("allow_close invoke failed:", e);
+      }
+      const w = getCurrentWindow();
+      try {
+        await w.close();
+      } catch (e) {
+        console.warn("close() failed, falling back to destroy():", e);
         try {
-          await emit("editor.closed");
-        } catch (e) {
-          console.warn("editor.closed emit failed, closing anyway:", e);
+          await w.destroy();
+        } catch (e2) {
+          console.error("destroy() also failed:", e2);
         }
-      };
-      if (usePreferences.getState().autosaveEnabled) {
-        if (flushRef.current) {
-          try {
-            await flushRef.current();
-          } catch (e) {
-            console.warn("flush failed on close:", e);
+      }
+    }
+
+    const p = listen("app.close-requested", async () => {
+      try {
+        const dirty = useDocuments.getState().documents.filter((d) => d.isDirty);
+        if (usePreferences.getState().autosaveEnabled) {
+          if (flushRef.current) {
+            try {
+              await flushRef.current();
+            } catch (e) {
+              console.warn("flush failed on close:", e);
+            }
           }
+          await finishClose();
+          return;
         }
-        await notifyPreviews();
-        await getCurrentWindow().destroy();
-        return;
-      }
-      if (dirty.length === 0) {
-        await notifyPreviews();
-        await getCurrentWindow().destroy();
-        return;
-      }
-      const ok = await confirm(
-        `You have ${dirty.length} unsaved document(s). Close without saving?`,
-        { title: "Unsaved changes", kind: "warning" },
-      );
-      if (ok) {
-        await notifyPreviews();
-        await getCurrentWindow().destroy();
+        if (dirty.length === 0) {
+          await finishClose();
+          return;
+        }
+        const ok = await confirm(
+          `You have ${dirty.length} unsaved document(s). Close without saving?`,
+          { title: "Unsaved changes", kind: "warning" },
+        );
+        if (ok) {
+          await finishClose();
+        }
+      } catch (e) {
+        console.error("close handler threw, forcing destroy:", e);
+        try {
+          await getCurrentWindow().destroy();
+        } catch {
+          /* ignore */
+        }
       }
     });
     return () => {

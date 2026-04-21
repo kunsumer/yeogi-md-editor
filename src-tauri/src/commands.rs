@@ -1,8 +1,10 @@
+use std::sync::atomic::Ordering;
+
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 use crate::fs;
 use crate::types::{DirEntry, FileRead, FileWritten, FsError};
-use crate::AppState;
+use crate::{AppState, ALLOW_CLOSE};
 
 #[tauri::command]
 pub fn fs_read(path: String) -> Result<FileRead, FsError> {
@@ -64,4 +66,12 @@ pub fn window_close(app: AppHandle, label: String) -> Result<(), FsError> {
         w.close().map_err(|e| FsError::Io(e.to_string()))?;
     }
     Ok(())
+}
+
+/// Flip the ALLOW_CLOSE flag so the next `CloseRequested` for the main
+/// window bypasses the intercept in `on_window_event` and closes natively.
+/// Called by the webview after it finishes its flush-on-close flow.
+#[tauri::command]
+pub fn allow_close() {
+    ALLOW_CLOSE.store(true, Ordering::Relaxed);
 }
