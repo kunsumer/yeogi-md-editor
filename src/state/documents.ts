@@ -4,6 +4,8 @@ export interface Conflict {
   diskMtime: number;
 }
 
+export type ViewMode = "edit" | "preview";
+
 export interface Document {
   id: string;
   path: string | null;
@@ -19,6 +21,7 @@ export interface Document {
   conflict: Conflict | null;
   saveState: "idle" | "saving" | "saved" | "failed";
   lastSaveError: string | null;
+  viewMode: ViewMode;
 }
 
 interface DocumentsState {
@@ -40,6 +43,7 @@ interface DocumentsState {
   setPath(id: string, path: string): void;
   setPreviewWindowLabel(id: string, label: string | null): void;
   setConflict(id: string, conflict: Conflict | null): void;
+  setViewMode(id: string, mode: ViewMode): void;
   replaceContentFromDisk(id: string, input: { content: string; mtimeMs: number }): void;
 }
 
@@ -74,6 +78,7 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
       conflict: null,
       saveState: "idle",
       lastSaveError: null,
+      viewMode: "edit",
     };
     set((s) => ({ documents: [...s.documents, doc], activeId: id }));
     return id;
@@ -145,6 +150,12 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
   setConflict(id, conflict) {
     set((s) => ({
       documents: s.documents.map((d) => (d.id === id ? { ...d, conflict } : d)),
+    }));
+  },
+
+  setViewMode(id, mode) {
+    set((s) => ({
+      documents: s.documents.map((d) => (d.id === id ? { ...d, viewMode: mode } : d)),
     }));
   },
 

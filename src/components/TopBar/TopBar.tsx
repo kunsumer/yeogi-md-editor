@@ -1,10 +1,12 @@
+import type { ViewMode } from "../../state/documents";
+
 interface Props {
   path: string | null;
   wordCount: number;
   saveState: "idle" | "saving" | "saved" | "failed";
   isDirty: boolean;
-  onTogglePreview?: () => void;
-  previewOpen?: boolean;
+  viewMode?: ViewMode;
+  onSetViewMode?: (mode: ViewMode) => void;
 }
 
 const wrap: React.CSSProperties = {
@@ -33,13 +35,32 @@ const separator: React.CSSProperties = {
   background: "var(--border)",
 };
 
+const segWrap: React.CSSProperties = {
+  display: "inline-flex",
+  border: "1px solid var(--border)",
+  borderRadius: 6,
+  overflow: "hidden",
+  background: "var(--bg)",
+};
+
+const segBtn = (active: boolean): React.CSSProperties => ({
+  padding: "6px 14px",
+  border: 0,
+  background: active ? "var(--text)" : "transparent",
+  color: active ? "#fff" : "var(--text-muted)",
+  fontSize: 12,
+  fontWeight: active ? 500 : 400,
+  cursor: "pointer",
+  transition: "background 120ms, color 120ms",
+});
+
 export function TopBar({
   path,
   wordCount,
   saveState,
   isDirty,
-  onTogglePreview,
-  previewOpen = false,
+  viewMode,
+  onSetViewMode,
 }: Props) {
   const filename = path ? path.split("/").pop() : "Untitled";
   const saveLabel =
@@ -88,14 +109,25 @@ export function TopBar({
         </>
       )}
       <div style={{ flex: 1 }} />
-      {onTogglePreview && (
-        <button
-          className={previewOpen ? "btn-ghost" : "btn-primary"}
-          onClick={onTogglePreview}
-          aria-pressed={previewOpen}
-        >
-          {previewOpen ? "Close preview" : "Open preview"}
-        </button>
+      {viewMode && onSetViewMode && (
+        <div style={segWrap} role="group" aria-label="View mode">
+          <button
+            type="button"
+            style={segBtn(viewMode === "edit")}
+            onClick={() => onSetViewMode("edit")}
+            aria-pressed={viewMode === "edit"}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            style={segBtn(viewMode === "preview")}
+            onClick={() => onSetViewMode("preview")}
+            aria-pressed={viewMode === "preview"}
+          >
+            Preview
+          </button>
+        </div>
       )}
     </div>
   );

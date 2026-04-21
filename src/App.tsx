@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import type { EditorView } from "@codemirror/view";
-import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { EditorSelection } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { confirm } from "@tauri-apps/plugin-dialog";
@@ -8,11 +8,14 @@ import { ConflictBanner } from "./components/ConflictBanner";
 import { Editor } from "./components/Editor";
 import { FileTree } from "./components/FileTree";
 import { OpenButtons } from "./components/OpenButtons";
+import { PreviewPane } from "./components/PreviewPane";
 import { StatusBar } from "./components/StatusBar";
 import { TabBar } from "./components/TabBar";
+import { TOC } from "./components/TOC";
 import { TopBar } from "./components/TopBar";
 import { fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
-import { useDocuments } from "./state/documents";
+import { extractHeadings } from "./lib/toc";
+import { useDocuments, type ViewMode } from "./state/documents";
 import { usePreferences } from "./state/preferences";
 import { useAutosave } from "./hooks/useAutosave";
 import { useWatcherEvents } from "./hooks/useWatcherEvents";
@@ -54,15 +57,15 @@ const asideBodyStyle: React.CSSProperties = {
   flex: 1,
   minHeight: 0,
   overflow: "auto",
-  padding: "8px 10px 16px",
+  padding: "10px 10px 16px",
 };
 
-const asideFolderLabelStyle: React.CSSProperties = {
-  fontSize: 11,
-  letterSpacing: 0.4,
+const asideSectionLabelStyle: React.CSSProperties = {
+  fontSize: 10,
+  letterSpacing: 0.6,
   textTransform: "uppercase",
   color: "var(--text-faint)",
-  padding: "8px 6px 4px",
+  padding: "12px 6px 4px",
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
@@ -189,31 +192,6 @@ export default function App() {
     setActive(id);
   }
 
-  async function togglePreview() {
-    if (!active) return;
-    const label = active.previewWindowLabel ?? `preview-${active.id}`;
-    if (active.previewWindowLabel) {
-      await invoke("window_close", { label });
-      useDocuments.getState().setPreviewWindowLabel(active.id, null);
-    } else {
-      await invoke("window_open_preview", {
-        label,
-        title: `Preview · ${active.path ?? "Untitled"}`,
-        docId: active.id,
-      });
-      useDocuments.getState().setPreviewWindowLabel(active.id, label);
-      await emit("preview.contentUpdate", { id: active.id, content: active.content });
-    }
-  }
-
-  useEffect(() => {
-    if (!active?.previewWindowLabel) return;
-    const t = setTimeout(() => {
-      emit("preview.contentUpdate", { id: active.id, content: active.content });
-    }, 200);
-    return () => clearTimeout(t);
-  }, [active?.content, active?.previewWindowLabel, active?.id]);
-
   useEffect(() => {
     let cancelled = false;
     const persisted = loadPersistedSession();
@@ -244,6 +222,32 @@ export default function App() {
   }, []);
 
   const wordCount = (active?.content ?? "").trim().split(/\s+/).filter(Boolean).length;
+  const headings = useMemo(
+    () => (active ? extractHeadings(active.content) : []),
+    [active?.content, active?.id],
+  );
+
+  function setViewMode(mode: ViewMode) {
+    if (!active) return;
+    useDocuments.getState().setViewMode(active.id, mode);
+  }
+
+  function jumpToHeading(line: number) {
+    if (!active) return;
+    // Flip to edit mode so the cursor move is visible and the user can keep typing there.
+    if (active.viewMode !== "edit") {
+      useDocuments.getState().setViewMode(active.id, "edit");
+    }
+    const view = viewRef.current;
+    if (!view) return;
+    const docLine = Math.min(Math.max(line, 1), view.state.doc.lines);
+    const pos = view.state.doc.line(docLine).from;
+    view.dispatch({
+      selection: EditorSelection.cursor(pos),
+      effects: EditorView.scrollIntoView(pos, { y: "start", yMargin: 16 }),
+    });
+    view.focus();
+  }
 
   return (
     <div style={shellStyle}>
@@ -256,10 +260,6 @@ export default function App() {
         activeId={activeId}
         onActivate={setActive}
         onClose={async (id) => {
-          const doc = useDocuments.getState().documents.find((d) => d.id === id);
-          if (doc?.previewWindowLabel) {
-            await invoke("window_close", { label: doc.previewWindowLabel });
-          }
           useDocuments.getState().closeDocument(id);
         }}
       />
@@ -284,9 +284,15 @@ export default function App() {
               }}
               onPickFolder={setFolder}
             />
+            {active && (
+              <>
+                <div style={asideSectionLabelStyle}>Contents</div>
+                <TOC headings={headings} onJump={(h) => jumpToHeading(h.line)} />
+              </>
+            )}
             {folder && (
               <>
-                <div style={asideFolderLabelStyle} title={folder}>
+                <div style={asideSectionLabelStyle} title={folder}>
                   {folder.split("/").pop() ?? folder}
                 </div>
                 <FileTree root={folder} onOpenFile={openFile} />
@@ -300,8 +306,8 @@ export default function App() {
             wordCount={wordCount}
             saveState={active?.saveState ?? "idle"}
             isDirty={active?.isDirty ?? false}
-            onTogglePreview={active ? togglePreview : undefined}
-            previewOpen={!!active?.previewWindowLabel}
+            viewMode={active?.viewMode}
+            onSetViewMode={active ? setViewMode : undefined}
           />
           {active?.conflict && (
             <ConflictBanner
@@ -321,15 +327,19 @@ export default function App() {
           )}
           {active ? (
             <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden" }}>
-              <Editor
-                docId={active.id}
-                value={active.content}
-                onChange={(next) => setContent(active.id, next)}
-                readOnly={active.readOnly}
-                onReady={(view) => {
-                  viewRef.current = view;
-                }}
-              />
+              {active.viewMode === "preview" ? (
+                <PreviewPane content={active.content} />
+              ) : (
+                <Editor
+                  docId={active.id}
+                  value={active.content}
+                  onChange={(next) => setContent(active.id, next)}
+                  readOnly={active.readOnly}
+                  onReady={(view) => {
+                    viewRef.current = view;
+                  }}
+                />
+              )}
             </div>
           ) : (
             <div style={emptyStateStyle}>No file open. Use the sidebar to open one.</div>
