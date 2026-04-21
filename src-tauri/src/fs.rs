@@ -1,5 +1,6 @@
-use crate::types::{FileRead, FsError};
+use crate::types::{FileRead, FileWritten, FsError};
 use std::fs as stdfs;
+use std::io::Write;
 use std::path::Path;
 use std::time::UNIX_EPOCH;
 
@@ -34,4 +35,26 @@ pub fn read(path: &str) -> Result<FileRead, FsError> {
         mtime_ms,
         encoding: "utf-8".into(),
     })
+}
+
+pub fn write(path: &str, content: &str) -> Result<FileWritten, FsError> {
+    let p = Path::new(path);
+    let dir = p.parent().ok_or_else(|| FsError::Io("no parent".into()))?;
+    let file_name = p.file_name()
+        .ok_or_else(|| FsError::Io("no file name".into()))?
+        .to_string_lossy().to_string();
+    let tmp = dir.join(format!(".{}.tmp-evhan-md-editor", file_name));
+
+    {
+        let mut f = stdfs::File::create(&tmp).map_err(|e| FsError::Io(e.to_string()))?;
+        f.write_all(content.as_bytes()).map_err(|e| FsError::Io(e.to_string()))?;
+        f.sync_all().map_err(|e| FsError::Io(e.to_string()))?;
+    }
+    stdfs::rename(&tmp, p).map_err(|e| FsError::Io(e.to_string()))?;
+
+    let meta = stdfs::metadata(p).map_err(|e| FsError::Io(e.to_string()))?;
+    let mtime_ms = meta.modified().ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as i64).unwrap_or(0);
+    Ok(FileWritten { mtime_ms })
 }
