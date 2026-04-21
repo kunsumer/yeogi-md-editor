@@ -189,6 +189,35 @@ jobs:
 
 ## Phase 1 — Rust file operations
 
+### Phase 1 preamble — scaffolder architecture corrections
+
+The Tauri 2 scaffolder (used in Task 0.2) emitted a structure that differs from what the original plan assumed. Apply these interpretations throughout Phase 1 and Phase 2:
+
+- **Lib crate name is `evhan_md_editor_lib`** (not `evhan_md_editor`). Tests, other Rust files, and the binary all import via `use evhan_md_editor_lib::...`. The `[lib]` block in `Cargo.toml` includes `crate-type = ["staticlib", "cdylib", "rlib"]` — DO NOT remove, it's required for future mobile targets.
+- **`src-tauri/src/lib.rs` owns `pub fn run()`** — this is where the Tauri `Builder` lives. The scaffolder put it there; every Phase 1/2 task that previously said "rewrite `main.rs`" should instead MODIFY `lib.rs::run()`. `main.rs` is a 3-line caller (`fn main() { evhan_md_editor_lib::run() }`) and stays untouched for the whole project.
+- **Module declarations** (`pub mod types;`, `pub mod fs;`, `pub mod watcher;`, `pub mod commands;`) all go into `lib.rs`. Add them incrementally as each task introduces a new module.
+- **`AppState`** (Task 2.2) lives in `lib.rs`.
+
+Where any task below says "rewrite main.rs", read it as "update `lib.rs::run()`". Where any task says "replace `lib.rs`", read it as "extend `lib.rs`" — preserve `run()`.
+
+### Task 1.0: Scaffolder demo cleanup (new — runs before 1.1)
+
+**Files:** Delete `src/App.css`, `src/assets/react.svg`, `public/vite.svg`, `public/tauri.svg`. Modify `src-tauri/src/lib.rs`, `src-tauri/Cargo.toml`, `index.html`.
+
+- [ ] **Step 1:** Delete the demo assets:
+```bash
+rm src/App.css src/assets/react.svg public/vite.svg public/tauri.svg
+```
+- [ ] **Step 2:** Remove the scaffolder's `greet` command from `src-tauri/src/lib.rs`:
+  - Delete the `#[tauri::command] fn greet(...)` function.
+  - Remove `greet` from the `tauri::generate_handler![greet]` list in `pub fn run()`. If that leaves an empty `generate_handler![]`, leave it empty — Task 1.6 will repopulate it.
+- [ ] **Step 3:** Update `src-tauri/Cargo.toml`:
+  - `description = "macOS Markdown editor"`
+  - `authors = ["Evhan"]`
+- [ ] **Step 4:** Update `index.html`: `<title>evhan-md-editor</title>` (replace `Tauri + React + Typescript`).
+- [ ] **Step 5:** `cargo build --manifest-path src-tauri/Cargo.toml` and `pnpm build` — both succeed (the Vite build confirms nothing still imports the deleted `App.css`).
+- [ ] **Step 6:** Commit with message: `chore: remove scaffolder demo code`.
+
 ### Task 1.1: Shared IPC types
 
 **Files:** Create `src-tauri/src/types.rs`, `src-tauri/src/lib.rs`; modify `src-tauri/Cargo.toml`.
@@ -222,19 +251,14 @@ pub struct DirEntry { pub name: String, pub path: String, pub is_dir: bool }
 #[ts(export, export_to = "../src/lib/ipc/types.ts")]
 pub struct FileChanged { pub path: String, pub mtime_ms: i64 }
 ```
-- [ ] **Step 2:** `src-tauri/Cargo.toml` lib+bin:
-```toml
-[lib]
-name = "evhan_md_editor"
-path = "src/lib.rs"
-
-[[bin]]
-name = "evhan_md_editor"
-path = "src/main.rs"
-```
-- [ ] **Step 3:** `src-tauri/src/lib.rs`:
+- [ ] **Step 2:** `src-tauri/Cargo.toml` lib+bin — **no edit needed**. The scaffolder already emitted `[lib] name = "evhan_md_editor_lib"` with `crate-type = ["staticlib", "cdylib", "rlib"]` (retain `crate-type` for future mobile targets), and the binary target defaults from the package name. Skip this step.
+- [ ] **Step 3:** **Extend** `src-tauri/src/lib.rs` — add `pub mod types;` at the top of the file. Do NOT replace the file; the scaffolder's existing `pub fn run()` must stay intact (see Phase 1 preamble). After this edit the file should begin with:
 ```rust
 pub mod types;
+
+pub fn run() {
+    // ... existing scaffolder Builder setup, unchanged ...
+}
 ```
 - [ ] **Step 4:** `cargo build --manifest-path src-tauri/Cargo.toml`. Verify `src/lib/ipc/types.ts` was generated.
 - [ ] **Step 5:** Commit.
@@ -245,8 +269,8 @@ pub mod types;
 
 - [ ] **Step 1:** Failing test `src-tauri/tests/fs_read.rs`:
 ```rust
-use evhan_md_editor::fs;
-use evhan_md_editor::types::FsError;
+use evhan_md_editor_lib::fs;
+use evhan_md_editor_lib::types::FsError;
 use std::fs as stdfs;
 use tempfile::TempDir;
 
@@ -321,7 +345,7 @@ Add `pub mod fs;` to `src-tauri/src/lib.rs`.
 
 - [ ] **Step 1:** Failing test:
 ```rust
-use evhan_md_editor::fs;
+use evhan_md_editor_lib::fs;
 use std::fs as stdfs;
 use tempfile::TempDir;
 
@@ -382,7 +406,7 @@ pub fn write(path: &str, content: &str) -> Result<FileWritten, FsError> {
 
 - [ ] **Step 1:** Failing test:
 ```rust
-use evhan_md_editor::fs;
+use evhan_md_editor_lib::fs;
 use std::fs as stdfs;
 use tempfile::TempDir;
 
@@ -435,7 +459,7 @@ pub fn rename(from: &str, to: &str) -> Result<(), FsError> {
 
 - [ ] **Step 1:** Failing test:
 ```rust
-use evhan_md_editor::fs;
+use evhan_md_editor_lib::fs;
 use std::fs as stdfs;
 use tempfile::TempDir;
 
@@ -505,13 +529,10 @@ pub fn fs_rename(from: String, to: String) -> Result<(), FsError> { fs::rename(&
 #[tauri::command]
 pub fn fs_list(path: String) -> Result<Vec<DirEntry>, FsError> { fs::list(&path) }
 ```
-- [ ] **Step 2:** `pub mod commands;` in `src-tauri/src/lib.rs`.
-- [ ] **Step 3:** `src-tauri/src/main.rs`:
+- [ ] **Step 2:** Add `pub mod commands;` to `src-tauri/src/lib.rs` (just the module declaration, alongside the existing `pub mod types;` and `pub mod fs;`). `main.rs` stays untouched.
+- [ ] **Step 3:** **Update `pub fn run()` inside `src-tauri/src/lib.rs`** to register the fs_* commands in the `invoke_handler![…]` list (and add the dialog plugin if the scaffolder didn't already). The function should look roughly like:
 ```rust
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use evhan_md_editor::commands;
-
-fn main() {
+pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
@@ -522,6 +543,7 @@ fn main() {
         .expect("error while running tauri application");
 }
 ```
+If the scaffolder's `run()` already includes `.plugin(tauri_plugin_dialog::init())` or other configuration, preserve it — only replace the `invoke_handler` list contents.
 - [ ] **Step 4:** Build; commit.
 
 ### Phase 1 checkpoint
@@ -538,7 +560,7 @@ fn main() {
 
 - [ ] **Step 1:** Failing test:
 ```rust
-use evhan_md_editor::watcher::{Watcher, WatcherEvent};
+use evhan_md_editor_lib::watcher::{Watcher, WatcherEvent};
 use std::fs;
 use std::sync::mpsc;
 use std::time::Duration;
@@ -631,7 +653,7 @@ Add `pub mod watcher;` to `src-tauri/src/lib.rs`.
 
 **Files:** Modify `src-tauri/src/main.rs`, `src-tauri/src/commands.rs`, `src-tauri/src/lib.rs`.
 
-- [ ] **Step 1:** In `src-tauri/src/lib.rs`:
+- [ ] **Step 1:** In `src-tauri/src/lib.rs`, add the `watcher` module declaration and an `AppState` struct. Preserve the existing `pub mod types; pub mod fs; pub mod commands;` declarations and the existing `pub fn run() {…}` (Step 3 below updates `run()`). The top of the file should read:
 ```rust
 pub mod types;
 pub mod fs;
@@ -641,6 +663,8 @@ pub mod commands;
 use std::sync::{Arc, Mutex};
 
 pub struct AppState { pub watcher: Arc<Mutex<watcher::Watcher>> }
+
+// pub fn run() {...}  // updated in Step 3
 ```
 - [ ] **Step 2:** In `src-tauri/src/commands.rs`:
 ```rust
@@ -655,17 +679,17 @@ pub fn watcher_subscribe(path: String, state: State<AppState>) -> Result<(), cra
         .map_err(|e| crate::types::FsError::Io(e.to_string()))
 }
 ```
-- [ ] **Step 3:** Rewrite `src-tauri/src/main.rs`:
+- [ ] **Step 3:** **Update `pub fn run()` in `src-tauri/src/lib.rs`** (do NOT rewrite `main.rs`). Replace the current body of `run()` with the setup below. Note the imports at the top of `lib.rs` should now include `use std::sync::mpsc;` and `use tauri::{Emitter, Manager};`.
 ```rust
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
-use evhan_md_editor::{AppState, commands, watcher::{Watcher, WatcherEvent}};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::mpsc;
 use tauri::{Emitter, Manager};
+use crate::watcher::{Watcher, WatcherEvent};
 
-fn main() {
+pub fn run() {
     let (tx, rx) = mpsc::channel::<WatcherEvent>();
-    let watcher = Arc::new(Mutex::new(Watcher::new(tx).expect("watcher init")));
+    let watcher = std::sync::Arc::new(std::sync::Mutex::new(
+        Watcher::new(tx).expect("watcher init"),
+    ));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -699,6 +723,7 @@ fn main() {
         .expect("error while running tauri application");
 }
 ```
+`main.rs` continues to be a 3-line caller — untouched.
 - [ ] **Step 4:** `cargo build --manifest-path src-tauri/Cargo.toml` — clean.
 - [ ] **Step 5:** Commit.
 
@@ -2597,7 +2622,7 @@ Register.
 
 - [ ] **Step 1:** Failing test:
 ```rust
-use evhan_md_editor::export;
+use evhan_md_editor_lib::export;
 use std::fs;
 use tempfile::TempDir;
 
