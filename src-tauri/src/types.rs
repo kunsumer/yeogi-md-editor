@@ -5,6 +5,7 @@ use ts_rs::TS;
 #[ts(export, export_to = "../src/lib/ipc/types.ts")]
 pub struct FileRead {
     pub content: String,
+    #[ts(type = "number")]
     pub mtime_ms: i64,
     pub encoding: String,
 }
@@ -12,6 +13,7 @@ pub struct FileRead {
 #[derive(Serialize, Deserialize, Debug, Clone, TS)]
 #[ts(export, export_to = "../src/lib/ipc/types.ts")]
 pub struct FileWritten {
+    #[ts(type = "number")]
     pub mtime_ms: i64,
 }
 
@@ -39,5 +41,6 @@ pub struct DirEntry {
 #[ts(export, export_to = "../src/lib/ipc/types.ts")]
 pub struct FileChanged {
     pub path: String,
+    #[ts(type = "number")]
     pub mtime_ms: i64,
 }

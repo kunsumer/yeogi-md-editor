@@ -44,3 +44,4 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+src-tauri/src/lib/
