@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Dark-navy folder with ".MD" cut out in white.
+       Matches the folder portion of the Evhan .MD Editor wordmark.
+       Ample inner padding so the mark still reads at 32×32. -->
+  <rect width="1024" height="1024" rx="180" ry="180" fill="#1e3a5f"/>
+  <text
+    x="512"
+    y="560"
+    text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif"
+    font-weight="900"
+    font-size="340"
+    letter-spacing="-10"
+    fill="#ffffff"
+    dominant-baseline="middle"
+  >.MD</text>
+  <!-- folder tab notch: a small rectangular bite on the top-left that
+       suggests a folder tab silhouette without cluttering the mark. -->
+  <path
+    d="M 0 180 Q 0 0 180 0 L 340 0 L 400 60 L 0 60 Z"
+    fill="#ffffff"
+    fill-opacity="0"
+  />
+</svg>

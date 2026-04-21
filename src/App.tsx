@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { openSearchPanel } from "@codemirror/search";
+import { listen } from "@tauri-apps/api/event";
+import { open } from "@tauri-apps/plugin-dialog";
 import { ConflictBanner } from "./components/ConflictBanner";
 import { Editor } from "./components/Editor";
 import { FileTree } from "./components/FileTree";
 import { Logo } from "./components/Logo";
-import { OpenButtons } from "./components/OpenButtons";
 import { PreviewPane } from "./components/PreviewPane";
 import { StatusBar } from "./components/StatusBar";
 import { TabBar } from "./components/TabBar";
@@ -27,13 +29,6 @@ const shellStyle: React.CSSProperties = {
   width: "100vw",
   overflow: "hidden",
   background: "var(--bg)",
-};
-
-const bodyStyle: React.CSSProperties = {
-  flex: 1,
-  minHeight: 0,
-  display: "grid",
-  gridTemplateColumns: "260px 1fr",
 };
 
 const asideStyle: React.CSSProperties = {
@@ -80,8 +75,10 @@ const mainStyle: React.CSSProperties = {
 const emptyStateStyle: React.CSSProperties = {
   flex: 1,
   display: "flex",
+  flexDirection: "column",
   alignItems: "center",
   justifyContent: "center",
+  gap: 16,
   color: "var(--text-faint)",
   fontSize: 13,
 };
@@ -89,9 +86,9 @@ const emptyStateStyle: React.CSSProperties = {
 const brandStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
-  gap: 8,
+  gap: 10,
   fontWeight: 600,
-  fontSize: 13,
+  fontSize: 14,
   color: "var(--text)",
   letterSpacing: 0.1,
 };
@@ -99,6 +96,8 @@ const brandStyle: React.CSSProperties = {
 export default function App() {
   const [folder, setFolder] = useState<string | null>(null);
   const [watcherOffline, setWatcherOffline] = useState<string | null>(null);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [zoom, setZoom] = useState(1);
   useWatcherEvents(setWatcherOffline);
   const { documents, activeId, openDocument, setActive, setContent } = useDocuments();
   const { markSaved, markSaveStarted, markSaveFailed } = useDocuments.getState();
@@ -106,6 +105,11 @@ export default function App() {
   const autosaveDebounceMs = usePreferences((s) => s.autosaveDebounceMs);
   const active = documents.find((d) => d.id === activeId) ?? null;
   const viewRef = useRef<EditorView | null>(null);
+
+  // Apply zoom as a root CSS variable so editor / preview / chrome scale together.
+  useEffect(() => {
+    document.documentElement.style.setProperty("--app-zoom", String(zoom));
+  }, [zoom]);
 
   const { flush } = useAutosave({
     enabled: autosaveEnabled && !!active?.path && !active?.readOnly,
@@ -126,11 +130,6 @@ export default function App() {
     flushRef.current = flush;
   }, [flush]);
 
-  // Best-effort flush on page hide: if the webview is going away (window
-  // close, navigation, reload) and autosave was armed, try one last
-  // synchronous-ish fsWrite. The window may close before it resolves, but
-  // that's fine — autosave runs every 2 s during editing, so the on-disk
-  // version is never more than a couple of seconds stale anyway.
   useEffect(() => {
     const handler = () => {
       if (!flushRef.current) return;
@@ -155,6 +154,41 @@ export default function App() {
     });
     await watcherSubscribe(path);
     setActive(id);
+  }
+
+  async function pickAndOpenFiles() {
+    const picked = await open({
+      multiple: true,
+      filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
+    });
+    const list = Array.isArray(picked) ? picked : typeof picked === "string" ? [picked] : [];
+    for (const p of list) {
+      try {
+        await openFile(p);
+      } catch (e) {
+        console.error("openFile failed:", p, e);
+      }
+    }
+  }
+
+  async function pickAndOpenFolder() {
+    const picked = await open({ directory: true, multiple: false });
+    if (typeof picked === "string") setFolder(picked);
+  }
+
+  function closeActiveTab() {
+    const id = useDocuments.getState().activeId;
+    if (id) useDocuments.getState().closeDocument(id);
+  }
+
+  function triggerFind() {
+    if (!active) return;
+    const s = useDocuments.getState();
+    if (active.viewMode !== "edit") s.setViewMode(active.id, "edit");
+    // Wait one tick so the editor remounts before we open the panel.
+    requestAnimationFrame(() => {
+      if (viewRef.current) openSearchPanel(viewRef.current);
+    });
   }
 
   useEffect(() => {
@@ -186,6 +220,59 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Native menu bridge: Rust emits "menu" with the item id as the payload.
+  useEffect(() => {
+    const p = listen<string>("menu", (e) => {
+      const id = e.payload;
+      switch (id) {
+        case "file:open":
+          pickAndOpenFiles().catch(console.error);
+          break;
+        case "file:open-folder":
+          pickAndOpenFolder().catch(console.error);
+          break;
+        case "file:open-recent":
+          // Stub: session restore already handles "last open". A real recent-
+          // files menu lives behind a preference store (Phase 13 material).
+          console.info("Open Recent: not yet implemented.");
+          break;
+        case "file:export-html":
+        case "file:print":
+          console.info(`${id}: Phase 12 — export pipeline.`);
+          break;
+        case "file:close-tab":
+          closeActiveTab();
+          break;
+        case "edit:find":
+        case "edit:find-replace":
+          triggerFind();
+          break;
+        case "view:toggle-sidebar":
+          setSidebarVisible((v) => !v);
+          break;
+        case "view:cycle-theme":
+          // Stub — themes land in Phase 13.
+          console.info("Cycle Theme: not yet implemented.");
+          break;
+        case "view:zoom-in":
+          setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2)));
+          break;
+        case "view:zoom-out":
+          setZoom((z) => Math.max(0.6, +(z - 0.1).toFixed(2)));
+          break;
+        case "view:zoom-reset":
+          setZoom(1);
+          break;
+        default:
+          console.info("menu:", id);
+      }
+    });
+    return () => {
+      p.then((fn) => fn());
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.id, active?.viewMode]);
+
   const wordCount = (active?.content ?? "").trim().split(/\s+/).filter(Boolean).length;
   const headings = useMemo(
     () => (active ? extractHeadings(active.content) : []),
@@ -199,7 +286,6 @@ export default function App() {
 
   function jumpToHeading(line: number) {
     if (!active) return;
-    // Flip to edit mode so the cursor move is visible and the user can keep typing there.
     if (active.viewMode !== "edit") {
       useDocuments.getState().setViewMode(active.id, "edit");
     }
@@ -213,6 +299,13 @@ export default function App() {
     });
     view.focus();
   }
+
+  const bodyStyle: React.CSSProperties = {
+    flex: 1,
+    minHeight: 0,
+    display: "grid",
+    gridTemplateColumns: sidebarVisible ? "260px 1fr" : "1fr",
+  };
 
   return (
     <div style={shellStyle}>
@@ -229,42 +322,37 @@ export default function App() {
         }}
       />
       <div style={bodyStyle}>
-        <aside style={asideStyle}>
-          <div style={asideHeaderStyle}>
-            <div style={brandStyle}>
-              <Logo size={22} />
-              <span>Evhan .MD</span>
+        {sidebarVisible && (
+          <aside style={asideStyle}>
+            <div style={asideHeaderStyle}>
+              <div style={brandStyle}>
+                <Logo size={28} />
+                <span>Evhan .MD</span>
+              </div>
             </div>
-          </div>
-          <div style={asideBodyStyle}>
-            <OpenButtons
-              onPickFiles={async (paths) => {
-                for (const p of paths) {
-                  try {
-                    await openFile(p);
-                  } catch (e) {
-                    console.error("openFile failed:", p, e);
-                  }
-                }
-              }}
-              onPickFolder={setFolder}
-            />
-            {active && (
-              <>
-                <div style={asideSectionLabelStyle}>Contents</div>
-                <TOC headings={headings} onJump={(h) => jumpToHeading(h.line)} />
-              </>
-            )}
-            {folder && (
-              <>
-                <div style={asideSectionLabelStyle} title={folder}>
-                  {folder.split("/").pop() ?? folder}
+            <div style={asideBodyStyle}>
+              {active && (
+                <>
+                  <div style={asideSectionLabelStyle}>Contents</div>
+                  <TOC headings={headings} onJump={(h) => jumpToHeading(h.line)} />
+                </>
+              )}
+              {folder && (
+                <>
+                  <div style={asideSectionLabelStyle} title={folder}>
+                    {folder.split("/").pop() ?? folder}
+                  </div>
+                  <FileTree root={folder} onOpenFile={openFile} />
+                </>
+              )}
+              {!active && !folder && (
+                <div style={{ color: "var(--text-faint)", fontSize: 12, padding: "8px 6px" }}>
+                  Use File → Open… (⌘O) to get started.
                 </div>
-                <FileTree root={folder} onOpenFile={openFile} />
-              </>
-            )}
-          </div>
-        </aside>
+              )}
+            </div>
+          </aside>
+        )}
         <main style={mainStyle}>
           <TopBar
             path={active?.path ?? null}
@@ -307,7 +395,15 @@ export default function App() {
               )}
             </div>
           ) : (
-            <div style={emptyStateStyle}>No file open. Use the sidebar to open one.</div>
+            <div style={emptyStateStyle}>
+              <div>No file open.</div>
+              <button
+                className="btn-primary"
+                onClick={() => pickAndOpenFiles().catch(console.error)}
+              >
+                Open file(s)…
+              </button>
+            </div>
           )}
           <StatusBar
             saveState={active?.saveState ?? "idle"}

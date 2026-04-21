@@ -1,4 +1,5 @@
 :root {
+  --app-zoom: 1;
   --bg: #ffffff;
   --bg-sidebar: #fafafa;
   --bg-tabbar: #1f2328;
@@ -41,12 +42,19 @@ body,
 
 body {
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: calc(13px * var(--app-zoom));
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
+}
+
+.cm-editor {
+  font-size: calc(14px * var(--app-zoom)) !important;
+}
+.preview-content {
+  font-size: calc(15px * var(--app-zoom)) !important;
 }
 
 button {

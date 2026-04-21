@@ -2,6 +2,7 @@ pub mod types;
 pub mod fs;
 pub mod watcher;
 pub mod commands;
+pub mod menu;
 
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
@@ -32,7 +33,13 @@ pub fn run() {
         .manage(AppState {
             watcher: watcher.clone(),
         })
+        .on_menu_event(|app, event| {
+            let _ = app.emit("menu", event.id().0.clone());
+        })
         .setup(move |app| {
+            let menu = menu::build_menu(app.handle())?;
+            app.set_menu(menu)?;
+
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 while let Ok(evt) = rx.recv() {

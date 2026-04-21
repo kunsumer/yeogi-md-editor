@@ -1,52 +1,52 @@
 /**
- * Simple, modern mark for Evhan .MD Editor.
- *
- * A rounded-square badge filled with an indigo → violet gradient, holding
- * a glyph inspired by the official Markdown mark (an "M" with a down-chevron
- * to its right). Stroke-based so it stays crisp at any size; works at 16 px
- * in the sidebar and scales up cleanly for a toolbar or empty state.
+ * Evhan .MD Editor mark — dark-navy folder with white ".MD" cut out of it.
+ * Matches the app icon (src-tauri/icons/source.svg) so the sidebar brand,
+ * toolbar, and Dock icon all read as the same product.
  */
 interface Props {
   size?: number;
   title?: string;
 }
 
-export function Logo({ size = 22, title = "Evhan .MD Editor" }: Props) {
-  const id = `logo-grad-${size}`;
+export function Logo({ size = 24, title = "Evhan .MD Editor" }: Props) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox="0 0 64 64"
       role="img"
       aria-label={title}
       xmlns="http://www.w3.org/2000/svg"
     >
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#4f46e5" />
-          <stop offset="100%" stopColor="#9333ea" />
-        </linearGradient>
-      </defs>
-      <rect x="1" y="3" width="22" height="18" rx="4" fill={`url(#${id})`} />
-      {/* "M" on the left */}
+      {/* Folder silhouette: a rounded rectangle with a small tab notch on
+          the top-left that reads as a folder without cluttering the glyph. */}
       <path
-        d="M6 16 V9 L9 13 L12 9 V16"
-        fill="none"
-        stroke="#ffffff"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        d="M6 18
+           C6 14 9 11 13 11
+           L24 11
+           L29 16
+           L51 16
+           C55 16 58 19 58 23
+           L58 49
+           C58 53 55 56 51 56
+           L13 56
+           C9 56 6 53 6 49
+           Z"
+        fill="#1e3a5f"
       />
-      {/* down-chevron on the right */}
-      <path
-        d="M16 10 V15 M14 13 L16 15 L18 13"
-        fill="none"
-        stroke="#ffffff"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      {/* ".MD" wordmark */}
+      <text
+        x="32"
+        y="41"
+        textAnchor="middle"
+        fontFamily="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif"
+        fontWeight={900}
+        fontSize="17"
+        letterSpacing="-0.5"
+        fill="#ffffff"
+      >
+        .MD
+      </text>
     </svg>
   );
 }
