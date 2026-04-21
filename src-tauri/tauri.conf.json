@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "evhan-md-editor",
+  "productName": "Evhan .MD Editor",
   "version": "0.1.0",
   "identifier": "com.evhan.mdeditor",
   "build": {
@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "evhan-md-editor",
-        "width": 800,
-        "height": 600
+        "title": "Evhan .MD Editor",
+        "width": 1200,
+        "height": 800
       }
     ],
     "security": {

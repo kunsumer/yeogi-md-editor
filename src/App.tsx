@@ -8,6 +8,7 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import { ConflictBanner } from "./components/ConflictBanner";
 import { Editor } from "./components/Editor";
 import { FileTree } from "./components/FileTree";
+import { Logo } from "./components/Logo";
 import { OpenButtons } from "./components/OpenButtons";
 import { PreviewPane } from "./components/PreviewPane";
 import { StatusBar } from "./components/StatusBar";
@@ -96,13 +97,7 @@ const brandStyle: React.CSSProperties = {
   fontWeight: 600,
   fontSize: 13,
   color: "var(--text)",
-};
-
-const brandDotStyle: React.CSSProperties = {
-  width: 18,
-  height: 18,
-  borderRadius: 4,
-  background: "linear-gradient(135deg, var(--accent) 0%, #7c3aed 100%)",
+  letterSpacing: 0.1,
 };
 
 export default function App() {
@@ -137,34 +132,41 @@ export default function App() {
 
   useEffect(() => {
     async function finishClose() {
-      // Let preview windows flip to orphan before we go.
+      console.log("[close] flushing previews…");
       try {
         await emit("editor.closed");
       } catch (e) {
-        console.warn("editor.closed emit failed, closing anyway:", e);
+        console.warn("[close] editor.closed emit failed:", e);
       }
-      // Flip the Rust flag so the next CloseRequested isn't intercepted,
-      // then ask the window to close natively. Falls back to destroy() if
-      // close() rejects (e.g., permission hiccup).
+      console.log("[close] invoking app_exit");
+      // app.exit(0) is the nuclear-option close: it bypasses
+      // CloseRequested entirely and ends the process. Primary path.
+      try {
+        await invoke("app_exit");
+        return;
+      } catch (e) {
+        console.warn("[close] app_exit failed, falling through:", e);
+      }
+      // Cooperative path (kept as a fallback in case app_exit is ever
+      // restricted): flip ALLOW_CLOSE and ask the window to close.
       try {
         await invoke("allow_close");
+        await getCurrentWindow().close();
+        return;
       } catch (e) {
-        console.warn("allow_close invoke failed:", e);
+        console.warn("[close] cooperative close failed:", e);
       }
-      const w = getCurrentWindow();
+      // Last resort.
       try {
-        await w.close();
+        await getCurrentWindow().destroy();
       } catch (e) {
-        console.warn("close() failed, falling back to destroy():", e);
-        try {
-          await w.destroy();
-        } catch (e2) {
-          console.error("destroy() also failed:", e2);
-        }
+        console.error("[close] destroy() also failed:", e);
       }
     }
 
+    console.log("[close] registering app.close-requested listener");
     const p = listen("app.close-requested", async () => {
+      console.log("[close] received app.close-requested");
       try {
         const dirty = useDocuments.getState().documents.filter((d) => d.isDirty);
         if (usePreferences.getState().autosaveEnabled) {
@@ -172,7 +174,7 @@ export default function App() {
             try {
               await flushRef.current();
             } catch (e) {
-              console.warn("flush failed on close:", e);
+              console.warn("[close] flush failed:", e);
             }
           }
           await finishClose();
@@ -190,11 +192,15 @@ export default function App() {
           await finishClose();
         }
       } catch (e) {
-        console.error("close handler threw, forcing destroy:", e);
+        console.error("[close] handler threw; exiting:", e);
         try {
-          await getCurrentWindow().destroy();
+          await invoke("app_exit");
         } catch {
-          /* ignore */
+          try {
+            await getCurrentWindow().destroy();
+          } catch {
+            /* ignore */
+          }
         }
       }
     });
@@ -295,8 +301,8 @@ export default function App() {
         <aside style={asideStyle}>
           <div style={asideHeaderStyle}>
             <div style={brandStyle}>
-              <span aria-hidden="true" style={brandDotStyle} />
-              <span>evhan-md</span>
+              <Logo size={22} />
+              <span>Evhan .MD</span>
             </div>
           </div>
           <div style={asideBodyStyle}>

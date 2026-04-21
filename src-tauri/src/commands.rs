@@ -75,3 +75,11 @@ pub fn window_close(app: AppHandle, label: String) -> Result<(), FsError> {
 pub fn allow_close() {
     ALLOW_CLOSE.store(true, Ordering::Relaxed);
 }
+
+/// Exit the whole process cleanly. This is the last-resort close path the
+/// webview uses if the cooperative close (allow_close + window.close) fails
+/// for any reason.
+#[tauri::command]
+pub fn app_exit(app: AppHandle) {
+    app.exit(0);
+}
