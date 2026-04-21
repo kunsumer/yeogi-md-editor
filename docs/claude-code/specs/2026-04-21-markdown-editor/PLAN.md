@@ -1688,6 +1688,27 @@ export function StatusBar({ isDirty, saveState, wordCount, watcherOffline }: Pro
 
 ---
 
+## Phase 7.5 — Open files (multi-select) + session restore (added 2026-04-21)
+
+Inserted after Phase 7 in response to user request. Two small additions before the markdown rendering work begins.
+
+### Task 7.5.1: OpenButtons (multi-file + folder)
+- Replace `FolderPicker.tsx` with `OpenButtons.tsx`.
+- "Open file(s)…" — `open({ multiple: true, filters: [{ name: "Markdown", extensions: ["md", "markdown"] }] })`. Each selected path goes through the existing `openFile`.
+- "Open folder…" — same as the previous `FolderPicker` behavior.
+- Always visible at the top of the sidebar (not gated on empty state).
+
+### Task 7.5.2: Session persistence
+- `src/state/sessionPersistence.ts` — `startSessionPersistence()` subscribes to `useDocuments` and writes `{ paths, activePath }` to `localStorage` (key `evhan-md-editor:session`). Writes are deduped by serialized form so per-keystroke edits don't spam localStorage. `loadPersistedSession()` defends against missing key, malformed JSON, and wrong shape.
+- App effect on mount: load persisted session, start the subscribe, replay `openFile(path)` for each persisted path (silently skip per-file failures), then resolve `activePath` to its new doc id and `setActive`.
+- `openFile`'s dedupe check switched to `useDocuments.getState().documents.find` so the restore loop sees live state instead of the stale render-time closure.
+
+### Phase 7.5 checkpoint
+- All Phase-7.5 tests pass (4 in `sessionPersistence.test.ts`).
+- Manual: open files, close app, reopen — same files appear; missing files are silently dropped.
+
+---
+
 ## Phase 8 — Markdown rendering pipeline
 
 ### Task 8.1: Base pipeline + sanitize
