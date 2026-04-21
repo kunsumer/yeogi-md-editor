@@ -6,7 +6,7 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import { ConflictBanner } from "./components/ConflictBanner";
 import { Editor } from "./components/Editor";
 import { FileTree } from "./components/FileTree";
-import { FolderPicker } from "./components/FolderPicker";
+import { OpenButtons } from "./components/OpenButtons";
 import { StatusBar } from "./components/StatusBar";
 import { TabBar } from "./components/TabBar";
 import { fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
@@ -89,13 +89,23 @@ export default function App() {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", height: "100vh" }}>
       <aside style={{ borderRight: "1px solid #ccc", padding: 8, overflow: "auto" }}>
-        {folder ? (
+        <OpenButtons
+          onPickFiles={async (paths) => {
+            for (const p of paths) {
+              try {
+                await openFile(p);
+              } catch (e) {
+                console.error("openFile failed:", p, e);
+              }
+            }
+          }}
+          onPickFolder={setFolder}
+        />
+        {folder && (
           <>
             <div style={{ fontSize: 12, opacity: 0.6 }}>{folder}</div>
             <FileTree root={folder} onOpenFile={openFile} />
           </>
-        ) : (
-          <FolderPicker onPick={setFolder} />
         )}
       </aside>
       <main style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
