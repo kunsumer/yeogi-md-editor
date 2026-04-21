@@ -53,10 +53,12 @@ export default function App() {
       const dirty = useDocuments.getState().documents.filter((d) => d.isDirty);
       if (usePreferences.getState().autosaveEnabled) {
         if (flushRef.current) await flushRef.current();
+        await emit("editor.closed");
         await getCurrentWindow().destroy();
         return;
       }
       if (dirty.length === 0) {
+        await emit("editor.closed");
         await getCurrentWindow().destroy();
         return;
       }
@@ -64,7 +66,10 @@ export default function App() {
         `You have ${dirty.length} unsaved document(s). Close without saving?`,
         { title: "Unsaved changes", kind: "warning" },
       );
-      if (ok) await getCurrentWindow().destroy();
+      if (ok) {
+        await emit("editor.closed");
+        await getCurrentWindow().destroy();
+      }
     });
     return () => {
       p.then((fn) => fn());
