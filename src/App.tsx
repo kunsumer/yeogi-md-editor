@@ -6,6 +6,7 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import { ConflictBanner } from "./components/ConflictBanner";
 import { Editor } from "./components/Editor";
 import { FolderPicker } from "./components/FolderPicker";
+import { TabBar } from "./components/TabBar";
 import { fsList, fsRead, fsWrite, watcherSubscribe, type DirEntry } from "./lib/ipc/commands";
 import { useDocuments } from "./state/documents";
 import { usePreferences } from "./state/preferences";
@@ -116,6 +117,23 @@ export default function App() {
         )}
       </aside>
       <main style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+        <TabBar
+          docs={documents.map((d) => ({
+            id: d.id,
+            title: d.path ? d.path.split("/").pop()! : "Untitled",
+            isDirty: d.isDirty,
+          }))}
+          activeId={activeId}
+          onActivate={setActive}
+          onClose={async (id) => {
+            const doc = useDocuments.getState().documents.find((d) => d.id === id);
+            if (doc?.previewWindowLabel) {
+              const { invoke } = await import("@tauri-apps/api/core");
+              await invoke("window_close", { label: doc.previewWindowLabel });
+            }
+            useDocuments.getState().closeDocument(id);
+          }}
+        />
         {active?.conflict && (
           <ConflictBanner
             onKeep={async () => {
