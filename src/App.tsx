@@ -5,9 +5,10 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { ConflictBanner } from "./components/ConflictBanner";
 import { Editor } from "./components/Editor";
+import { FileTree } from "./components/FileTree";
 import { FolderPicker } from "./components/FolderPicker";
 import { TabBar } from "./components/TabBar";
-import { fsList, fsRead, fsWrite, watcherSubscribe, type DirEntry } from "./lib/ipc/commands";
+import { fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
 import { useDocuments } from "./state/documents";
 import { usePreferences } from "./state/preferences";
 import { useAutosave } from "./hooks/useAutosave";
@@ -16,7 +17,6 @@ import { flushRef } from "./state/flushRef";
 
 export default function App() {
   const [folder, setFolder] = useState<string | null>(null);
-  const [entries, setEntries] = useState<DirEntry[]>([]);
   const [, setWatcherOffline] = useState<string | null>(null);
   useWatcherEvents(setWatcherOffline);
   const { documents, activeId, openDocument, setActive, setContent } = useDocuments();
@@ -25,10 +25,6 @@ export default function App() {
   const autosaveDebounceMs = usePreferences((s) => s.autosaveDebounceMs);
   const active = documents.find((d) => d.id === activeId) ?? null;
   const viewRef = useRef<EditorView | null>(null);
-
-  useEffect(() => {
-    if (folder) fsList(folder).then(setEntries).catch(console.error);
-  }, [folder]);
 
   const { flush } = useAutosave({
     enabled: autosaveEnabled && !!active?.path && !active?.readOnly,
@@ -95,22 +91,7 @@ export default function App() {
         {folder ? (
           <>
             <div style={{ fontSize: 12, opacity: 0.6 }}>{folder}</div>
-            <ul style={{ listStyle: "none", padding: 0 }}>
-              {entries.map((e) => (
-                <li key={e.path}>
-                  {e.is_dir ? (
-                    <span>📁 {e.name}</span>
-                  ) : (
-                    <button
-                      style={{ all: "unset", cursor: "pointer" }}
-                      onClick={() => openFile(e.path)}
-                    >
-                      📄 {e.name}
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <FileTree root={folder} onOpenFile={openFile} />
           </>
         ) : (
           <FolderPicker onPick={setFolder} />
