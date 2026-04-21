@@ -51,14 +51,27 @@ export default function App() {
   useEffect(() => {
     const p = listen("app.close-requested", async () => {
       const dirty = useDocuments.getState().documents.filter((d) => d.isDirty);
+      const notifyPreviews = async () => {
+        try {
+          await emit("editor.closed");
+        } catch (e) {
+          console.warn("editor.closed emit failed, closing anyway:", e);
+        }
+      };
       if (usePreferences.getState().autosaveEnabled) {
-        if (flushRef.current) await flushRef.current();
-        await emit("editor.closed");
+        if (flushRef.current) {
+          try {
+            await flushRef.current();
+          } catch (e) {
+            console.warn("flush failed on close:", e);
+          }
+        }
+        await notifyPreviews();
         await getCurrentWindow().destroy();
         return;
       }
       if (dirty.length === 0) {
-        await emit("editor.closed");
+        await notifyPreviews();
         await getCurrentWindow().destroy();
         return;
       }
@@ -67,7 +80,7 @@ export default function App() {
         { title: "Unsaved changes", kind: "warning" },
       );
       if (ok) {
-        await emit("editor.closed");
+        await notifyPreviews();
         await getCurrentWindow().destroy();
       }
     });
@@ -150,8 +163,23 @@ export default function App() {
   }, []);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", height: "100vh" }}>
-      <aside style={{ borderRight: "1px solid #ccc", padding: 8, overflow: "auto" }}>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "260px 1fr",
+        height: "100vh",
+        width: "100vw",
+        overflow: "hidden",
+      }}
+    >
+      <aside
+        style={{
+          borderRight: "1px solid #ccc",
+          padding: 8,
+          overflow: "auto",
+          minWidth: 0,
+        }}
+      >
         <OpenButtons
           onPickFiles={async (paths) => {
             for (const p of paths) {
@@ -171,7 +199,15 @@ export default function App() {
           </>
         )}
       </aside>
-      <main style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+      <main
+        style={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+          overflow: "hidden",
+        }}
+      >
         <TabBar
           docs={documents.map((d) => ({
             id: d.id,
@@ -206,7 +242,7 @@ export default function App() {
           />
         )}
         {active ? (
-          <div style={{ flex: 1, minHeight: 0 }}>
+          <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden" }}>
             <Editor
               docId={active.id}
               value={active.content}

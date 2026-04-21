@@ -55,5 +55,10 @@ export function Editor({ docId, value, onChange, readOnly, onReady }: Props) {
     }
   }, [value]);
 
-  return <div ref={hostRef} style={{ height: "100%" }} />;
+  return (
+    <div
+      ref={hostRef}
+      style={{ height: "100%", width: "100%", minWidth: 0, overflow: "hidden" }}
+    />
+  );
 }
