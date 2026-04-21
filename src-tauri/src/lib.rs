@@ -52,7 +52,9 @@ pub fn run() {
             commands::fs_create,
             commands::fs_rename,
             commands::fs_list,
-            commands::watcher_subscribe
+            commands::watcher_subscribe,
+            commands::window_open_preview,
+            commands::window_close
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

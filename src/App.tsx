@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
-import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
+import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { ConflictBanner } from "./components/ConflictBanner";
@@ -86,6 +87,33 @@ export default function App() {
     await watcherSubscribe(path);
     setActive(id);
   }
+
+  async function togglePreview() {
+    if (!active) return;
+    const label = active.previewWindowLabel ?? `preview-${active.id}`;
+    if (active.previewWindowLabel) {
+      await invoke("window_close", { label });
+      useDocuments.getState().setPreviewWindowLabel(active.id, null);
+    } else {
+      await invoke("window_open_preview", {
+        label,
+        title: `Preview · ${active.path ?? "Untitled"}`,
+        docId: active.id,
+      });
+      useDocuments.getState().setPreviewWindowLabel(active.id, label);
+      await emit("preview.contentUpdate", { id: active.id, content: active.content });
+    }
+  }
+
+  // Debounced preview sync: when an active doc has an open preview window,
+  // re-emit its content 200 ms after the last change.
+  useEffect(() => {
+    if (!active?.previewWindowLabel) return;
+    const t = setTimeout(() => {
+      emit("preview.contentUpdate", { id: active.id, content: active.content });
+    }, 200);
+    return () => clearTimeout(t);
+  }, [active?.content, active?.previewWindowLabel, active?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,6 +220,8 @@ export default function App() {
           saveState={active?.saveState ?? "idle"}
           wordCount={(active?.content ?? "").trim().split(/\s+/).filter(Boolean).length}
           watcherOffline={watcherOffline}
+          onTogglePreview={active ? togglePreview : undefined}
+          previewOpen={!!active?.previewWindowLabel}
         />
       </main>
     </div>
