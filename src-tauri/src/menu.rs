@@ -50,6 +50,11 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
                 .accelerator("CmdOrCtrl+W")
                 .build(app)?,
         )
+        .separator()
+        .item(
+            &MenuItemBuilder::with_id("file:close-folder", "Close Folder")
+                .build(app)?,
+        )
         .build()?;
 
     let edit = SubmenuBuilder::new(app, "Edit")
