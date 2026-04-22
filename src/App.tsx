@@ -16,7 +16,7 @@ import { TabBar } from "./components/TabBar";
 import { TopBar } from "./components/TopBar";
 import { Tutorial } from "./components/Tutorial";
 import { WysiwygEditor } from "./components/WysiwygEditor";
-import { ensureWelcomeFile, fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
+import { ensureWelcomeFile, fsList, fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
 import { renderMarkdown } from "./lib/markdown/pipeline";
 import { buildStandaloneHtml } from "./lib/exportHtml";
 import { extractHeadings } from "./lib/toc";
@@ -293,6 +293,17 @@ export default function App() {
       stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // If the persisted folder no longer exists on disk, silently clear it.
+  // Runs once on mount; session-load precedes this so `folder` is already
+  // in place by the time we check.
+  useEffect(() => {
+    const f = useDocuments.getState().folder;
+    if (!f) return;
+    fsList(f).catch(() => {
+      useDocuments.getState().setFolder(null);
+    });
   }, []);
 
   // Finder "Open With" routes through RunEvent::Opened on the Rust side,
