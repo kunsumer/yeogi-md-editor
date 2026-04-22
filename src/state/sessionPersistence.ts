@@ -5,6 +5,7 @@ const KEY = "yeogi-md-editor:session";
 export interface PersistedSession {
   paths: string[];
   activePath: string | null;
+  folder: string | null;
 }
 
 function snapshot(state: ReturnType<typeof useDocuments.getState>): PersistedSession {
@@ -17,7 +18,7 @@ function snapshot(state: ReturnType<typeof useDocuments.getState>): PersistedSes
     }
   }
   const active = state.documents.find((d) => d.id === state.activeId);
-  return { paths, activePath: active?.path ?? null };
+  return { paths, activePath: active?.path ?? null, folder: state.folder };
 }
 
 export function startSessionPersistence(): () => void {
@@ -43,6 +44,7 @@ export function loadPersistedSession(): PersistedSession | null {
     return {
       paths: parsed.paths.filter((p): p is string => typeof p === "string"),
       activePath: typeof parsed.activePath === "string" ? parsed.activePath : null,
+      folder: typeof parsed.folder === "string" ? parsed.folder : null,
     };
   } catch {
     return null;

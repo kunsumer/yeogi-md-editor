@@ -34,6 +34,7 @@ export interface Document {
 interface DocumentsState {
   documents: Document[];
   activeId: string | null;
+  folder: string | null;
   openDocument(input: {
     path: string | null;
     content: string;
@@ -43,6 +44,7 @@ interface DocumentsState {
   }): string;
   closeDocument(id: string): void;
   setActive(id: string): void;
+  setFolder(path: string | null): void;
   setContent(id: string, content: string): void;
   markSaveStarted(id: string): void;
   markSaved(id: string, input: { content: string; mtimeMs: number }): void;
@@ -61,6 +63,7 @@ const newId = () => `doc-${++seq}-${Date.now()}`;
 export const useDocuments = create<DocumentsState>((set, get) => ({
   documents: [],
   activeId: null,
+  folder: null,
 
   openDocument({ path, content, savedMtime, encoding, readOnly = false }) {
     const autosaveDefault = usePreferences.getState().autosaveEnabled;
@@ -104,6 +107,10 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
 
   setActive(id) {
     set({ activeId: id });
+  },
+
+  setFolder(path) {
+    set({ folder: path });
   },
 
   setContent(id, content) {
