@@ -5,6 +5,17 @@ follow [Semantic Versioning](https://semver.org/); entries highlight
 user-visible behavior (new capabilities and bug fixes), not internal
 refactors or visual tweaks.
 
+## v0.2.1 — 2026-04-23
+
+### Fixed
+
+- Confirmed the Tauri auto-updater end-to-end: `v0.2.0` installs notice
+  this release, download the signed `.app.tar.gz`, verify the signature
+  against the baked-in pubkey, swap the bundle, and relaunch. No code
+  changes beyond the version bump; this release exists to validate the
+  pipeline now that the repo, signing key, and manifest endpoint are
+  live.
+
 ## v0.2.0 — 2026-04-23
 
 ### New
