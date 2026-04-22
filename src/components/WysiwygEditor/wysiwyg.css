@@ -349,15 +349,75 @@
   border-radius: 4px;
 }
 
-/* Mermaid wrapper — no visible box of its own; the inner .mermaid div
-   already has the framed-card treatment from preview-content.css. */
+/* Mermaid wrapper — resizable horizontally so users can widen crammed
+   diagrams (Gantt charts with many date ticks in particular). The ResizeObserver
+   in MermaidView re-runs mermaid at the new width so the internal layout
+   re-flows instead of just scaling. */
 .wysiwyg-content .mermaid-block {
   display: block;
   user-select: none;
+  position: relative;
+  resize: horizontal;
+  /* auto (not hidden) so that a natural-size diagram wider than the
+     current block is scrollable instead of clipped. resize still works
+     with overflow: auto. */
+  overflow: auto;
+  min-width: 320px;
+  /* Default width = content column. Drag handle to expand past it. */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .wysiwyg-content .mermaid-block.ProseMirror-selectednode > .mermaid {
   outline: 2px solid var(--accent);
+}
+
+/* Let the inner .mermaid layers grow with the wrapper so Gantt (rendered
+   at the wrapper's px width via `useWidth`) gets the full available area. */
+.wysiwyg-content .mermaid-block > .mermaid {
+  width: 100%;
+  box-sizing: border-box;
+}
+.wysiwyg-content .mermaid-block > .mermaid > .mermaid {
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+/* Override the shared `.preview-content .mermaid svg { width: 100% !important }`
+   rule in WYSIWYG. We configure non-Gantt mermaid with `useMaxWidth: false`
+   so the SVG carries meaningful pixel dimensions; letting it keep its
+   natural size (capped at 100% of the wrapper) is what makes the resize
+   handle feel truthful — widening reveals whitespace around the diagram,
+   narrowing scrolls, rather than silently scaling the SVG. */
+.wysiwyg-content .mermaid-block svg {
+  width: auto !important;
+  max-width: 100% !important;
+  height: auto !important;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Subtle affordance showing the drag handle location — the native handle
+   is a tiny corner triangle that's easy to miss. */
+.wysiwyg-content .mermaid-block::after {
+  content: "";
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 12px;
+  height: 12px;
+  background:
+    linear-gradient(
+      135deg,
+      transparent 0 50%,
+      var(--border-strong) 50% 55%,
+      transparent 55% 70%,
+      var(--border-strong) 70% 75%,
+      transparent 75%
+    );
+  pointer-events: none;
+  opacity: 0.7;
 }
 
 .wysiwyg-content .mermaid-error {
@@ -366,6 +426,82 @@
   color: var(--danger);
   white-space: pre-wrap;
   margin: 0;
+}
+
+/* --- Resizable image (Tiptap's ResizableNodeView wraps <img> with a
+   container/wrapper plus `data-resize-handle` corner divs; the base
+   implementation only positions the handles absolutely and leaves all
+   visual styling to the app). --- */
+.wysiwyg-content [data-resize-container][data-node="image"] {
+  /* The container is set to `display: flex` by Tiptap; left-align the
+     image within it so it behaves like a normal block image. */
+  justify-content: flex-start;
+  margin: 1em 0;
+  max-width: 100%;
+}
+.wysiwyg-content [data-resize-wrapper] {
+  /* Constrain the wrapper to the image's intrinsic width so handles sit
+     on the image edges rather than on a full-column flex row. */
+  display: inline-block !important;
+  max-width: 100%;
+}
+.wysiwyg-content [data-resize-wrapper] > img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+/* Selected state + focus ring make the resize affordance discoverable. */
+.wysiwyg-content [data-resize-container][data-node="image"].ProseMirror-selectednode
+  > [data-resize-wrapper] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Handles: small squares pinned to the corners. Visible on hover or when
+   the image is selected, so they don't clutter the page by default. */
+.wysiwyg-content [data-resize-wrapper] [data-resize-handle] {
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  transition: opacity 120ms ease;
+  z-index: 2;
+  /* Pull the handle so half of it overlaps the edge — classic resize-
+     grip look. */
+  margin: -6px;
+}
+.wysiwyg-content [data-resize-container][data-node="image"]:hover
+  [data-resize-handle],
+.wysiwyg-content [data-resize-container][data-node="image"].ProseMirror-selectednode
+  [data-resize-handle] {
+  opacity: 1;
+}
+.wysiwyg-content [data-resize-wrapper] [data-resize-handle="bottom-right"] {
+  cursor: nwse-resize;
+}
+.wysiwyg-content [data-resize-wrapper] [data-resize-handle="bottom-left"] {
+  cursor: nesw-resize;
+}
+.wysiwyg-content [data-resize-wrapper] [data-resize-handle="top-right"] {
+  cursor: nesw-resize;
+}
+.wysiwyg-content [data-resize-wrapper] [data-resize-handle="top-left"] {
+  cursor: nwse-resize;
+}
+/* Active resize: suppress text selection during drag and keep the outline
+   visible even when not the current selection. */
+.wysiwyg-content [data-resize-container][data-resize-state="true"] {
+  user-select: none;
+}
+.wysiwyg-content [data-resize-container][data-resize-state="true"]
+  > [data-resize-wrapper] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* --- Frontmatter (hidden; round-trips on save but doesn't clutter the doc) --- */
@@ -424,6 +560,192 @@
   text-transform: uppercase;
   color: var(--text-faint);
   padding: 0 2px 6px;
+}
+.insert-source-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 2px;
+  gap: 8px;
+}
+.insert-templates-wrap {
+  position: relative;
+  margin-bottom: 6px;
+}
+.insert-templates-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.insert-templates-btn:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+  border-color: var(--border-strong, var(--border));
+}
+.insert-templates-btn[aria-expanded="true"] {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.06));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.insert-templates-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.14),
+    0 2px 6px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+}
+.insert-templates-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.insert-templates-item:hover,
+.insert-templates-item:focus-visible {
+  background: var(--bg-hover, rgba(9, 105, 218, 0.08));
+  color: var(--accent);
+  outline: none;
+}
+
+/* Source-pane header holds Symbols + Templates side by side for LaTeX. */
+.insert-source-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* LaTeX template dropdown: two-column rows with rendered KaTeX preview
+   on the right. Wider menu to accommodate the preview column. */
+.insert-templates-menu.with-preview {
+  min-width: 360px;
+  max-width: 440px;
+  padding: 4px;
+}
+.insert-templates-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.insert-templates-item-row:hover,
+.insert-templates-item-row:focus-visible {
+  background: var(--bg-hover, rgba(9, 105, 218, 0.08));
+  outline: none;
+}
+.insert-templates-item-row .tpl-name {
+  flex: 0 0 auto;
+  font-weight: 500;
+}
+.insert-templates-item-row .tpl-preview {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-muted, #4b5563);
+  font-size: 13px;
+  text-align: right;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.insert-templates-item-row .tpl-preview .katex {
+  font-size: 0.95em;
+}
+
+/* Symbols popover: categorized grid of rendered KaTeX glyphs. */
+.insert-symbols-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  min-width: 360px;
+  max-width: 440px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.14),
+    0 2px 6px rgba(0, 0, 0, 0.06);
+}
+.insert-symbols-group {
+  margin-bottom: 12px;
+}
+.insert-symbols-group:last-child {
+  margin-bottom: 0;
+}
+.insert-symbols-group-name {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 0 4px 6px;
+}
+.insert-symbols-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: 4px;
+}
+.insert-symbols-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 4px 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1;
+}
+.insert-symbols-item:hover,
+.insert-symbols-item:focus-visible {
+  background: var(--bg-hover, rgba(9, 105, 218, 0.08));
+  border-color: var(--border);
+  color: var(--accent);
+  outline: none;
+}
+.insert-symbols-item .katex {
+  font-size: 0.95em;
 }
 .insert-source-pane textarea {
   flex: 1;
@@ -518,15 +840,115 @@
   margin-top: 4px;
 }
 
+/* Confirm dialog (unsaved-changes prompt and similar) — reuses the prompt
+   card/backdrop chrome and just tweaks the message line + Don't-Save
+   affordance. */
+.confirm-card {
+  /* Slightly wider than the plain input prompt so the message has room. */
+  width: min(460px, calc(100vw - 48px));
+}
+.confirm-message {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  margin: 2px 0 6px;
+}
+.confirm-discard {
+  color: var(--danger, #b91c1c);
+}
+.confirm-discard:hover {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* --- Image dialog (URL or local file upload) --- */
+.image-dialog {
+  gap: 8px;
+}
+.image-dialog-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted, #6b7280);
+  margin-bottom: -4px;
+}
+.image-dialog-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-muted, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 2px 0;
+}
+.image-dialog-divider::before,
+.image-dialog-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.image-dialog-file-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 8px 12px;
+  border: 1px dashed var(--border-strong, var(--border));
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+}
+.image-dialog-file-btn:hover:not(:disabled) {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.image-dialog-file-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.image-dialog-file-input {
+  /* The native <input type="file"> is hidden; the styled button above
+     forwards its click. Kept in the DOM (not display:none) so the file
+     picker dialog attaches to a rendered element. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.image-dialog-hint {
+  font-size: 11px;
+  color: var(--text-muted, #6b7280);
+  line-height: 1.4;
+}
+.image-dialog-error {
+  font-size: 12px;
+  color: var(--danger, #b91c1c);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 6px;
+  padding: 6px 8px;
+  line-height: 1.35;
+}
+
 /* --- In-WYSIWYG search bar --- */
 .wysiwyg-search {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 6px;
   padding: 8px 10px;
   background: var(--bg-sidebar);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+}
+.wysiwyg-search-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .wysiwyg-search input {
   flex: 1;
@@ -543,6 +965,11 @@
 .wysiwyg-search input:focus {
   border-color: var(--accent);
 }
+.wysiwyg-search-btn {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+}
 .wysiwyg-search-status {
   font-size: 12px;
   color: var(--text-muted);
@@ -551,6 +978,17 @@
 }
 .wysiwyg-search-status.miss {
   color: var(--danger);
+}
+
+/* Match highlights drawn by the SearchHighlight ProseMirror plugin. */
+.wysiwyg-content .search-match {
+  background: #fff3c4;
+  border-radius: 2px;
+}
+.wysiwyg-content .search-match-current {
+  background: #ffcf33;
+  outline: 1px solid #c78800;
+  outline-offset: -1px;
 }
 
 /* --- Code block NodeView wrap (hover reveals Copy button) --- */

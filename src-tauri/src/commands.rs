@@ -88,7 +88,7 @@ pub fn ensure_welcome_file(app: AppHandle) -> Result<String, FsError> {
         .path()
         .document_dir()
         .map_err(|e| FsError::Io(format!("document_dir: {}", e)))?;
-    let app_dir = docs.join("Evhan .MD Editor");
+    let app_dir = docs.join("Yeogi .MD Editor");
     std::fs::create_dir_all(&app_dir).map_err(|e| FsError::Io(e.to_string()))?;
     let file_path = app_dir.join("Welcome.md");
     if !file_path.exists() {

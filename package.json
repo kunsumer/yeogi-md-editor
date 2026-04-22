@@ -1,5 +1,5 @@
 {
-  "name": "evhan-md-editor",
+  "name": "yeogi-md-editor",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -11,7 +11,10 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "release:keygen": "echo '\\nGenerating Tauri updater signing keypair.\\nStore the private key securely — losing it orphans all existing installs.\\n' && tauri signer generate -w ~/.tauri/yeogi-update.key && echo '\\n→ Copy the printed PUBLIC key into src-tauri/tauri.conf.json -> plugins.updater.pubkey'",
+    "release:build": "pnpm tauri build --target universal-apple-darwin",
+    "release:steps": "echo '\\nYeogi .MD Editor release checklist\\n===================================\\n\\n1. Bump version in lockstep:\\n     package.json                     .version\\n     src-tauri/Cargo.toml            version\\n     src-tauri/tauri.conf.json       .version\\n\\n2. Load signing env (first time: pnpm release:keygen)\\n     export TAURI_SIGNING_PRIVATE_KEY=\"$(cat ~/.tauri/yeogi-update.key)\"\\n     export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=\"<passphrase>\"\\n\\n3. Build the universal bundle:\\n     pnpm release:build\\n\\n4. Publish a GitHub release tagged v<version>. Upload:\\n     - *.dmg\\n     - *.app.tar.gz\\n     - *.app.tar.gz.sig\\n     - latest.json  (see docs/releasing.md for template)\\n\\nFull walkthrough:  docs/releasing.md\\n'"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.3",
@@ -24,6 +27,8 @@
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.7.0",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1",
     "@tiptap/core": "^3.22.4",
     "@tiptap/extension-code-block-lowlight": "^3.22.4",
     "@tiptap/extension-image": "^3.22.4",
@@ -43,6 +48,7 @@
     "katex": "^0.16.45",
     "lowlight": "^3.3.0",
     "markdown-it-footnote": "^4.0.0",
+    "markdown-it-task-lists": "^2.1.1",
     "mermaid": "^11.14.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

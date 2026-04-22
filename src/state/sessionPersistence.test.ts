@@ -44,7 +44,7 @@ describe("sessionPersistence", () => {
   });
 
   it("loadPersistedSession defends against malformed JSON", () => {
-    localStorage.setItem("evhan-md-editor:session", "{not json");
+    localStorage.setItem("yeogi-md-editor:session", "{not json");
     expect(loadPersistedSession()).toBeNull();
   });
 });

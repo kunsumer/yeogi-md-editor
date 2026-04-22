@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
 import { PromptDialog } from "./PromptDialog";
+import { ImageDialog } from "./ImageDialog";
 import { InsertCodeDialog } from "./InsertCodeDialog";
 
 interface Props {
@@ -411,11 +412,8 @@ export function Toolbar({ editor }: Props) {
         />
       )}
       {imageDialog && (
-        <PromptDialog
-          title="Image URL"
-          placeholder="https://example.com/image.png"
-          submitLabel="Insert"
-          onSubmit={applyImage}
+        <ImageDialog
+          onInsert={applyImage}
           onCancel={() => setImageDialog(false)}
         />
       )}
@@ -473,14 +471,15 @@ function Btn({ active, className, children, ...rest }: BtnProps) {
   );
 }
 
-// 16×16 monochrome icons, currentColor — match SF Symbols weight roughly.
+// 16×16 monochrome icons, currentColor. Thin, hairline weight to match
+// macOS SF Symbols "regular" / Apple's toolbar icon style.
 const ICON = {
   width: 16,
   height: 16,
   viewBox: "0 0 16 16",
   fill: "none",
   stroke: "currentColor",
-  strokeWidth: 1.6,
+  strokeWidth: 1.2,
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
 };
@@ -541,7 +540,7 @@ function TaskIcon() {
 function QuoteIcon() {
   return (
     <svg {...ICON}>
-      <line x1="3" y1="3" x2="3" y2="13" strokeWidth="2.4" />
+      <line x1="3" y1="3" x2="3" y2="13" strokeWidth="1.6" />
       <line x1="7" y1="5" x2="14" y2="5" />
       <line x1="7" y1="8" x2="14" y2="8" />
       <line x1="7" y1="11" x2="12" y2="11" />
@@ -560,15 +559,18 @@ function BlockCodeIcon() {
 function HrIcon() {
   return (
     <svg {...ICON}>
-      <line x1="2" y1="8" x2="14" y2="8" strokeWidth="2" />
+      <line x1="2" y1="8" x2="14" y2="8" strokeWidth="1.4" />
     </svg>
   );
 }
 function LinkIcon() {
+  // Tabler-style chain: two diagonal pill halves linked by a visible middle
+  // segment — reads as a chain more clearly than two bracketed arcs.
   return (
     <svg {...ICON}>
-      <path d="M7 9.5a2.5 2.5 0 0 0 3.5 0l2-2a2.5 2.5 0 0 0-3.5-3.5l-1 1" />
-      <path d="M9 6.5a2.5 2.5 0 0 0-3.5 0l-2 2a2.5 2.5 0 0 0 3.5 3.5l1-1" />
+      <line x1="6" y1="10" x2="10" y2="6" />
+      <path d="M8 4 L9 3 a3 3 0 0 1 4 4 L12 8" />
+      <path d="M8 12 L7 13 a3 3 0 0 1 -4 -4 L4 8" />
     </svg>
   );
 }
@@ -593,18 +595,19 @@ function TableIcon() {
   );
 }
 function UndoIcon() {
+  // Curved hairpin arrow: arrow tip at top-left, body sweeps right and down.
   return (
     <svg {...ICON}>
-      <path d="M3 8a5 5 0 1 1 5 5" />
-      <polyline points="3 4 3 8 7 8" />
+      <polyline points="5 3.5 2.5 5.5 5 7.5" />
+      <path d="M2.5 5.5 H10 a3.5 3.5 0 0 1 3.5 3.5 V12.5" />
     </svg>
   );
 }
 function RedoIcon() {
   return (
     <svg {...ICON}>
-      <path d="M13 8a5 5 0 1 0-5 5" />
-      <polyline points="13 4 13 8 9 8" />
+      <polyline points="11 3.5 13.5 5.5 11 7.5" />
+      <path d="M13.5 5.5 H6 a3.5 3.5 0 0 0 -3.5 3.5 V12.5" />
     </svg>
   );
 }
@@ -612,8 +615,8 @@ function ColBeforeIcon() {
   return (
     <svg {...ICON}>
       <rect x="7" y="2" width="7" height="12" rx="1" />
-      <line x1="2.5" y1="8" x2="4.5" y2="8" strokeWidth="1.8" />
-      <line x1="3.5" y1="6.5" x2="3.5" y2="9.5" strokeWidth="1.8" />
+      <line x1="2.5" y1="8" x2="4.5" y2="8" strokeWidth="1.4" />
+      <line x1="3.5" y1="6.5" x2="3.5" y2="9.5" strokeWidth="1.4" />
     </svg>
   );
 }
@@ -621,8 +624,8 @@ function ColAfterIcon() {
   return (
     <svg {...ICON}>
       <rect x="2" y="2" width="7" height="12" rx="1" />
-      <line x1="11.5" y1="8" x2="13.5" y2="8" strokeWidth="1.8" />
-      <line x1="12.5" y1="6.5" x2="12.5" y2="9.5" strokeWidth="1.8" />
+      <line x1="11.5" y1="8" x2="13.5" y2="8" strokeWidth="1.4" />
+      <line x1="12.5" y1="6.5" x2="12.5" y2="9.5" strokeWidth="1.4" />
     </svg>
   );
 }
@@ -630,8 +633,8 @@ function ColDeleteIcon() {
   return (
     <svg {...ICON}>
       <rect x="5" y="2" width="6" height="12" rx="1" />
-      <line x1="6" y1="6" x2="10" y2="10" strokeWidth="1.8" stroke="currentColor" />
-      <line x1="10" y1="6" x2="6" y2="10" strokeWidth="1.8" stroke="currentColor" />
+      <line x1="6" y1="6" x2="10" y2="10" strokeWidth="1.4" stroke="currentColor" />
+      <line x1="10" y1="6" x2="6" y2="10" strokeWidth="1.4" stroke="currentColor" />
     </svg>
   );
 }
@@ -639,8 +642,8 @@ function RowBeforeIcon() {
   return (
     <svg {...ICON}>
       <rect x="2" y="7" width="12" height="7" rx="1" />
-      <line x1="8" y1="2.5" x2="8" y2="4.5" strokeWidth="1.8" />
-      <line x1="6.5" y1="3.5" x2="9.5" y2="3.5" strokeWidth="1.8" />
+      <line x1="8" y1="2.5" x2="8" y2="4.5" strokeWidth="1.4" />
+      <line x1="6.5" y1="3.5" x2="9.5" y2="3.5" strokeWidth="1.4" />
     </svg>
   );
 }
@@ -648,8 +651,8 @@ function RowAfterIcon() {
   return (
     <svg {...ICON}>
       <rect x="2" y="2" width="12" height="7" rx="1" />
-      <line x1="8" y1="11.5" x2="8" y2="13.5" strokeWidth="1.8" />
-      <line x1="6.5" y1="12.5" x2="9.5" y2="12.5" strokeWidth="1.8" />
+      <line x1="8" y1="11.5" x2="8" y2="13.5" strokeWidth="1.4" />
+      <line x1="6.5" y1="12.5" x2="9.5" y2="12.5" strokeWidth="1.4" />
     </svg>
   );
 }
@@ -657,8 +660,8 @@ function RowDeleteIcon() {
   return (
     <svg {...ICON}>
       <rect x="2" y="5" width="12" height="6" rx="1" />
-      <line x1="6" y1="6" x2="10" y2="10" strokeWidth="1.8" />
-      <line x1="10" y1="6" x2="6" y2="10" strokeWidth="1.8" />
+      <line x1="6" y1="6" x2="10" y2="10" strokeWidth="1.4" />
+      <line x1="10" y1="6" x2="6" y2="10" strokeWidth="1.4" />
     </svg>
   );
 }
@@ -666,8 +669,8 @@ function TableDeleteIcon() {
   return (
     <svg {...ICON}>
       <rect x="1.5" y="2.5" width="13" height="11" rx="1" />
-      <line x1="4" y1="5" x2="12" y2="13" strokeWidth="1.8" />
-      <line x1="12" y1="5" x2="4" y2="13" strokeWidth="1.8" />
+      <line x1="4" y1="5" x2="12" y2="13" strokeWidth="1.4" />
+      <line x1="12" y1="5" x2="4" y2="13" strokeWidth="1.4" />
     </svg>
   );
 }
@@ -683,11 +686,23 @@ function MermaidIcon() {
   );
 }
 function MathIcon() {
+  // Word's Equation icon is a serif "π". Sized to match the visual weight
+  // of the surrounding icons — any smaller and it floats above the row.
   return (
     <svg {...ICON}>
-      <path d="M3 3h6l-3 4 3 6h-3" />
-      <line x1="9.5" y1="10" x2="14" y2="5" />
-      <line x1="9.5" y1="5" x2="14" y2="10" />
+      <text
+        x="8"
+        y="13.5"
+        textAnchor="middle"
+        fontFamily='"Times New Roman", "Cambria Math", Georgia, serif'
+        fontSize="16"
+        fontWeight="500"
+        fontStyle="italic"
+        fill="currentColor"
+        stroke="none"
+      >
+        π
+      </text>
     </svg>
   );
 }

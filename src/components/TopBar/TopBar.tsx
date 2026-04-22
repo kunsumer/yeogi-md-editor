@@ -7,6 +7,9 @@ interface Props {
   isDirty: boolean;
   viewMode?: ViewMode;
   onSetViewMode?: (mode: ViewMode) => void;
+  /** Per-document autosave toggle; undefined when no doc is active. */
+  autosaveEnabled?: boolean;
+  onSetAutosaveEnabled?: (enabled: boolean) => void;
 }
 
 const wrap: React.CSSProperties = {
@@ -54,6 +57,38 @@ const segBtn = (active: boolean): React.CSSProperties => ({
   transition: "background 120ms, color 120ms",
 });
 
+const autosaveWrap: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  fontSize: 12,
+  color: "var(--text-muted)",
+  userSelect: "none",
+};
+
+const switchTrack = (on: boolean): React.CSSProperties => ({
+  position: "relative",
+  width: 30,
+  height: 16,
+  borderRadius: 999,
+  background: on ? "var(--accent)" : "var(--border-strong, #d1d5db)",
+  cursor: "pointer",
+  transition: "background 140ms ease",
+  flexShrink: 0,
+});
+
+const switchThumb = (on: boolean): React.CSSProperties => ({
+  position: "absolute",
+  top: 2,
+  left: on ? 16 : 2,
+  width: 12,
+  height: 12,
+  borderRadius: "50%",
+  background: "#ffffff",
+  boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+  transition: "left 140ms ease",
+});
+
 export function TopBar({
   path,
   wordCount,
@@ -61,17 +96,23 @@ export function TopBar({
   isDirty,
   viewMode,
   onSetViewMode,
+  autosaveEnabled,
+  onSetAutosaveEnabled,
 }: Props) {
   const filename = path ? path.split("/").pop() : "Untitled";
+  // Priority matters: if the buffer has been modified since the last save
+  // we must surface "Unsaved" immediately, even though `saveState` is still
+  // "saved" from the previous write. Otherwise the user gets a stale
+  // "Saved" label while autosave is off and edits are piling up.
   const saveLabel =
     saveState === "saving"
       ? "Saving…"
-      : saveState === "saved"
-        ? "Saved"
-        : saveState === "failed"
-          ? "Save failed"
-          : isDirty
-            ? "Unsaved"
+      : saveState === "failed"
+        ? "Save failed"
+        : isDirty
+          ? "Unsaved"
+          : saveState === "saved"
+            ? "Saved"
             : "";
   return (
     <div className="app-topbar" style={wrap}>
@@ -109,6 +150,25 @@ export function TopBar({
         </>
       )}
       <div style={{ flex: 1 }} />
+      {autosaveEnabled !== undefined && onSetAutosaveEnabled && (
+        <label style={autosaveWrap} title="Autosave this document on every keystroke (debounced)">
+          <span>Autosave</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={autosaveEnabled}
+            aria-label="Toggle autosave for this document"
+            onClick={() => onSetAutosaveEnabled(!autosaveEnabled)}
+            style={{
+              ...switchTrack(autosaveEnabled),
+              border: 0,
+              padding: 0,
+            }}
+          >
+            <span style={switchThumb(autosaveEnabled)} aria-hidden="true" />
+          </button>
+        </label>
+      )}
       {viewMode && onSetViewMode && (
         <div style={segWrap} role="group" aria-label="View mode">
           <button

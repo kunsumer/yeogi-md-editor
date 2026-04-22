@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { renderMarkdown } from "../../lib/markdown/pipeline";
 import { safeReplaceChildren } from "../../lib/safeInsertHtml";
+import { slugify } from "../../lib/slug";
 import "./preview-content.css";
 
 interface Props {
@@ -50,11 +51,20 @@ export function PreviewPane({ content }: Props) {
     if (/^(https?:|mailto:)/.test(href)) {
       openUrl(href).catch((err) => console.warn("openUrl failed:", href, err));
     }
-    // In-document fragment links (#heading) fall through intentionally so
-    // clicking a TOC-rendered anchor still scrolls the preview.
+    // In-document fragment links (#heading) slug-match against the
+    // rendered headings. We don't inject id= attributes into the HTML —
+    // matching on slugified textContent works for the standard
+    // `[Heading](#heading)` markdown convention users write.
     if (href.startsWith("#") && hostRef.current) {
-      const target = hostRef.current.querySelector(`[id="${CSS.escape(href.slice(1))}"]`);
-      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      const target = href.slice(1);
+      if (!target) return;
+      const headings = hostRef.current.querySelectorAll("h1, h2, h3, h4, h5, h6");
+      for (const h of Array.from(headings)) {
+        if (slugify((h as HTMLElement).textContent ?? "") === target) {
+          (h as HTMLElement).scrollIntoView({ behavior: "smooth", block: "start" });
+          break;
+        }
+      }
     }
   }
 

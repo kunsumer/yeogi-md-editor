@@ -84,10 +84,14 @@
   display: block;
   max-width: 100%;
   overflow: auto;
+  /* Shrink-wrap the table to its content width instead of stretching to
+     the full container — the block overflow wrapper needs width: max-content
+     so cell borders on the right edge stay visible when content is narrow. */
+  width: max-content;
 }
 .preview-content th,
 .preview-content td {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   padding: 8px 12px;
   vertical-align: top;
   text-align: left;
@@ -178,9 +182,13 @@
   border-radius: 8px;
   overflow: auto;
 }
+/* Mermaid stamps inline `max-width` on the generated SVG which caps it at
+   the chart's intrinsic width, leaving the Gantt cramped in a narrow
+   column. Force-fill the card's width so wide diagrams breathe. */
 .preview-content .mermaid svg {
-  max-width: 100%;
-  height: auto;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
 }
 .preview-content .mermaid-error {
   background: #fef3c7;

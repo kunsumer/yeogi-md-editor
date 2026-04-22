@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { usePreferences } from "./preferences";
 
 export interface Conflict {
   diskMtime: number;
@@ -22,6 +23,12 @@ export interface Document {
   saveState: "idle" | "saving" | "saved" | "failed";
   lastSaveError: string | null;
   viewMode: ViewMode;
+  /**
+   * Per-document autosave. Seeded from the global preference at open time
+   * so new docs pick up the user's default, but can be toggled independently
+   * — useful for a scratch buffer you don't want flushed to disk mid-edit.
+   */
+  autosaveEnabled: boolean;
 }
 
 interface DocumentsState {
@@ -44,6 +51,7 @@ interface DocumentsState {
   setPreviewWindowLabel(id: string, label: string | null): void;
   setConflict(id: string, conflict: Conflict | null): void;
   setViewMode(id: string, mode: ViewMode): void;
+  setAutosaveEnabled(id: string, enabled: boolean): void;
   replaceContentFromDisk(id: string, input: { content: string; mtimeMs: number }): void;
 }
 
@@ -55,6 +63,7 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
   activeId: null,
 
   openDocument({ path, content, savedMtime, encoding, readOnly = false }) {
+    const autosaveDefault = usePreferences.getState().autosaveEnabled;
     if (path) {
       const existing = get().documents.find((d) => d.path === path);
       if (existing) {
@@ -79,6 +88,7 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
       saveState: "idle",
       lastSaveError: null,
       viewMode: "wysiwyg",
+      autosaveEnabled: autosaveDefault,
     };
     set((s) => ({ documents: [...s.documents, doc], activeId: id }));
     return id;
@@ -156,6 +166,14 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
   setViewMode(id, mode) {
     set((s) => ({
       documents: s.documents.map((d) => (d.id === id ? { ...d, viewMode: mode } : d)),
+    }));
+  },
+
+  setAutosaveEnabled(id, enabled) {
+    set((s) => ({
+      documents: s.documents.map((d) =>
+        d.id === id ? { ...d, autosaveEnabled: enabled } : d,
+      ),
     }));
   },
 

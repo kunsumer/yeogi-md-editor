@@ -30,6 +30,15 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        // Updater checks a hosted manifest for a newer version, downloads
+        // the matching platform artifact, verifies the minisign signature
+        // (pubkey in tauri.conf.json), and swaps the .app on relaunch.
+        // Works without Apple Developer signing — Tauri's own signature
+        // gates the update, not Gatekeeper.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        // Used by the frontend to relaunch the app after an update is
+        // applied (so the user doesn't have to quit + reopen manually).
+        .plugin(tauri_plugin_process::init())
         .manage(AppState {
             watcher: watcher.clone(),
         })

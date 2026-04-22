@@ -4,7 +4,7 @@ use tauri::{AppHandle, Runtime};
 /// Build the native menu for the main window. Mirrors Meva's layout plus a
 /// "+" accelerator for Zoom In that Meva is missing.
 pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
-    let app_name = "Evhan .MD Editor";
+    let app_name = "Yeogi .MD Editor";
 
     // App submenu (macOS puts this first; other platforms ignore or merge).
     let app_menu = SubmenuBuilder::new(app, app_name)
@@ -112,6 +112,11 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let help = SubmenuBuilder::new(app, "Help")
         .item(
             &MenuItemBuilder::with_id("help:show-tutorial", "Show Tutorial")
+                .build(app)?,
+        )
+        .separator()
+        .item(
+            &MenuItemBuilder::with_id("help:check-for-updates", "Check for Updates…")
                 .build(app)?,
         )
         .build()?;

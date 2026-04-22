@@ -6,7 +6,9 @@ import { listen } from "@tauri-apps/api/event";
 import { tempDir } from "@tauri-apps/api/path";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { ConflictBanner } from "./components/ConflictBanner";
+import { UpdateBanner } from "./components/UpdateBanner";
 import { Editor } from "./components/Editor";
 import { FileTree } from "./components/FileTree";
 import { Logo } from "./components/Logo";
@@ -16,7 +18,6 @@ import { TOC } from "./components/TOC";
 import { TopBar } from "./components/TopBar";
 import { Tutorial } from "./components/Tutorial";
 import { WysiwygEditor } from "./components/WysiwygEditor";
-import { WysiwygSearchBar } from "./components/WysiwygEditor/WysiwygSearchBar";
 import { ensureWelcomeFile, fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
 import { renderMarkdown } from "./lib/markdown/pipeline";
 import { buildStandaloneHtml } from "./lib/exportHtml";
@@ -24,9 +25,11 @@ import { extractHeadings } from "./lib/toc";
 import { useDocuments, type ViewMode } from "./state/documents";
 import { usePreferences } from "./state/preferences";
 import { useAutosave } from "./hooks/useAutosave";
+import { useUpdater } from "./hooks/useUpdater";
 import { useWatcherEvents } from "./hooks/useWatcherEvents";
 import { flushRef } from "./state/flushRef";
 import { loadPersistedSession, startSessionPersistence } from "./state/sessionPersistence";
+import { APP_VERSION_LABEL } from "./version";
 
 const shellStyle: React.CSSProperties = {
   display: "flex",
@@ -106,6 +109,10 @@ export default function App() {
   const [zoom, setZoom] = useState(1);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchReplace, setSearchReplace] = useState(false);
+  // Pending close request blocked by unsaved changes. null = no prompt up.
+  const [closeConfirm, setCloseConfirm] = useState<{ id: string } | null>(null);
+  const updater = useUpdater({ checkOnStartup: true });
   useWatcherEvents(setWatcherOffline);
   const { documents, activeId, openDocument, setActive, setContent } = useDocuments();
   const { markSaved, markSaveStarted, markSaveFailed } = useDocuments.getState();
@@ -119,10 +126,14 @@ export default function App() {
     document.documentElement.style.setProperty("--app-zoom", String(zoom));
   }, [zoom]);
 
+  // Autosave is now per-document: the global preference seeds the default
+  // at open time, but each doc has its own toggle (TopBar pill switch).
+  const docAutosaveEnabled = active?.autosaveEnabled ?? autosaveEnabled;
   const { flush } = useAutosave({
-    enabled: autosaveEnabled && !!active?.path && !active?.readOnly,
+    enabled: docAutosaveEnabled && !!active?.path && !active?.readOnly,
     debounceMs: autosaveDebounceMs,
     content: active?.content ?? "",
+    isDirty: !!active?.isDirty,
     save: async (value) => {
       if (!active?.path) return;
       try {
@@ -184,21 +195,61 @@ export default function App() {
     if (typeof picked === "string") setFolder(picked);
   }
 
-  function closeActiveTab() {
-    const id = useDocuments.getState().activeId;
-    if (id) useDocuments.getState().closeDocument(id);
+  function requestCloseDocument(id: string) {
+    const doc = useDocuments.getState().documents.find((d) => d.id === id);
+    if (!doc) return;
+    if (doc.isDirty) {
+      // Unsaved work — stop and ask. The ConfirmDialog handles Save /
+      // Don't Save / Cancel. We never auto-close a dirty buffer.
+      setCloseConfirm({ id });
+      return;
+    }
+    useDocuments.getState().closeDocument(id);
   }
 
-  function triggerFind() {
+  function closeActiveTab() {
+    const id = useDocuments.getState().activeId;
+    if (id) requestCloseDocument(id);
+  }
+
+  async function saveDocument(id: string): Promise<boolean> {
+    const doc = useDocuments.getState().documents.find((d) => d.id === id);
+    if (!doc) return false;
+    if (!doc.path) {
+      // Untitled — fall back to Save As. Keeping this simple: cancel the
+      // pending close if the user bails on the dialog.
+      const target = await save({
+        filters: [{ name: "Markdown", extensions: ["md", "markdown", "mdown", "mkd"] }],
+      });
+      if (!target) return false;
+      useDocuments.getState().setPath(id, target);
+    }
+    const path =
+      useDocuments.getState().documents.find((d) => d.id === id)?.path ?? null;
+    if (!path) return false;
+    try {
+      markSaveStarted(id);
+      const r = await fsWrite(path, doc.content);
+      markSaved(id, { content: doc.content, mtimeMs: r.mtime_ms });
+      return true;
+    } catch (e) {
+      markSaveFailed(id, String(e));
+      return false;
+    }
+  }
+
+  function triggerFind(replace: boolean) {
     if (!active) return;
-    // Respect the current view mode — don't auto-switch. In Edit, open CM6's
-    // native search panel. In WYSIWYG, open the app-level search bar that
-    // drives `window.find()` over the rendered DOM.
+    // Respect the current view mode — don't auto-switch. Edit mode uses
+    // CodeMirror's built-in search panel (Find and Replace are the same
+    // panel in CM6). WYSIWYG opens our ProseMirror-decoration-based bar
+    // with an optional replace row.
     if (active.viewMode === "edit") {
       requestAnimationFrame(() => {
         if (viewRef.current) openSearchPanel(viewRef.current);
       });
     } else {
+      setSearchReplace(replace);
       setSearchOpen(true);
     }
   }
@@ -237,7 +288,7 @@ export default function App() {
       const dir = await tempDir();
       const sep = dir.endsWith("/") || dir.endsWith("\\") ? "" : "/";
       const safeName = title.replace(/[^\w.\- ]+/g, "_") || "document";
-      const tmpPath = `${dir}${sep}evhan-print-${Date.now()}-${safeName}.html`;
+      const tmpPath = `${dir}${sep}yeogi-print-${Date.now()}-${safeName}.html`;
       await fsWrite(tmpPath, standalone);
       // openPath routes .html through the OS default handler — Safari on
       // macOS — where Cmd+P's print dialog has "Save as PDF" built in.
@@ -271,14 +322,14 @@ export default function App() {
       }
       // Fresh start (nothing persisted). Seed a welcome file + show the
       // first-run tutorial once per machine.
-      const welcomeKey = "evhan-md-editor:welcome-shown";
+      const welcomeKey = "yeogi-md-editor:welcome-shown";
       if (localStorage.getItem(welcomeKey)) return;
       try {
         const welcomePath = await ensureWelcomeFile();
         if (cancelled) return;
         await openFile(welcomePath);
         localStorage.setItem(welcomeKey, "true");
-        if (!localStorage.getItem("evhan-md-editor:tutorial-shown")) {
+        if (!localStorage.getItem("yeogi-md-editor:tutorial-shown")) {
           setTutorialOpen(true);
         }
       } catch (e) {
@@ -337,8 +388,10 @@ export default function App() {
           closeActiveTab();
           break;
         case "edit:find":
+          triggerFind(false);
+          break;
         case "edit:find-replace":
-          triggerFind();
+          triggerFind(true);
           break;
         case "view:toggle-sidebar":
           setSidebarVisible((v) => !v);
@@ -359,6 +412,9 @@ export default function App() {
         case "help:show-tutorial":
           setTutorialOpen(true);
           break;
+        case "help:check-for-updates":
+          updater.runCheck();
+          break;
         default:
           console.info("menu:", id);
       }
@@ -375,15 +431,117 @@ export default function App() {
     [active?.content, active?.id],
   );
 
+  // When the user toggles between WYSIWYG and Edit we remember which
+  // heading was at the top of the previous viewport so the target view
+  // can scroll to the same spot. Kept in a ref (not state) so storing it
+  // doesn't trigger a re-render between the snapshot and the view swap.
+  //
+  // Scoped to `docId` because the ref outlives a tab switch — without the
+  // scope, rapidly flipping tabs during the polling window could apply a
+  // heading index captured against doc A to doc B's viewport. The effect
+  // below bails out if the pending ref isn't for the currently active doc.
+  const pendingScrollHeadingRef = useRef<{ docId: string; index: number } | null>(null);
+
+  function captureTopHeadingIndex(mode: ViewMode): number | null {
+    if (!active || headings.length === 0) return null;
+    if (mode === "wysiwyg") {
+      const scroller = document.querySelector(".wysiwyg-scroll");
+      if (!scroller) return null;
+      const viewportTop = scroller.getBoundingClientRect().top + 12;
+      const els = document.querySelectorAll<HTMLElement>(
+        ".wysiwyg-content .ProseMirror h1, .wysiwyg-content .ProseMirror h2, " +
+          ".wysiwyg-content .ProseMirror h3, .wysiwyg-content .ProseMirror h4, " +
+          ".wysiwyg-content .ProseMirror h5, .wysiwyg-content .ProseMirror h6",
+      );
+      let last = -1;
+      for (let i = 0; i < els.length; i++) {
+        if (els[i].getBoundingClientRect().top <= viewportTop) last = i;
+        else break;
+      }
+      return last >= 0 ? last : null;
+    }
+    const view = viewRef.current;
+    if (!view) return null;
+    const topBlock = view.lineBlockAtHeight(view.scrollDOM.scrollTop);
+    const lineNum = view.state.doc.lineAt(topBlock.from).number;
+    let last = -1;
+    for (let i = 0; i < headings.length; i++) {
+      if (headings[i].line <= lineNum) last = i;
+      else break;
+    }
+    return last >= 0 ? last : null;
+  }
+
   function setViewMode(mode: ViewMode) {
     if (!active) return;
+    if (active.viewMode !== mode) {
+      const captured = captureTopHeadingIndex(active.viewMode);
+      pendingScrollHeadingRef.current =
+        captured != null ? { docId: active.id, index: captured } : null;
+    }
     useDocuments.getState().setViewMode(active.id, mode);
   }
 
-  function jumpToHeading(line: number) {
+  // After a view-mode flip, scroll the newly mounted editor to the
+  // heading we snapshotted in setViewMode. The new editor mounts async
+  // (CodeMirror sets viewRef via onReady; the WYSIWYG DOM needs a paint),
+  // so we poll briefly for readiness before giving up.
+  useEffect(() => {
     if (!active) return;
-    if (active.viewMode !== "edit") {
-      useDocuments.getState().setViewMode(active.id, "edit");
+    const pending = pendingScrollHeadingRef.current;
+    if (!pending) return;
+    if (pending.docId !== active.id) {
+      // Captured against a different doc (user switched tabs during the
+      // poll window). Drop it so a heading index from doc A can't scroll
+      // doc B to a meaningless position.
+      pendingScrollHeadingRef.current = null;
+      return;
+    }
+    const idx = pending.index;
+    const h = headings[idx];
+    if (!h) {
+      pendingScrollHeadingRef.current = null;
+      return;
+    }
+    let cancelled = false;
+    let tries = 0;
+    function attempt() {
+      if (cancelled || !active) return;
+      const ready =
+        active.viewMode === "edit"
+          ? viewRef.current != null
+          : document.querySelector(".wysiwyg-content .ProseMirror") != null;
+      if (!ready) {
+        if (tries++ < 15) {
+          setTimeout(attempt, 30);
+          return;
+        }
+        pendingScrollHeadingRef.current = null;
+        return;
+      }
+      pendingScrollHeadingRef.current = null;
+      jumpToHeading(h.line, idx);
+    }
+    const handle = window.setTimeout(attempt, 16);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(handle);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.viewMode, active?.id]);
+
+  function jumpToHeading(line: number, index: number) {
+    if (!active) return;
+    // Respect the current view mode — don't auto-switch.
+    if (active.viewMode === "wysiwyg") {
+      const root = document.querySelector(".wysiwyg-content .ProseMirror");
+      if (!root) return;
+      const headingEls = root.querySelectorAll("h1, h2, h3, h4, h5, h6");
+      const target = headingEls[index];
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      return;
     }
     const view = viewRef.current;
     if (!view) return;
@@ -413,9 +571,7 @@ export default function App() {
         }))}
         activeId={activeId}
         onActivate={setActive}
-        onClose={async (id) => {
-          useDocuments.getState().closeDocument(id);
-        }}
+        onClose={(id) => requestCloseDocument(id)}
         onNew={() => pickAndOpenFiles().catch(console.error)}
       />
       <div style={bodyStyle}>
@@ -424,14 +580,27 @@ export default function App() {
             <div style={asideHeaderStyle}>
               <div style={brandStyle}>
                 <Logo size={28} />
-                <span>Evhan .MD</span>
+                <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
+                  <span>Yeogi .MD</span>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 400,
+                      color: "var(--text-faint)",
+                      letterSpacing: 0.2,
+                    }}
+                    title={`Yeogi .MD Editor ${APP_VERSION_LABEL}`}
+                  >
+                    {APP_VERSION_LABEL}
+                  </span>
+                </div>
               </div>
             </div>
             <div style={asideBodyStyle}>
               {active && (
                 <>
                   <div style={asideSectionLabelStyle}>Contents</div>
-                  <TOC headings={headings} onJump={(h) => jumpToHeading(h.line)} />
+                  <TOC headings={headings} onJump={(h, i) => jumpToHeading(h.line, i)} />
                 </>
               )}
               {folder && (
@@ -458,6 +627,17 @@ export default function App() {
             isDirty={active?.isDirty ?? false}
             viewMode={active?.viewMode}
             onSetViewMode={active ? setViewMode : undefined}
+            autosaveEnabled={active ? docAutosaveEnabled : undefined}
+            onSetAutosaveEnabled={
+              active
+                ? (v) => useDocuments.getState().setAutosaveEnabled(active.id, v)
+                : undefined
+            }
+          />
+          <UpdateBanner
+            status={updater.status}
+            onInstall={(u) => updater.applyUpdate(u)}
+            onDismiss={updater.dismiss}
           />
           {active?.conflict && (
             <ConflictBanner
@@ -475,9 +655,6 @@ export default function App() {
               onDiff={() => console.log("diff viewer is post-v1")}
             />
           )}
-          {active && active.viewMode === "wysiwyg" && searchOpen && (
-            <WysiwygSearchBar onClose={() => setSearchOpen(false)} />
-          )}
           {active ? (
             <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden" }}>
               {active.viewMode === "wysiwyg" ? (
@@ -486,6 +663,9 @@ export default function App() {
                   content={active.content}
                   onChange={(next) => setContent(active.id, next)}
                   readOnly={active.readOnly}
+                  searchOpen={searchOpen}
+                  searchReplace={searchReplace}
+                  onSearchClose={() => setSearchOpen(false)}
                 />
               ) : (
                 <Editor
@@ -520,10 +700,44 @@ export default function App() {
         <Tutorial
           onClose={() => {
             setTutorialOpen(false);
-            localStorage.setItem("evhan-md-editor:tutorial-shown", "true");
+            localStorage.setItem("yeogi-md-editor:tutorial-shown", "true");
           }}
         />
       )}
+      {closeConfirm &&
+        (() => {
+          const doc = documents.find((d) => d.id === closeConfirm.id);
+          const name = doc?.path
+            ? doc.path.split("/").pop()
+            : "this document";
+          return (
+            <ConfirmDialog
+              title={`Save changes to ${name}?`}
+              message={
+                <>
+                  You have unsaved changes in <strong>{name}</strong>. Closing without
+                  saving will discard them.
+                </>
+              }
+              confirmLabel="Save"
+              discardLabel="Don't Save"
+              cancelLabel="Cancel"
+              onConfirm={async () => {
+                const ok = await saveDocument(closeConfirm.id);
+                if (!ok) return; // Save failed — keep the dialog + the doc open.
+                const idToClose = closeConfirm.id;
+                setCloseConfirm(null);
+                useDocuments.getState().closeDocument(idToClose);
+              }}
+              onDiscard={() => {
+                const idToClose = closeConfirm.id;
+                setCloseConfirm(null);
+                useDocuments.getState().closeDocument(idToClose);
+              }}
+              onCancel={() => setCloseConfirm(null)}
+            />
+          );
+        })()}
     </div>
   );
 }

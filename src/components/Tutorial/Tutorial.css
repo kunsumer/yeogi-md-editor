@@ -168,6 +168,106 @@
   font-weight: 500;
 }
 
+/* Ribbon mockup — compact row of toolbar buttons + a heading pill, mirrors
+   the real Word-style ribbon the user sees over the WYSIWYG editor. */
+.tutorial-ribbon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.tutorial-ribbon .trb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.tutorial-ribbon .trb-btn:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+}
+.tutorial-ribbon .trb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg);
+}
+.tutorial-ribbon .trb-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* Inline-rendering chips — little tags listing the things WYSIWYG renders. */
+.tutorial-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  padding: 4px 8px;
+}
+.tutorial-chips span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+/* Autosave switch demo — mirrors the real TopBar switch shape. */
+.tutorial-autosave-demo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.tutorial-switch {
+  position: relative;
+  display: inline-block;
+  width: 30px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--border-strong, #d1d5db);
+}
+.tutorial-switch.on {
+  background: var(--accent);
+}
+.tutorial-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: left 140ms ease;
+}
+.tutorial-switch.on .tutorial-switch-thumb {
+  left: 16px;
+}
+
 .tutorial-shortcuts {
   display: grid;
   grid-template-columns: auto 1fr;

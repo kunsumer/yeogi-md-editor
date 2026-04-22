@@ -1,4 +1,4 @@
-use evhan_md_editor_lib::watcher::{Watcher, WatcherEvent};
+use yeogi_md_editor_lib::watcher::{Watcher, WatcherEvent};
 use std::fs;
 use std::sync::mpsc;
 use std::time::Duration;

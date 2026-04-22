@@ -1,6 +1,6 @@
 import { useDocuments } from "./documents";
 
-const KEY = "evhan-md-editor:session";
+const KEY = "yeogi-md-editor:session";
 
 export interface PersistedSession {
   paths: string[];

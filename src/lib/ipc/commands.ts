@@ -40,7 +40,7 @@ export async function watcherSubscribe(path: string): Promise<void> {
 
 /**
  * First-run welcome file seeding. On the Rust side, copies the bundled
- * welcome.md into ~/Documents/Evhan .MD Editor/Welcome.md (idempotent —
+ * welcome.md into ~/Documents/Yeogi .MD Editor/Welcome.md (idempotent —
  * never overwrites) and returns its absolute path.
  */
 export async function ensureWelcomeFile(): Promise<string> {

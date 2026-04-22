@@ -43,7 +43,7 @@ pub fn write(path: &str, content: &str) -> Result<FileWritten, FsError> {
     let file_name = p.file_name()
         .ok_or_else(|| FsError::Io("no file name".into()))?
         .to_string_lossy().to_string();
-    let tmp = dir.join(format!(".{}.tmp-evhan-md-editor", file_name));
+    let tmp = dir.join(format!(".{}.tmp-yeogi-md-editor", file_name));
 
     {
         let mut f = stdfs::File::create(&tmp).map_err(|e| FsError::Io(e.to_string()))?;

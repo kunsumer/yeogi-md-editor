@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    evhan_md_editor_lib::run()
+    yeogi_md_editor_lib::run()
 }

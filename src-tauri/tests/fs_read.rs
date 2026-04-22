@@ -1,5 +1,5 @@
-use evhan_md_editor_lib::fs;
-use evhan_md_editor_lib::types::FsError;
+use yeogi_md_editor_lib::fs;
+use yeogi_md_editor_lib::types::FsError;
 use std::fs as stdfs;
 use tempfile::TempDir;
 
