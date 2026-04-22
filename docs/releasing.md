@@ -1,39 +1,27 @@
 # Releasing Yeogi .MD Editor
 
-## One-time setup
+## Setup state (already done)
 
-### 1. Generate a Tauri signing key pair
+- **Repo:** https://github.com/kunsumer/yeogi-md-editor (public).
+- **Signing keypair:** generated locally, no passphrase:
+  - Private: `~/.tauri/yeogi-update.key`
+  - Public (also baked into `src-tauri/tauri.conf.json` → `plugins.updater.pubkey`): `~/.tauri/yeogi-update.key.pub`
+- **Updater endpoint** in `tauri.conf.json` points at the GitHub "latest release" URL.
 
-The updater verifies each new bundle with a detached signature. You need a key pair:
+**Never commit the private key file.** If you lose it, you lose the ability
+to ship updates to existing installs — they verify against the public key
+baked into the app at build time.
 
-```bash
-pnpm tauri signer generate -w ~/.tauri/yeogi-update.key
-```
+### Build-time signing env var
 
-When prompted, set a passphrase (any string — you'll need it at build time). The command prints a public key. Paste it into `src-tauri/tauri.conf.json`:
-
-```json
-"plugins": {
-  "updater": {
-    "pubkey": "<the printed public key goes here>",
-    "endpoints": [
-      "https://github.com/<your-owner>/<your-repo>/releases/latest/download/latest.json"
-    ]
-  }
-}
-```
-
-**Replace `<your-owner>/<your-repo>`** with the slug of the public repo where you'll publish releases.
-
-**Never commit the private key** (`~/.tauri/yeogi-update.key`). If you lose it, you lose the ability to ship updates to existing installs — they verify against the public key baked into the app at build time.
-
-### 2. Expose the key to the build
+Each release build needs the private key exposed as an env var:
 
 ```bash
-# Add to ~/.zshrc or pass inline on the build command:
 export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/yeogi-update.key)"
-export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="<passphrase>"
 ```
+
+No password was set on the key, so `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` is
+not required. You can add the export to `~/.zshrc` if you prefer it sticky.
 
 ## Cutting a release
 
@@ -50,34 +38,45 @@ export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="<passphrase>"
    - `src-tauri/target/universal-apple-darwin/release/bundle/macos/Yeogi .MD Editor.app.tar.gz`
    - `src-tauri/target/universal-apple-darwin/release/bundle/macos/Yeogi .MD Editor.app.tar.gz.sig`
 
-3. **Write `latest.json`** — the manifest the updater polls. Template:
+3. **Write `latest.json`** — the manifest the updater polls. Template (swap the version, tag, date, and `.sig` contents each release):
    ```json
    {
-     "version": "0.1.1",
-     "notes": "Bug fixes and polish. See changelog for details.",
-     "pub_date": "2026-04-22T18:00:00Z",
+     "version": "0.2.1",
+     "notes": "Bug fixes and polish. See CHANGELOG.md for details.",
+     "pub_date": "2026-04-23T12:00:00Z",
      "platforms": {
        "darwin-x86_64": {
-         "signature": "<paste contents of Yeogi .MD Editor.app.tar.gz.sig>",
-         "url": "https://github.com/<owner>/<repo>/releases/download/v0.1.1/Yeogi.MD.Editor_universal.app.tar.gz"
+         "signature": "<paste contents of Yeogi.MD.Editor_universal.app.tar.gz.sig>",
+         "url": "https://github.com/kunsumer/yeogi-md-editor/releases/download/v0.2.1/Yeogi.MD.Editor_universal.app.tar.gz"
        },
        "darwin-aarch64": {
-         "signature": "<same .sig file>",
-         "url": "https://github.com/<owner>/<repo>/releases/download/v0.1.1/Yeogi.MD.Editor_universal.app.tar.gz"
+         "signature": "<same .sig contents>",
+         "url": "https://github.com/kunsumer/yeogi-md-editor/releases/download/v0.2.1/Yeogi.MD.Editor_universal.app.tar.gz"
        }
      }
    }
    ```
    The same universal artifact serves both platform keys — Tauri's updater matches on the target string.
 
-4. **Publish a GitHub Release** tagged `v0.1.1`. Upload three assets:
-   - `Yeogi.MD.Editor_universal.app.tar.gz` (rename the produced `.tar.gz` for a spaces-free URL)
+4. **Publish a GitHub Release** tagged `v0.2.1`. Rename the built `Yeogi .MD Editor.app.tar.gz` to `Yeogi.MD.Editor_universal.app.tar.gz` (spaces in a URL are misery). Upload:
+   - `Yeogi.MD.Editor_universal.app.tar.gz`
    - `Yeogi.MD.Editor_universal.app.tar.gz.sig`
    - `latest.json`
+   - `Yeogi .MD Editor_0.2.1_universal.dmg` (for fresh installs)
 
-   Also upload the DMG (`Yeogi .MD Editor_0.1.1_universal.dmg`) so new users can do a fresh install.
+   The `gh release create` one-liner:
+   ```bash
+   gh release create v0.2.1 \
+     --repo kunsumer/yeogi-md-editor \
+     --title "v0.2.1" \
+     --notes-file <(sed -n '/^## v0.2.1/,/^## /p' CHANGELOG.md | sed '$d') \
+     "path/to/Yeogi.MD.Editor_universal.app.tar.gz" \
+     "path/to/Yeogi.MD.Editor_universal.app.tar.gz.sig" \
+     "path/to/latest.json" \
+     "path/to/Yeogi .MD Editor_0.2.1_universal.dmg"
+   ```
 
-5. **Point users at the DMG for the first install** (one-time, per the README). Subsequent versions install automatically: the app checks `latest.json` ~3 s after launch, shows a banner if the remote `version` beats the local one, and on Install + Restart verifies `.sig` against the baked-in pubkey before swapping the `.app` in place.
+5. **Point users at the DMG for the first install** (one-time). Subsequent versions install automatically: the app checks `latest.json` on launch, shows a banner if the remote `version` beats the local one, and on Install + Restart verifies `.sig` against the baked-in pubkey before swapping the `.app` in place.
 
 ## What users see
 
