@@ -10,11 +10,9 @@ import { ConfirmDialog } from "./components/ConfirmDialog";
 import { ConflictBanner } from "./components/ConflictBanner";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { Editor } from "./components/Editor";
-import { FileTree } from "./components/FileTree";
-import { Logo } from "./components/Logo";
+import { FolderPanel, ResizeHandle, TocPanel } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
 import { TabBar } from "./components/TabBar";
-import { TOC } from "./components/TOC";
 import { TopBar } from "./components/TopBar";
 import { Tutorial } from "./components/Tutorial";
 import { WysiwygEditor } from "./components/WysiwygEditor";
@@ -29,7 +27,6 @@ import { useUpdater } from "./hooks/useUpdater";
 import { useWatcherEvents } from "./hooks/useWatcherEvents";
 import { flushRef } from "./state/flushRef";
 import { loadPersistedSession, startSessionPersistence } from "./state/sessionPersistence";
-import { APP_VERSION_LABEL } from "./version";
 
 const shellStyle: React.CSSProperties = {
   display: "flex",
@@ -38,39 +35,6 @@ const shellStyle: React.CSSProperties = {
   width: "100vw",
   overflow: "hidden",
   background: "var(--bg)",
-};
-
-const asideStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  background: "var(--bg-sidebar)",
-  borderRight: "1px solid var(--border)",
-  minWidth: 0,
-  overflow: "hidden",
-};
-
-const asideHeaderStyle: React.CSSProperties = {
-  padding: "14px 14px 10px",
-  borderBottom: "1px solid var(--border)",
-  flexShrink: 0,
-};
-
-const asideBodyStyle: React.CSSProperties = {
-  flex: 1,
-  minHeight: 0,
-  overflow: "auto",
-  padding: "10px 10px 16px",
-};
-
-const asideSectionLabelStyle: React.CSSProperties = {
-  fontSize: 10,
-  letterSpacing: 0.6,
-  textTransform: "uppercase",
-  color: "var(--text-faint)",
-  padding: "12px 6px 4px",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
 };
 
 const mainStyle: React.CSSProperties = {
@@ -92,20 +56,8 @@ const emptyStateStyle: React.CSSProperties = {
   fontSize: 13,
 };
 
-const brandStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  fontWeight: 600,
-  fontSize: 14,
-  color: "var(--text)",
-  letterSpacing: 0.1,
-};
-
 export default function App() {
-  const [folder, setFolder] = useState<string | null>(null);
   const [watcherOffline, setWatcherOffline] = useState<string | null>(null);
-  const [sidebarVisible, setSidebarVisible] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -192,7 +144,7 @@ export default function App() {
 
   async function pickAndOpenFolder() {
     const picked = await open({ directory: true, multiple: false });
-    if (typeof picked === "string") setFolder(picked);
+    if (typeof picked === "string") useDocuments.getState().setFolder(picked);
   }
 
   function requestCloseDocument(id: string) {
@@ -394,7 +346,8 @@ export default function App() {
           triggerFind(true);
           break;
         case "view:toggle-sidebar":
-          setSidebarVisible((v) => !v);
+          // Legacy single-sidebar toggle. Task 11 rewires this to the new
+          // ⌥⌘1 / ⌥⌘2 per-panel toggles (folder / outline) in usePreferences.
           break;
         case "view:cycle-theme":
           // Stub — themes land in Phase 13.
@@ -554,11 +507,28 @@ export default function App() {
     view.focus();
   }
 
+  // Three-column layout: [Folder] [Outline] [Editor]. Columns collapse when
+  // their panel is hidden. Widths come from usePreferences so they persist.
+  const folder = useDocuments((s) => s.folder);
+  const folderVisible = usePreferences((s) => s.folderVisible);
+  const tocVisible = usePreferences((s) => s.tocVisible);
+  const folderWidth = usePreferences((s) => s.folderWidth);
+  const tocWidth = usePreferences((s) => s.tocWidth);
+  const { setFolderWidth, setTocWidth } = usePreferences.getState();
+
+  const showFolder = folderVisible && folder != null;
+  const showToc = tocVisible && active != null;
+
+  const templateParts: string[] = [];
+  if (showFolder) templateParts.push(`${folderWidth}px`, "4px");
+  if (showToc) templateParts.push(`${tocWidth}px`, "4px");
+  templateParts.push("minmax(320px, 1fr)");
+
   const bodyStyle: React.CSSProperties = {
     flex: 1,
     minHeight: 0,
     display: "grid",
-    gridTemplateColumns: sidebarVisible ? "260px 1fr" : "1fr",
+    gridTemplateColumns: templateParts.join(" "),
   };
 
   return (
@@ -575,49 +545,35 @@ export default function App() {
         onNew={() => pickAndOpenFiles().catch(console.error)}
       />
       <div style={bodyStyle}>
-        {sidebarVisible && (
-          <aside className="app-sidebar" style={asideStyle}>
-            <div style={asideHeaderStyle}>
-              <div style={brandStyle}>
-                <Logo size={28} />
-                <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
-                  <span>Yeogi .MD</span>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 400,
-                      color: "var(--text-faint)",
-                      letterSpacing: 0.2,
-                    }}
-                    title={`Yeogi .MD Editor ${APP_VERSION_LABEL}`}
-                  >
-                    {APP_VERSION_LABEL}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div style={asideBodyStyle}>
-              {active && (
-                <>
-                  <div style={asideSectionLabelStyle}>Contents</div>
-                  <TOC headings={headings} onJump={(h, i) => jumpToHeading(h.line, i)} />
-                </>
-              )}
-              {folder && (
-                <>
-                  <div style={asideSectionLabelStyle} title={folder}>
-                    {folder.split("/").pop() ?? folder}
-                  </div>
-                  <FileTree root={folder} onOpenFile={openFile} />
-                </>
-              )}
-              {!active && !folder && (
-                <div style={{ color: "var(--text-faint)", fontSize: 12, padding: "8px 6px" }}>
-                  Use File → Open… (⌘O) to get started.
-                </div>
-              )}
-            </div>
-          </aside>
+        {showFolder && (
+          <>
+            <FolderPanel
+              folder={folder}
+              onPickFolder={() => pickAndOpenFolder().catch(console.error)}
+              onOpenFile={(p) => openFile(p).catch(console.error)}
+            />
+            <ResizeHandle
+              width={folderWidth}
+              min={180}
+              max={480}
+              onChange={setFolderWidth}
+            />
+          </>
+        )}
+        {showToc && (
+          <>
+            <TocPanel
+              hasDocument={active != null}
+              headings={headings}
+              onJump={(h, i) => jumpToHeading(h.line, i)}
+            />
+            <ResizeHandle
+              width={tocWidth}
+              min={180}
+              max={480}
+              onChange={setTocWidth}
+            />
+          </>
         )}
         <main style={mainStyle}>
           <TopBar
