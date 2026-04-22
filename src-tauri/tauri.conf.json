@@ -44,10 +44,9 @@
   },
   "plugins": {
     "updater": {
-      "__comment": "TWO values need to be set before the updater will work: `pubkey` (the public half of your Tauri signing key — generate it with `pnpm tauri signer generate -w ~/.tauri/yeogi-update.key`; paste the printed public key here), and one or more `endpoints` (URLs serving a `latest.json` manifest). The GitHub endpoint below expects a release tagged `v{version}` with the .app.tar.gz + .sig + latest.json uploaded as assets — see docs/releasing.md for the step-by-step.",
-      "pubkey": "REPLACE_WITH_YOUR_PUBLIC_KEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJDQzBGNzdCQTY2RTQ2RDIKUldUU1JtNm1lL2ZBTEhQekt1VGVxbXFGdC9ER0lGTXA3WFp2Y2lZYm0vWUN2REVJZFpvaFpyUGsK",
       "endpoints": [
-        "https://github.com/YOUR_OWNER/YOUR_REPO/releases/latest/download/latest.json"
+        "https://github.com/kunsumer/yeogi-md-editor/releases/latest/download/latest.json"
       ]
     }
   }
