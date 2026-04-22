@@ -254,6 +254,12 @@ export default function App() {
     let cancelled = false;
     const persisted = loadPersistedSession();
     const stop = startSessionPersistence();
+    // Restore the folder sidebar selection before the existence-check
+    // effect (declared below) runs, so it can verify the folder is still
+    // on disk and clear it if not.
+    if (persisted?.folder) {
+      useDocuments.getState().setFolder(persisted.folder);
+    }
     (async () => {
       if (persisted && persisted.paths.length > 0) {
         for (const path of persisted.paths) {
