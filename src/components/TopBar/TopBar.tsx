@@ -74,7 +74,7 @@ export function TopBar({
             ? "Unsaved"
             : "";
   return (
-    <div style={wrap}>
+    <div className="app-topbar" style={wrap}>
       <div style={{ ...meta, color: "var(--text)", fontWeight: 500 }}>
         {isDirty && (
           <span
@@ -113,19 +113,19 @@ export function TopBar({
         <div style={segWrap} role="group" aria-label="View mode">
           <button
             type="button"
+            style={segBtn(viewMode === "wysiwyg")}
+            onClick={() => onSetViewMode("wysiwyg")}
+            aria-pressed={viewMode === "wysiwyg"}
+          >
+            WYSIWYG
+          </button>
+          <button
+            type="button"
             style={segBtn(viewMode === "edit")}
             onClick={() => onSetViewMode("edit")}
             aria-pressed={viewMode === "edit"}
           >
             Edit
-          </button>
-          <button
-            type="button"
-            style={segBtn(viewMode === "preview")}
-            onClick={() => onSetViewMode("preview")}
-            aria-pressed={viewMode === "preview"}
-          >
-            Preview
           </button>
         </div>
       )}

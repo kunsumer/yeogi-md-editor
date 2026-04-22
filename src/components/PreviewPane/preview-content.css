@@ -36,8 +36,16 @@
 }
 .preview-content h3 { font-size: 1.25em; }
 .preview-content h4 { font-size: 1.05em; }
-.preview-content h5,
-.preview-content h6 { font-size: 1em; }
+.preview-content h5 {
+  font-size: 0.95em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.preview-content h6 {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  font-weight: 500;
+}
 
 .preview-content p { margin: 0.7em 0; }
 
@@ -54,6 +62,10 @@
   padding: 0.3em 1em;
   margin: 0.9em 0;
   color: var(--text-muted);
+  font-style: italic;
+}
+.preview-content blockquote code {
+  font-style: normal;
 }
 
 .preview-content hr {

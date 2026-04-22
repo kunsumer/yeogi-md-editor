@@ -109,6 +109,48 @@ a:focus-visible {
   background: var(--bg-hover);
 }
 
+/* Print — strip chrome, show only the active document surface. Works for
+   both WYSIWYG (Tiptap .ProseMirror) and Edit (CodeMirror .cm-editor). */
+@media print {
+  :root { --app-zoom: 1; }
+  html, body, #root { height: auto !important; overflow: visible !important; }
+  body { background: #fff !important; }
+  /* Hide shell chrome. */
+  .app-tabbar,
+  .app-sidebar,
+  .app-topbar,
+  .app-statusbar,
+  .ribbon,
+  .wysiwyg-search,
+  .tutorial-backdrop {
+    display: none !important;
+  }
+  /* Expand the editor surface. */
+  main { height: auto !important; overflow: visible !important; }
+  .wysiwyg-shell,
+  .wysiwyg-scroll,
+  .cm-editor,
+  .cm-scroller {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+  .wysiwyg-content,
+  .preview-content {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .ProseMirror { outline: none !important; }
+  /* Hide NodeView chrome that shouldn't print. */
+  .frontmatter-block { display: none !important; }
+  .copy-btn { display: none !important; }
+  /* Don't split these across pages when possible. */
+  pre, table, .mermaid, .math-block, .mermaid-block { page-break-inside: avoid; }
+  h1, h2, h3, h4 { page-break-after: avoid; }
+  a { color: var(--text); text-decoration: underline; }
+}
+
 /* Scrollbars that don't scream */
 ::-webkit-scrollbar {
   width: 10px;

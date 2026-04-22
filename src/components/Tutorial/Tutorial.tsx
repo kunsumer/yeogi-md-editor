@@ -63,9 +63,9 @@ const STEPS: Step[] = [
     body: (
       <p>
         The toggle in the top bar flips the main pane between raw Markdown (CodeMirror
-        with syntax highlighting) and a rendered view. Preview supports GFM tables,
-        KaTeX math (<kbd>$E=mc^2$</kbd>), Mermaid diagrams (<kbd>```mermaid</kbd>), and
-        Shiki-highlighted code blocks with copy buttons.
+        with syntax highlighting) and a rich "Preview" that you can edit directly —
+        Word-style ribbon on top, rendered typography below. Changes round-trip back
+        to Markdown, so Autosave keeps working either way.
       </p>
     ),
   },
@@ -91,20 +91,44 @@ const STEPS: Step[] = [
         <span>Close tab</span>
         <kbd>⌘F</kbd>
         <span>Find</span>
-        <kbd>⌥⌘F</kbd>
-        <span>Find and Replace</span>
-        <kbd>⌘B</kbd>
+        <kbd>⌘\</kbd>
         <span>Toggle sidebar</span>
         <kbd>⌘=</kbd>
-        <span>Zoom in</span>
-        <kbd>⌘-</kbd>
-        <span>Zoom out</span>
-        <kbd>⌘0</kbd>
-        <span>Reset zoom</span>
+        <span>Zoom in / out / reset (⌘− ⌘0)</span>
         <kbd>⌘Z</kbd>
-        <span>Undo</span>
-        <kbd>⇧⌘Z</kbd>
-        <span>Redo</span>
+        <span>Undo / Redo (⇧⌘Z)</span>
+        <kbd>⌘B</kbd>
+        <span>Bold</span>
+        <kbd>⌘I</kbd>
+        <span>Italic</span>
+        <kbd>⌘U</kbd>
+        <span>Underline</span>
+        <kbd>⇧⌘X</kbd>
+        <span>Strikethrough</span>
+        <kbd>⌘E</kbd>
+        <span>Inline code</span>
+        <kbd>⌥⌘1…6</kbd>
+        <span>Heading 1 through 6</span>
+        <kbd>⌥⌘0</kbd>
+        <span>Paragraph</span>
+        <kbd>⇧⌘7</kbd>
+        <span>Numbered list</span>
+        <kbd>⇧⌘8</kbd>
+        <span>Bulleted list</span>
+        <kbd>⇧⌘9</kbd>
+        <span>Task list</span>
+        <kbd>⇧⌘B</kbd>
+        <span>Blockquote</span>
+        <kbd>⌥⌘C</kbd>
+        <span>Code block</span>
+        <kbd>⌘K</kbd>
+        <span>Insert / edit link</span>
+        <kbd>⇧⌘T</kbd>
+        <span>Insert table</span>
+        <kbd>⇧⌘M</kbd>
+        <span>Insert Mermaid diagram</span>
+        <kbd>⇧⌘L</kbd>
+        <span>Insert LaTeX math</span>
       </div>
     ),
   },

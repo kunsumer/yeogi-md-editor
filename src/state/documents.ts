@@ -4,7 +4,7 @@ export interface Conflict {
   diskMtime: number;
 }
 
-export type ViewMode = "edit" | "preview";
+export type ViewMode = "edit" | "wysiwyg";
 
 export interface Document {
   id: string;
@@ -78,7 +78,7 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
       conflict: null,
       saveState: "idle",
       lastSaveError: null,
-      viewMode: "edit",
+      viewMode: "wysiwyg",
     };
     set((s) => ({ documents: [...s.documents, doc], activeId: id }));
     return id;

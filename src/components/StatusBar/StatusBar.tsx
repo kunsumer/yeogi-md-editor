@@ -24,7 +24,7 @@ export function StatusBar({ saveState, watcherOffline }: Props) {
   const saveFailed = saveState === "failed";
   if (!saveFailed && !watcherOffline) return null;
   return (
-    <div style={wrap}>
+    <div className="app-statusbar" style={wrap}>
       {saveFailed && (
         <span role="alert" style={{ color: "var(--danger)" }}>
           ⚠ Save failed — check permissions or disk space

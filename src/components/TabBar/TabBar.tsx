@@ -97,7 +97,7 @@ const newTabBtnStyle: React.CSSProperties = {
 
 export function TabBar({ docs, activeId, onActivate, onClose, onNew }: Props) {
   return (
-    <div role="tablist" style={tablistStyle}>
+    <div role="tablist" className="app-tabbar" style={tablistStyle}>
       {docs.map((d) => {
         const active = d.id === activeId;
         return (

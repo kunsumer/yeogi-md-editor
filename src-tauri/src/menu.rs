@@ -76,7 +76,7 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let view = SubmenuBuilder::new(app, "View")
         .item(
             &MenuItemBuilder::with_id("view:toggle-sidebar", "Toggle Sidebar")
-                .accelerator("CmdOrCtrl+B")
+                .accelerator("CmdOrCtrl+Backslash")
                 .build(app)?,
         )
         .item(

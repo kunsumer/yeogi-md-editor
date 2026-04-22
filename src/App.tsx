@@ -3,18 +3,23 @@ import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { openSearchPanel } from "@codemirror/search";
 import { listen } from "@tauri-apps/api/event";
-import { open } from "@tauri-apps/plugin-dialog";
+import { tempDir } from "@tauri-apps/api/path";
+import { openPath } from "@tauri-apps/plugin-opener";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { ConflictBanner } from "./components/ConflictBanner";
 import { Editor } from "./components/Editor";
 import { FileTree } from "./components/FileTree";
 import { Logo } from "./components/Logo";
-import { PreviewPane } from "./components/PreviewPane";
 import { StatusBar } from "./components/StatusBar";
 import { TabBar } from "./components/TabBar";
 import { TOC } from "./components/TOC";
 import { TopBar } from "./components/TopBar";
 import { Tutorial } from "./components/Tutorial";
+import { WysiwygEditor } from "./components/WysiwygEditor";
+import { WysiwygSearchBar } from "./components/WysiwygEditor/WysiwygSearchBar";
 import { ensureWelcomeFile, fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
+import { renderMarkdown } from "./lib/markdown/pipeline";
+import { buildStandaloneHtml } from "./lib/exportHtml";
 import { extractHeadings } from "./lib/toc";
 import { useDocuments, type ViewMode } from "./state/documents";
 import { usePreferences } from "./state/preferences";
@@ -100,6 +105,7 @@ export default function App() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   useWatcherEvents(setWatcherOffline);
   const { documents, activeId, openDocument, setActive, setContent } = useDocuments();
   const { markSaved, markSaveStarted, markSaveFailed } = useDocuments.getState();
@@ -185,12 +191,60 @@ export default function App() {
 
   function triggerFind() {
     if (!active) return;
-    const s = useDocuments.getState();
-    if (active.viewMode !== "edit") s.setViewMode(active.id, "edit");
-    // Wait one tick so the editor remounts before we open the panel.
-    requestAnimationFrame(() => {
-      if (viewRef.current) openSearchPanel(viewRef.current);
-    });
+    // Respect the current view mode — don't auto-switch. In Edit, open CM6's
+    // native search panel. In WYSIWYG, open the app-level search bar that
+    // drives `window.find()` over the rendered DOM.
+    if (active.viewMode === "edit") {
+      requestAnimationFrame(() => {
+        if (viewRef.current) openSearchPanel(viewRef.current);
+      });
+    } else {
+      setSearchOpen(true);
+    }
+  }
+
+  async function exportHtml() {
+    if (!active) return;
+    try {
+      const html = await renderMarkdown(active.content);
+      const title = (active.path?.split("/").pop() ?? "document").replace(/\.md$/i, "");
+      const standalone = buildStandaloneHtml(title, html);
+      const suggested = active.path
+        ? active.path.replace(/\.md$/i, ".html")
+        : `${title}.html`;
+      const chosen = await save({
+        defaultPath: suggested,
+        filters: [{ name: "HTML", extensions: ["html"] }],
+      });
+      if (!chosen) return;
+      await fsWrite(chosen, standalone);
+    } catch (e) {
+      console.error("Export HTML failed:", e);
+    }
+  }
+
+  async function printDocument() {
+    if (!active) return;
+    // WKWebView swallows window.print() calls routed through the menu IPC
+    // — the user gesture is lost. Write a standalone HTML file to the OS
+    // temp directory and open it in the default browser, where Cmd+P works
+    // reliably and macOS's "Save as PDF" option in the print dialog handles
+    // PDF export.
+    try {
+      const html = await renderMarkdown(active.content);
+      const title = (active.path?.split("/").pop() ?? "document").replace(/\.md$/i, "");
+      const standalone = buildStandaloneHtml(title, html);
+      const dir = await tempDir();
+      const sep = dir.endsWith("/") || dir.endsWith("\\") ? "" : "/";
+      const safeName = title.replace(/[^\w.\- ]+/g, "_") || "document";
+      const tmpPath = `${dir}${sep}evhan-print-${Date.now()}-${safeName}.html`;
+      await fsWrite(tmpPath, standalone);
+      // openPath routes .html through the OS default handler — Safari on
+      // macOS — where Cmd+P's print dialog has "Save as PDF" built in.
+      await openPath(tmpPath);
+    } catch (e) {
+      console.error("Print failed:", e);
+    }
   }
 
   useEffect(() => {
@@ -274,8 +328,10 @@ export default function App() {
           console.info("Open Recent: not yet implemented.");
           break;
         case "file:export-html":
+          exportHtml().catch(console.error);
+          break;
         case "file:print":
-          console.info(`${id}: Phase 12 — export pipeline.`);
+          printDocument().catch(console.error);
           break;
         case "file:close-tab":
           closeActiveTab();
@@ -364,7 +420,7 @@ export default function App() {
       />
       <div style={bodyStyle}>
         {sidebarVisible && (
-          <aside style={asideStyle}>
+          <aside className="app-sidebar" style={asideStyle}>
             <div style={asideHeaderStyle}>
               <div style={brandStyle}>
                 <Logo size={28} />
@@ -419,10 +475,18 @@ export default function App() {
               onDiff={() => console.log("diff viewer is post-v1")}
             />
           )}
+          {active && active.viewMode === "wysiwyg" && searchOpen && (
+            <WysiwygSearchBar onClose={() => setSearchOpen(false)} />
+          )}
           {active ? (
             <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden" }}>
-              {active.viewMode === "preview" ? (
-                <PreviewPane content={active.content} />
+              {active.viewMode === "wysiwyg" ? (
+                <WysiwygEditor
+                  key={active.id}
+                  content={active.content}
+                  onChange={(next) => setContent(active.id, next)}
+                  readOnly={active.readOnly}
+                />
               ) : (
                 <Editor
                   docId={active.id}

@@ -66,3 +66,25 @@ export function safeReplaceChildren(host: HTMLElement, html: string): void {
   const nodes = Array.from(parsed.body.childNodes);
   host.replaceChildren(...nodes);
 }
+
+/**
+ * Replace children with a sanitized standalone SVG string.
+ *
+ * The HTML parser doesn't round-trip SVG's foreign-content cleanly — in
+ * particular, `<foreignObject><div>…</div></foreignObject>` inner HTML
+ * loses its namespace bridge and Mermaid's text labels disappear. For
+ * SVG-only inputs (e.g. `mermaid.render()`) parse via `image/svg+xml`
+ * after sanitizing, so text and nested XHTML survive intact.
+ */
+export function safeReplaceChildrenWithSvg(host: HTMLElement, svg: string): void {
+  const clean = sanitizeHtml(svg);
+  const doc = new DOMParser().parseFromString(clean, "image/svg+xml");
+  const el = doc.documentElement;
+  // Parse errors surface as a <parsererror> element — fall back to the
+  // HTML-parser path so at least the text is visible.
+  if (el.tagName.toLowerCase() === "parsererror") {
+    safeReplaceChildren(host, svg);
+    return;
+  }
+  host.replaceChildren(el);
+}

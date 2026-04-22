@@ -22,7 +22,14 @@ Phases 0–9 + Phase 7.5 of PLAN.md complete. On `main` branch, HEAD at the CSP 
 
 ## In progress
 
-None. Ready to resume at **Phase 10 — Word-like formatting toolbar** (2 tasks: CodeMirror transaction helpers for bold/italic/etc., and a Toolbar component that uses the helpers via the editor view ref). Phase 10 also moves the temporary StatusBar preview button into the toolbar.
+None. Out-of-plan: Preview mode is now a WYSIWYG editor (Tiptap + StarterKit + TableKit + Image + tiptap-markdown) with a Word-style ribbon. See `src/components/WysiwygEditor/`. Phase 10's CodeMirror toolbar supplants the separate read-only preview entirely — `PreviewPane` component remains on disk but is no longer rendered by `App.tsx`.
+
+Known v1 gaps in WYSIWYG mode (all safely passthrough via `tiptap-markdown` with `html: true`, but not interactively editable):
+- KaTeX math (`$…$`, `$$…$$`) — renders as literal text.
+- Mermaid code fences — shown as a plain code block; live render only in Edit mode's preview.
+- GitHub admonitions (`> [!NOTE]`), footnotes, YAML frontmatter, definition lists, wikilinks, `==highlight==`, `~sub~/^sup^` — round-trip as best-effort plain markdown / blockquote.
+
+Ready to resume at **Phase 10 — Word-like formatting toolbar** for *Edit* mode (CodeMirror transaction helpers + a CM6 toolbar). The WYSIWYG ribbon already covers Preview mode.
 
 ## Decisions carried forward (read before resuming)
 
