@@ -11,9 +11,11 @@ interface Props {
    */
   onChange(next: number): void;
   /**
-   * Optional — called exactly once when the user finishes dragging (pointer
-   * release or keyboard keyup). Use this hook to persist the committed value
-   * to localStorage without writing on every pointermove.
+   * Optional — called when the user finishes a discrete resize action:
+   * once on pointer release at the end of a drag, and once per keyboard
+   * nudge (each arrow press is its own committed step). Use this hook to
+   * persist the committed value to localStorage without writing on every
+   * pointermove.
    */
   onCommit?(next: number): void;
 }
@@ -32,7 +34,7 @@ export function ResizeHandle({ width, min, max, onChange, onCommit }: Props) {
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      (e.target as HTMLDivElement).setPointerCapture(e.pointerId);
+      e.currentTarget.setPointerCapture(e.pointerId);
       dragState.current = { startX: e.clientX, startWidth: width };
     },
     [width],
@@ -52,7 +54,7 @@ export function ResizeHandle({ width, min, max, onChange, onCommit }: Props) {
     (e: React.PointerEvent<HTMLDivElement>) => {
       const s = dragState.current;
       if (!s) return;
-      (e.target as HTMLDivElement).releasePointerCapture(e.pointerId);
+      e.currentTarget.releasePointerCapture(e.pointerId);
       const next = clamp(s.startWidth + (e.clientX - s.startX), min, max);
       dragState.current = null;
       onCommit?.(next);
