@@ -348,6 +348,7 @@ export default function App() {
         case "view:toggle-sidebar":
           // Legacy single-sidebar toggle. Task 11 rewires this to the new
           // ⌥⌘1 / ⌥⌘2 per-panel toggles (folder / outline) in usePreferences.
+          console.info("view:toggle-sidebar: superseded by per-panel toggles (Task 11).");
           break;
         case "view:cycle-theme":
           // Stub — themes land in Phase 13.
