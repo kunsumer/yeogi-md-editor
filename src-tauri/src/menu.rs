@@ -75,10 +75,21 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
 
     let view = SubmenuBuilder::new(app, "View")
         .item(
-            &MenuItemBuilder::with_id("view:toggle-sidebar", "Toggle Sidebar")
+            &MenuItemBuilder::with_id("view:toggle-folder-panel", "Folder Explorer")
+                .accelerator("Alt+CmdOrCtrl+1")
+                .build(app)?,
+        )
+        .item(
+            &MenuItemBuilder::with_id("view:toggle-toc-panel", "Outline")
+                .accelerator("Alt+CmdOrCtrl+2")
+                .build(app)?,
+        )
+        .item(
+            &MenuItemBuilder::with_id("view:hide-all-sidebars", "Hide Both Sidebars")
                 .accelerator("CmdOrCtrl+Backslash")
                 .build(app)?,
         )
+        .separator()
         .item(
             &MenuItemBuilder::with_id("view:cycle-theme", "Cycle Theme")
                 .accelerator("CmdOrCtrl+T")
