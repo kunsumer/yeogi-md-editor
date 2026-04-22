@@ -72,6 +72,9 @@ export default function App() {
   const autosaveDebounceMs = usePreferences((s) => s.autosaveDebounceMs);
   const active = documents.find((d) => d.id === activeId) ?? null;
   const viewRef = useRef<EditorView | null>(null);
+  // Remembers the last (folderVisible, tocVisible) pair before Hide Both
+  // collapsed them, so the second ⌘\ restores the user's setup.
+  const preHideStateRef = useRef<{ folder: boolean; toc: boolean } | null>(null);
 
   // Apply zoom as a root CSS variable so editor / preview / chrome scale together.
   useEffect(() => {
@@ -356,17 +359,43 @@ export default function App() {
         case "file:close-tab":
           closeActiveTab();
           break;
+        case "file:close-folder": {
+          useDocuments.getState().setFolder(null);
+          break;
+        }
         case "edit:find":
           triggerFind(false);
           break;
         case "edit:find-replace":
           triggerFind(true);
           break;
-        case "view:toggle-sidebar":
-          // Legacy single-sidebar toggle. Task 11 rewires this to the new
-          // ⌥⌘1 / ⌥⌘2 per-panel toggles (folder / outline) in usePreferences.
-          console.info("view:toggle-sidebar: superseded by per-panel toggles (Task 11).");
+        case "view:toggle-folder-panel": {
+          const { folderVisible, setFolderVisible } = usePreferences.getState();
+          setFolderVisible(!folderVisible);
+          preHideStateRef.current = null;
           break;
+        }
+        case "view:toggle-toc-panel": {
+          const { tocVisible, setTocVisible } = usePreferences.getState();
+          setTocVisible(!tocVisible);
+          preHideStateRef.current = null;
+          break;
+        }
+        case "view:hide-all-sidebars": {
+          const { folderVisible, tocVisible, setFolderVisible, setTocVisible } =
+            usePreferences.getState();
+          if (folderVisible || tocVisible) {
+            preHideStateRef.current = { folder: folderVisible, toc: tocVisible };
+            setFolderVisible(false);
+            setTocVisible(false);
+          } else {
+            const restore = preHideStateRef.current ?? { folder: true, toc: true };
+            setFolderVisible(restore.folder);
+            setTocVisible(restore.toc);
+            preHideStateRef.current = null;
+          }
+          break;
+        }
         case "view:cycle-theme":
           // Stub — themes land in Phase 13.
           console.info("Cycle Theme: not yet implemented.");
