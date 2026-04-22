@@ -6,9 +6,11 @@ interface Props {
   hasDocument: boolean;
   headings: Heading[];
   onJump(h: Heading, index: number): void;
+  /** Dismisses the panel (equivalent to the View menu / ⌥⌘2 toggle). */
+  onClose?: () => void;
 }
 
-export function TocPanel({ hasDocument, headings, onJump }: Props) {
+export function TocPanel({ hasDocument, headings, onJump, onClose }: Props) {
   const empty = !hasDocument
     ? "No document open."
     : headings.length === 0
@@ -16,7 +18,7 @@ export function TocPanel({ hasDocument, headings, onJump }: Props) {
       : null;
 
   return (
-    <AsidePanel title="Outline" ariaLabel="Outline">
+    <AsidePanel title="Outline" ariaLabel="Outline" onClose={onClose}>
       {empty ? (
         <div
           style={{

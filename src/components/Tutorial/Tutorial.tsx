@@ -130,6 +130,35 @@ const STEPS: Step[] = [
     ),
   },
   {
+    title: "Cross-links, wiki-links, and footnotes",
+    body: (
+      <>
+        <p>
+          Besides standard <kbd>[text](url)</kbd> links, Yeogi understands two
+          extras you can just type in place:
+        </p>
+        <ul>
+          <li>
+            <strong>Wiki-links.</strong> Type <kbd>[[Some Note]]</kbd> — clicking it
+            opens the matching <kbd>.md</kbd> file anywhere inside the folder in
+            the left sidebar. If no folder is open, the link renders but is
+            inert.
+          </li>
+          <li>
+            <strong>Footnotes.</strong> Drop a reference inline with{" "}
+            <kbd>[^1]</kbd>, then define the body anywhere later in the file
+            with <kbd>[^1]: the footnote text</kbd>. All definitions collect at
+            the bottom of the rendered document.
+          </li>
+        </ul>
+        <p style={{ marginTop: 10, color: "var(--text-muted)", fontSize: 13 }}>
+          Use <kbd>File → Open Folder…</kbd> first so wiki-links have a vault
+          to resolve against.
+        </p>
+      </>
+    ),
+  },
+  {
     title: "Find, replace, and jump around",
     body: (
       <ul>

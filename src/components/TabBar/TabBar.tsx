@@ -21,7 +21,7 @@ const tablistStyle: React.CSSProperties = {
   padding: "0 8px",
   overflowX: "auto",
   overflowY: "hidden",
-  borderBottom: "1px solid #000",
+  borderBottom: "1px solid var(--border)",
   flexShrink: 0,
 };
 

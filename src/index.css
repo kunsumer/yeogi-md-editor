@@ -109,6 +109,53 @@ a:focus-visible {
   background: var(--bg-hover);
 }
 
+/* Compact icon buttons inside sidebar panel headers. */
+.aside-header-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.aside-header-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.aside-header-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.aside-header-btn.is-active {
+  color: var(--accent);
+  background: rgba(9, 105, 218, 0.1);
+}
+
+/* Filter input inside the Files panel. Sits just below the basename row. */
+.aside-filter-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 26px;
+  padding: 0 8px;
+  margin: 0 0 6px 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+}
+.aside-filter-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.18);
+}
+
 /* Print — strip chrome, show only the active document surface. Works for
    both WYSIWYG (Tiptap .ProseMirror) and Edit (CodeMirror .cm-editor). */
 @media print {

@@ -25,6 +25,10 @@ export function Toolbar({ editor }: Props) {
   const [linkDialog, setLinkDialog] = useState<{ initial: string } | null>(null);
   const [imageDialog, setImageDialog] = useState(false);
   const [codeDialog, setCodeDialog] = useState<"mermaid" | "math" | null>(null);
+  const [footnoteDialog, setFootnoteDialog] = useState<{ initial: string } | null>(
+    null,
+  );
+  const [wikiDialog, setWikiDialog] = useState<{ initial: string } | null>(null);
   const [headingOpen, setHeadingOpen] = useState(false);
   const headingBtnRef = useRef<HTMLButtonElement | null>(null);
   const headingMenuRef = useRef<HTMLDivElement | null>(null);
@@ -143,6 +147,107 @@ export function Toolbar({ editor }: Props) {
     setImageDialog(false);
   }
 
+  function nextFootnoteId(): string {
+    const taken = new Set<string>();
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === "footnoteRef" || node.type.name === "footnoteItem") {
+        const id = String(node.attrs.id ?? "").trim();
+        if (id) taken.add(id);
+      }
+    });
+    let n = 1;
+    while (taken.has(String(n))) n++;
+    return String(n);
+  }
+
+  function applyFootnote(id: string) {
+    const label = id.trim();
+    if (!label) {
+      setFootnoteDialog(null);
+      return;
+    }
+    // Insert the ref at cursor.
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "footnoteRef",
+        attrs: { id: label, label },
+      })
+      .run();
+    // Make sure the FootnoteSection carries a stub item for this ref so the
+    // user has somewhere to type the body. If a section already exists,
+    // append to it; otherwise create one at the end of the doc.
+    const { state, view } = editor;
+    const schema = state.schema;
+    const sectionType = schema.nodes.footnoteSection;
+    const itemType = schema.nodes.footnoteItem;
+    const paragraphType = schema.nodes.paragraph;
+    if (!sectionType || !itemType || !paragraphType) {
+      setFootnoteDialog(null);
+      return;
+    }
+    let secPos = -1;
+    let secNode: import("@tiptap/pm/model").Node | null = null;
+    state.doc.forEach((n, offset) => {
+      if (n.type.name === "footnoteSection") {
+        secPos = offset;
+        secNode = n;
+      }
+    });
+    // Skip if the section already has a matching item — prevents duplicate
+    // stubs when the user inserts a footnote with an id that's already
+    // defined somewhere in the doc.
+    let hasExistingItem = false;
+    if (secNode) {
+      (secNode as import("@tiptap/pm/model").Node).forEach((child) => {
+        if (
+          child.type.name === "footnoteItem" &&
+          String(child.attrs.id ?? "") === label
+        ) {
+          hasExistingItem = true;
+        }
+      });
+    }
+    if (hasExistingItem) {
+      setFootnoteDialog(null);
+      return;
+    }
+    const newItem = itemType.create({ id: label }, paragraphType.create());
+    const tr = state.tr;
+    if (secPos === -1) {
+      tr.insert(state.doc.content.size, sectionType.create({}, newItem));
+    } else {
+      const section = secNode as unknown as import("@tiptap/pm/model").Node;
+      const itemPos = secPos + section.nodeSize - 1;
+      tr.insert(itemPos, newItem);
+    }
+    view.dispatch(tr);
+    setFootnoteDialog(null);
+  }
+
+  function applyWikiLink(target: string) {
+    const t = target.trim();
+    if (!t) {
+      setWikiDialog(null);
+      return;
+    }
+    const esc = (s: string) =>
+      s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    editor
+      .chain()
+      .focus()
+      .insertContent(
+        `<span class="wikilink" data-wiki-target="${esc(t)}">${esc(t)}</span>`,
+      )
+      .run();
+    setWikiDialog(null);
+  }
+
   function insertTable() {
     editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
   }
@@ -192,6 +297,52 @@ export function Toolbar({ editor }: Props) {
             aria-label="Inline code"
           >
             <CodeIcon />
+          </Btn>
+          <Btn
+            active={editor.isActive("subscript")}
+            onClick={() =>
+              (editor.chain().focus() as unknown as {
+                toggleSubscript: () => { run: () => void };
+              })
+                .toggleSubscript()
+                .run()
+            }
+            title="Subscript (⌘,)"
+            aria-label="Subscript"
+          >
+            <span style={{ fontSize: 11 }}>
+              X<sub style={{ fontSize: 9 }}>2</sub>
+            </span>
+          </Btn>
+          <Btn
+            active={editor.isActive("superscript")}
+            onClick={() =>
+              (editor.chain().focus() as unknown as {
+                toggleSuperscript: () => { run: () => void };
+              })
+                .toggleSuperscript()
+                .run()
+            }
+            title="Superscript (⌘.)"
+            aria-label="Superscript"
+          >
+            <span style={{ fontSize: 11 }}>
+              X<sup style={{ fontSize: 9 }}>2</sup>
+            </span>
+          </Btn>
+          <Btn
+            active={editor.isActive("highlight")}
+            onClick={() =>
+              (editor.chain().focus() as unknown as {
+                toggleHighlight: () => { run: () => void };
+              })
+                .toggleHighlight()
+                .run()
+            }
+            title="Highlight (⇧⌘H)"
+            aria-label="Highlight"
+          >
+            <HighlightIcon />
           </Btn>
         </Group>
 
@@ -289,6 +440,67 @@ export function Toolbar({ editor }: Props) {
 
         <Sep />
 
+        <Group label="Align">
+          <Btn
+            active={editor.isActive({ textAlign: "left" })}
+            onClick={() =>
+              (editor.chain().focus() as unknown as {
+                setTextAlign: (v: string) => { run: () => void };
+              })
+                .setTextAlign("left")
+                .run()
+            }
+            title="Align left"
+            aria-label="Align left"
+          >
+            <AlignLeftIcon />
+          </Btn>
+          <Btn
+            active={editor.isActive({ textAlign: "center" })}
+            onClick={() =>
+              (editor.chain().focus() as unknown as {
+                setTextAlign: (v: string) => { run: () => void };
+              })
+                .setTextAlign("center")
+                .run()
+            }
+            title="Align center"
+            aria-label="Align center"
+          >
+            <AlignCenterIcon />
+          </Btn>
+          <Btn
+            active={editor.isActive({ textAlign: "right" })}
+            onClick={() =>
+              (editor.chain().focus() as unknown as {
+                setTextAlign: (v: string) => { run: () => void };
+              })
+                .setTextAlign("right")
+                .run()
+            }
+            title="Align right"
+            aria-label="Align right"
+          >
+            <AlignRightIcon />
+          </Btn>
+          <Btn
+            active={editor.isActive({ textAlign: "justify" })}
+            onClick={() =>
+              (editor.chain().focus() as unknown as {
+                setTextAlign: (v: string) => { run: () => void };
+              })
+                .setTextAlign("justify")
+                .run()
+            }
+            title="Justify"
+            aria-label="Justify"
+          >
+            <AlignJustifyIcon />
+          </Btn>
+        </Group>
+
+        <Sep />
+
         <Group label="Insert">
           <Btn
             active={editor.isActive("link")}
@@ -317,6 +529,20 @@ export function Toolbar({ editor }: Props) {
             aria-label="Insert LaTeX math"
           >
             <MathIcon />
+          </Btn>
+          <Btn
+            onClick={() => setWikiDialog({ initial: "" })}
+            title="Insert wiki-link [[…]]"
+            aria-label="Insert wiki-link"
+          >
+            <WikiIcon />
+          </Btn>
+          <Btn
+            onClick={() => setFootnoteDialog({ initial: nextFootnoteId() })}
+            title="Insert footnote [^id]"
+            aria-label="Insert footnote"
+          >
+            <FootnoteIcon />
           </Btn>
         </Group>
 
@@ -373,6 +599,37 @@ export function Toolbar({ editor }: Props) {
               >
                 <TableDeleteIcon />
               </Btn>
+            </Group>
+            <Sep />
+            <Group label="Column alignment">
+              {(["left", "center", "right"] as const).map((align) => (
+                <Btn
+                  key={align}
+                  active={editor.isActive("tableCell", { align }) || editor.isActive("tableHeader", { align })}
+                  onClick={() =>
+                    (
+                      editor.chain().focus() as unknown as {
+                        setCellAttribute: (
+                          n: string,
+                          v: string | null,
+                        ) => { run: () => void };
+                      }
+                    )
+                      .setCellAttribute("align", align)
+                      .run()
+                  }
+                  title={`Align column ${align} (set on header to align the whole column)`}
+                  aria-label={`Align column ${align}`}
+                >
+                  {align === "left" ? (
+                    <AlignLeftIcon />
+                  ) : align === "center" ? (
+                    <AlignCenterIcon />
+                  ) : (
+                    <AlignRightIcon />
+                  )}
+                </Btn>
+              ))}
             </Group>
           </>
         )}
@@ -439,6 +696,26 @@ export function Toolbar({ editor }: Props) {
           onCancel={() => setCodeDialog(null)}
         />
       )}
+      {wikiDialog && (
+        <PromptDialog
+          title="Wiki-link target"
+          placeholder="Some Note"
+          initialValue={wikiDialog.initial}
+          submitLabel="Insert"
+          onSubmit={applyWikiLink}
+          onCancel={() => setWikiDialog(null)}
+        />
+      )}
+      {footnoteDialog && (
+        <PromptDialog
+          title="Footnote id"
+          placeholder="1"
+          initialValue={footnoteDialog.initial}
+          submitLabel="Insert"
+          onSubmit={applyFootnote}
+          onCancel={() => setFootnoteDialog(null)}
+        />
+      )}
     </>
   );
 }
@@ -489,6 +766,33 @@ function CodeIcon() {
     <svg {...ICON}>
       <polyline points="5 4 1 8 5 12" />
       <polyline points="11 4 15 8 11 12" />
+    </svg>
+  );
+}
+function HighlightIcon() {
+  // Upright marker: short bristle strokes on top, rounded-rect body, and a
+  // yellow wedge tip below the body. Reads as a highlighter icon at 16×16
+  // and the color-coded yellow tip makes the intent unmistakable.
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 16 16"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {/* Three short felt-tip bristle strokes at the cap. */}
+      <line x1="6" y1="1.5" x2="6" y2="3" />
+      <line x1="8" y1="1.5" x2="8" y2="3" />
+      <line x1="10" y1="1.5" x2="10" y2="3" />
+      {/* Marker body — rounded rectangle. */}
+      <rect x="4.5" y="3" width="7" height="8" rx="1" />
+      {/* Yellow triangular tip pointing down. */}
+      <path d="M4.5 11 L11.5 11 L8 15 Z" fill="#facc15" />
     </svg>
   );
 }
@@ -560,6 +864,46 @@ function HrIcon() {
   return (
     <svg {...ICON}>
       <line x1="2" y1="8" x2="14" y2="8" strokeWidth="1.4" />
+    </svg>
+  );
+}
+function AlignLeftIcon() {
+  return (
+    <svg {...ICON}>
+      <line x1="2" y1="4" x2="14" y2="4" />
+      <line x1="2" y1="7.5" x2="10" y2="7.5" />
+      <line x1="2" y1="11" x2="12" y2="11" />
+      <line x1="2" y1="14.5" x2="8" y2="14.5" />
+    </svg>
+  );
+}
+function AlignCenterIcon() {
+  return (
+    <svg {...ICON}>
+      <line x1="2" y1="4" x2="14" y2="4" />
+      <line x1="4" y1="7.5" x2="12" y2="7.5" />
+      <line x1="3" y1="11" x2="13" y2="11" />
+      <line x1="5" y1="14.5" x2="11" y2="14.5" />
+    </svg>
+  );
+}
+function AlignRightIcon() {
+  return (
+    <svg {...ICON}>
+      <line x1="2" y1="4" x2="14" y2="4" />
+      <line x1="6" y1="7.5" x2="14" y2="7.5" />
+      <line x1="4" y1="11" x2="14" y2="11" />
+      <line x1="8" y1="14.5" x2="14" y2="14.5" />
+    </svg>
+  );
+}
+function AlignJustifyIcon() {
+  return (
+    <svg {...ICON}>
+      <line x1="2" y1="4" x2="14" y2="4" />
+      <line x1="2" y1="7.5" x2="14" y2="7.5" />
+      <line x1="2" y1="11" x2="14" y2="11" />
+      <line x1="2" y1="14.5" x2="14" y2="14.5" />
     </svg>
   );
 }
@@ -682,6 +1026,29 @@ function MermaidIcon() {
       <rect x="10.5" y="10.5" width="4" height="3" rx="0.5" />
       <line x1="8" y1="4.5" x2="3.5" y2="10.5" />
       <line x1="8" y1="4.5" x2="12.5" y2="10.5" />
+    </svg>
+  );
+}
+function WikiIcon() {
+  // Double-bracket glyph reads as the Obsidian/Logseq wiki-link syntax.
+  return (
+    <svg {...ICON}>
+      <path d="M5.5 3 L3.5 3 L3.5 13 L5.5 13" />
+      <path d="M7.5 3 L5.5 3 L5.5 13 L7.5 13" />
+      <path d="M10.5 3 L12.5 3 L12.5 13 L10.5 13" />
+      <path d="M8.5 3 L10.5 3 L10.5 13 L8.5 13" />
+    </svg>
+  );
+}
+function FootnoteIcon() {
+  // Six-pointed asterisk — traditional footnote marker. Sized to sit in the
+  // same ~10 px optical box as the rest of the ribbon icons, and picks up
+  // the shared ICON preset so strokeWidth matches.
+  return (
+    <svg {...ICON}>
+      <line x1="8" y1="3" x2="8" y2="13" />
+      <line x1="3.67" y1="5.5" x2="12.33" y2="10.5" />
+      <line x1="12.33" y1="5.5" x2="3.67" y2="10.5" />
     </svg>
   );
 }

@@ -10,6 +10,8 @@ import rehypeStringify from "rehype-stringify";
 import type { Plugin } from "unified";
 import type { Root } from "hast";
 import { rehypeMermaidInline } from "./mermaid-plugin";
+import { remarkInlineMarks } from "./remarkInlineMarks";
+import { remarkWikiLinks } from "./remarkWikiLinks";
 
 /**
  * Render markdown to an HTML string.
@@ -27,6 +29,11 @@ export async function renderMarkdown(md: string): Promise<string> {
     .use(remarkParse)
     .use(remarkGfm)
     .use(remarkMath)
+    // Runs after remark-gfm so single-~ sub doesn't fight double-~ strike.
+    .use(remarkInlineMarks)
+    // Wiki-links (`[[Target]]`) render as anchors with class "wikilink"
+    // that PreviewPane resolves against the active folder on click.
+    .use(remarkWikiLinks)
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeMermaidInline)
     .use(rehypeRaw as Plugin<[], Root>)

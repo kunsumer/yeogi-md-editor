@@ -3,7 +3,8 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import type { Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { ResizableImage } from "./nodes/ResizableImage";
-import { TableKit } from "@tiptap/extension-table";
+import { TableCell, TableHeader, TableRow } from "@tiptap/extension-table";
+import { MarkdownTable } from "./nodes/MarkdownTable";
 import BaseTaskList from "@tiptap/extension-task-list";
 import BaseTaskItem from "@tiptap/extension-task-item";
 // tiptap-markdown can't auto-detect GFM `- [x]` syntax — its built-in
@@ -83,6 +84,9 @@ import { ReactNodeViewRenderer } from "@tiptap/react";
 import { Markdown } from "tiptap-markdown";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { slugify } from "../../lib/slug";
+import { resolveWikiLink } from "../../lib/resolveWikiLink";
+import { fsRead, watcherSubscribe } from "../../lib/ipc/commands";
+import { useDocuments } from "../../state/documents";
 import { Toolbar } from "./Toolbar";
 import { WysiwygSearchBar } from "./WysiwygSearchBar";
 import { MathBlock, MathInline } from "./nodes/MathNodes";
@@ -93,6 +97,9 @@ import { FootnoteRef, FootnoteSection, FootnoteItem } from "./nodes/Footnote";
 import { CodeBlockView } from "./nodes/CodeBlockView";
 import { FocusCell } from "./nodes/FocusCell";
 import { SearchHighlight } from "./nodes/SearchHighlight";
+import { Subscript, Superscript, Highlight } from "./nodes/SubSup";
+import { WikiLink } from "./nodes/WikiLink";
+import TextAlign from "@tiptap/extension-text-align";
 import "./wysiwyg.css";
 import "../PreviewPane/preview-content.css";
 
@@ -166,9 +173,21 @@ export function WysiwygEditor({
           alwaysPreserveAspectRatio: true,
         },
       }),
-      TableKit.configure({ table: { resizable: true, handleWidth: 5 } }),
+      MarkdownTable.configure({ resizable: true, handleWidth: 5 }),
+      TableRow,
+      TableHeader,
+      TableCell,
       FocusCell,
       SearchHighlight,
+      Subscript,
+      Superscript,
+      Highlight,
+      WikiLink,
+      // Applies `text-align: left|center|right|justify` to headings +
+      // paragraphs. Markdown has no native syntax for paragraph alignment;
+      // tiptap-markdown falls back to inline HTML (`<p style="…">`) which
+      // round-trips cleanly thanks to `html: true` in the Markdown config.
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
       TaskList,
       TaskItem.configure({ nested: true }),
       Frontmatter,
@@ -211,11 +230,53 @@ export function WysiwygEditor({
   }, [content, editor]);
 
   // Mirror PreviewPane: external web/mailto links open in the default
-  // browser, in-document `#anchor` links scroll to the matching heading.
+  // browser, in-document `#anchor` links scroll to the matching heading,
+  // and wiki-links (class="wikilink") resolve to files inside the active
+  // folder sidebar's root.
   useEffect(() => {
     const root = editor?.view.dom;
     if (!root) return;
+    async function openWikiTarget(target: string) {
+      const { folder } = useDocuments.getState();
+      if (!folder) {
+        console.info("wiki-link ignored: no folder open", target);
+        return;
+      }
+      try {
+        const found = await resolveWikiLink(folder, target);
+        if (!found) {
+          console.info("wiki-link: no file matched", target);
+          return;
+        }
+        const existing = useDocuments
+          .getState()
+          .documents.find((d) => d.path === found);
+        if (existing) {
+          useDocuments.getState().setActive(existing.id);
+          return;
+        }
+        const r = await fsRead(found);
+        const id = useDocuments.getState().openDocument({
+          path: found,
+          content: r.content,
+          savedMtime: r.mtime_ms,
+          encoding: r.encoding,
+        });
+        await watcherSubscribe(found);
+        useDocuments.getState().setActive(id);
+      } catch (err) {
+        console.warn("wiki-link resolve failed:", target, err);
+      }
+    }
     function onClick(e: MouseEvent) {
+      const wiki = (e.target as HTMLElement).closest<HTMLElement>(".wikilink");
+      if (wiki) {
+        e.preventDefault();
+        const target =
+          wiki.getAttribute("data-wiki-target") ?? (wiki.textContent ?? "").trim();
+        if (target) openWikiTarget(target);
+        return;
+      }
       const anchor = (e.target as HTMLElement).closest("a");
       if (!anchor) return;
       const href = anchor.getAttribute("href");

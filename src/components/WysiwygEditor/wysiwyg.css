@@ -352,7 +352,13 @@
 /* Mermaid wrapper — resizable horizontally so users can widen crammed
    diagrams (Gantt charts with many date ticks in particular). The ResizeObserver
    in MermaidView re-runs mermaid at the new width so the internal layout
-   re-flows instead of just scaling. */
+   re-flows instead of just scaling.
+
+   The bordered box is what makes the native bottom-right resize grip read
+   as "inside" the diagram card: with `resize: horizontal`, the browser
+   paints the grip on the element's own corner, so as long as the element
+   has a visible border + some padding, the grip sits neatly at the
+   bottom-right edge of the card. */
 .wysiwyg-content .mermaid-block {
   display: block;
   user-select: none;
@@ -366,23 +372,42 @@
   /* Default width = content column. Drag handle to expand past it. */
   width: 100%;
   box-sizing: border-box;
+  padding: 10px 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  margin: 1em 0;
 }
 
-.wysiwyg-content .mermaid-block.ProseMirror-selectednode > .mermaid {
+/* Selection outline goes on the outer block so the native resize grip
+   sits on the corner of whatever the user is looking at, rather than on
+   an invisible wrapper below the visible card. */
+.wysiwyg-content .mermaid-block.ProseMirror-selectednode {
   outline: 2px solid var(--accent);
+  outline-offset: -1px;
 }
 
 /* Let the inner .mermaid layers grow with the wrapper so Gantt (rendered
-   at the wrapper's px width via `useWidth`) gets the full available area. */
+   at the wrapper's px width via `useWidth`) gets the full available area.
+   Strip the border/background/padding that `.preview-content .mermaid`
+   applies — the outer `.mermaid-block` now owns all the card chrome, so
+   the inner layers should be transparent pass-throughs (prevents the
+   three-nested-box look). */
+.wysiwyg-content .mermaid-block .mermaid {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+}
 .wysiwyg-content .mermaid-block > .mermaid {
   width: 100%;
-  box-sizing: border-box;
 }
 .wysiwyg-content .mermaid-block > .mermaid > .mermaid {
   flex: 1 1 100%;
   width: 100%;
   min-width: 0;
-  box-sizing: border-box;
 }
 /* Override the shared `.preview-content .mermaid svg { width: 100% !important }`
    rule in WYSIWYG. We configure non-Gantt mermaid with `useMaxWidth: false`
@@ -398,27 +423,10 @@
   margin: 0 auto;
 }
 
-/* Subtle affordance showing the drag handle location — the native handle
-   is a tiny corner triangle that's easy to miss. */
-.wysiwyg-content .mermaid-block::after {
-  content: "";
-  position: absolute;
-  right: 2px;
-  bottom: 2px;
-  width: 12px;
-  height: 12px;
-  background:
-    linear-gradient(
-      135deg,
-      transparent 0 50%,
-      var(--border-strong) 50% 55%,
-      transparent 55% 70%,
-      var(--border-strong) 70% 75%,
-      transparent 75%
-    );
-  pointer-events: none;
-  opacity: 0.7;
-}
+/* Rely on the native bottom-right resize grip added by `resize: horizontal`
+   rather than a decorative `::after` — stacking our own hatch on top of the
+   native grip reads as two competing handles. The native grip is small but
+   in the expected OS location; hover + cursor change telegraph it. */
 
 .wysiwyg-content .mermaid-error {
   font-family: var(--font-mono);
@@ -1049,6 +1057,23 @@
   margin-bottom: 8px;
   border-bottom: 1px solid var(--border);
   padding-bottom: 8px;
+}
+
+/* --- Wiki-links: Obsidian/Logseq `[[Target]]` --- */
+.wysiwyg-content .wikilink,
+.preview-content .wikilink {
+  color: var(--accent);
+  background: rgba(9, 105, 218, 0.07);
+  padding: 0 3px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(9, 105, 218, 0.35);
+}
+.wysiwyg-content .wikilink:hover,
+.preview-content .wikilink:hover {
+  background: rgba(9, 105, 218, 0.14);
+  border-bottom-color: var(--accent);
 }
 
 /* --- Footnote references + section --- */

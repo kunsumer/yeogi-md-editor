@@ -19,7 +19,8 @@ import { WysiwygEditor } from "./components/WysiwygEditor";
 import { ensureWelcomeFile, fsList, fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
 import { renderMarkdown } from "./lib/markdown/pipeline";
 import { buildStandaloneHtml } from "./lib/exportHtml";
-import { extractHeadings } from "./lib/toc";
+import { extractHeadings, type Heading } from "./lib/toc";
+import { slugify } from "./lib/slug";
 import { useDocuments, type ViewMode } from "./state/documents";
 import { usePreferences } from "./state/preferences";
 import { useAutosave } from "./hooks/useAutosave";
@@ -442,6 +443,12 @@ export default function App() {
   // below bails out if the pending ref isn't for the currently active doc.
   const pendingScrollHeadingRef = useRef<{ docId: string; index: number } | null>(null);
 
+  // Returns the index INTO `headings` (the extract-headings result, not the
+  // DOM). The WYSIWYG DOM can hold extra `<h1..h6>` elements that aren't in
+  // our TOC list (Tiptap-rendered frontmatter, headings-inside-nodes, etc.),
+  // so we match the topmost visible DOM heading back to `headings` by slug +
+  // level before returning — otherwise the captured index would drift when
+  // the destination mode doesn't have the same extras.
   function captureTopHeadingIndex(mode: ViewMode): number | null {
     if (!active || headings.length === 0) return null;
     if (mode === "wysiwyg") {
@@ -453,12 +460,36 @@ export default function App() {
           ".wysiwyg-content .ProseMirror h3, .wysiwyg-content .ProseMirror h4, " +
           ".wysiwyg-content .ProseMirror h5, .wysiwyg-content .ProseMirror h6",
       );
-      let last = -1;
-      for (let i = 0; i < els.length; i++) {
-        if (els[i].getBoundingClientRect().top <= viewportTop) last = i;
+      let topEl: HTMLElement | null = null;
+      for (const el of Array.from(els)) {
+        if (el.getBoundingClientRect().top <= viewportTop) topEl = el;
         else break;
       }
-      return last >= 0 ? last : null;
+      if (!topEl) return null;
+      const wantSlug = slugify(topEl.textContent ?? "");
+      const wantLevel = parseInt(topEl.tagName.slice(1), 10);
+      // Count prior DOM headings with the same slug+level so we pick the
+      // matching occurrence out of `headings` (not the first one, which
+      // could be a different paragraph entirely).
+      let occurrence = 0;
+      for (const el of Array.from(els)) {
+        if (el === topEl) break;
+        const lv = parseInt(el.tagName.slice(1), 10);
+        if (lv === wantLevel && slugify(el.textContent ?? "") === wantSlug) {
+          occurrence++;
+        }
+      }
+      let seen = 0;
+      for (let i = 0; i < headings.length; i++) {
+        if (
+          headings[i].level === wantLevel &&
+          slugify(headings[i].text) === wantSlug
+        ) {
+          if (seen === occurrence) return i;
+          seen++;
+        }
+      }
+      return null;
     }
     const view = viewRef.current;
     if (!view) return null;
@@ -520,7 +551,7 @@ export default function App() {
         return;
       }
       pendingScrollHeadingRef.current = null;
-      jumpToHeading(h.line, idx);
+      jumpToHeading(h, idx);
     }
     const handle = window.setTimeout(attempt, 16);
     return () => {
@@ -530,22 +561,50 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active?.viewMode, active?.id]);
 
-  function jumpToHeading(line: number, index: number) {
+  function jumpToHeading(h: Heading, tocIndex: number) {
     if (!active) return;
     // Respect the current view mode — don't auto-switch.
     if (active.viewMode === "wysiwyg") {
+      const scroller = document.querySelector<HTMLElement>(".wysiwyg-scroll");
       const root = document.querySelector(".wysiwyg-content .ProseMirror");
-      if (!root) return;
-      const headingEls = root.querySelectorAll("h1, h2, h3, h4, h5, h6");
-      const target = headingEls[index];
-      if (target) {
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (!scroller || !root) return;
+      // Match by slug(text) + level instead of DOM index. The DOM order
+      // drifts from the TOC order when the WYSIWYG hides a heading (the
+      // Frontmatter node is `display: none` but its inner HTML may include
+      // heading-like elements; headings INSIDE table cells/footnotes also
+      // get matched by the blanket `h1..h6` query). Slug+level pins us to
+      // the user-meaningful heading regardless of where it lands in DOM.
+      const wantSlug = slugify(h.text);
+      // Disambiguate duplicates by counting identical headings that appear
+      // earlier in the TOC: that many DOM matches should be skipped.
+      let occurrence = 0;
+      for (let k = 0; k < tocIndex; k++) {
+        const prev = headings[k];
+        if (prev.level === h.level && slugify(prev.text) === wantSlug) {
+          occurrence++;
+        }
       }
+      const headingEls = Array.from(
+        root.querySelectorAll<HTMLElement>(`h${h.level}`),
+      ).filter((el) => slugify(el.textContent ?? "") === wantSlug);
+      const target =
+        headingEls[Math.min(occurrence, headingEls.length - 1)] ??
+        headingEls[0];
+      if (!target) return;
+      // scrollIntoView({ block: "start" }) anchors the heading at the scroll
+      // container's top — but the sticky ribbon toolbar covers the first
+      // ~48 px, so headings near the bottom of a long doc land *behind* it.
+      // Compute the offset manually and subtract a safety margin.
+      const tRect = target.getBoundingClientRect();
+      const sRect = scroller.getBoundingClientRect();
+      const SAFETY_TOP = 12;
+      const targetTop = scroller.scrollTop + (tRect.top - sRect.top) - SAFETY_TOP;
+      scroller.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
       return;
     }
     const view = viewRef.current;
     if (!view) return;
-    const docLine = Math.min(Math.max(line, 1), view.state.doc.lines);
+    const docLine = Math.min(Math.max(h.line, 1), view.state.doc.lines);
     const pos = view.state.doc.line(docLine).from;
     view.dispatch({
       selection: EditorSelection.cursor(pos),
@@ -598,6 +657,10 @@ export default function App() {
               folder={folder}
               onPickFolder={() => pickAndOpenFolder().catch(console.error)}
               onOpenFile={(p) => openFile(p).catch(console.error)}
+              onClose={() => {
+                usePreferences.getState().setFolderVisible(false);
+                preHideStateRef.current = null;
+              }}
             />
             <ResizeHandle
               width={folderWidth}
@@ -612,7 +675,11 @@ export default function App() {
             <TocPanel
               hasDocument={active != null}
               headings={headings}
-              onJump={(h, i) => jumpToHeading(h.line, i)}
+              onJump={(h, i) => jumpToHeading(h, i)}
+              onClose={() => {
+                usePreferences.getState().setTocVisible(false);
+                preHideStateRef.current = null;
+              }}
             />
             <ResizeHandle
               width={tocWidth}

@@ -3,6 +3,9 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { renderMarkdown } from "../../lib/markdown/pipeline";
 import { safeReplaceChildren } from "../../lib/safeInsertHtml";
 import { slugify } from "../../lib/slug";
+import { resolveWikiLink } from "../../lib/resolveWikiLink";
+import { fsRead, watcherSubscribe } from "../../lib/ipc/commands";
+import { useDocuments } from "../../state/documents";
 import "./preview-content.css";
 
 interface Props {
@@ -40,8 +43,18 @@ export function PreviewPane({ content }: Props) {
   }, [content]);
 
   // Intercept link clicks and open in the OS default browser so the webview
-  // isn't navigated away from the app.
+  // isn't navigated away from the app. Wiki-links get resolved against the
+  // active folder and opened as a tab.
   function onHostClick(e: React.MouseEvent<HTMLDivElement>) {
+    const wiki = (e.target as HTMLElement).closest<HTMLElement>(".wikilink");
+    if (wiki) {
+      e.preventDefault();
+      e.stopPropagation();
+      const t =
+        wiki.getAttribute("data-wiki-target") ?? (wiki.textContent ?? "").trim();
+      if (t) openWikiTarget(t);
+      return;
+    }
     const anchor = (e.target as HTMLElement).closest("a");
     if (!anchor) return;
     const href = anchor.getAttribute("href");
@@ -65,6 +78,39 @@ export function PreviewPane({ content }: Props) {
           break;
         }
       }
+    }
+  }
+
+  async function openWikiTarget(target: string) {
+    const { folder } = useDocuments.getState();
+    if (!folder) {
+      console.info("wiki-link ignored: no folder open", target);
+      return;
+    }
+    try {
+      const found = await resolveWikiLink(folder, target);
+      if (!found) {
+        console.info("wiki-link: no file matched", target);
+        return;
+      }
+      const existing = useDocuments
+        .getState()
+        .documents.find((d) => d.path === found);
+      if (existing) {
+        useDocuments.getState().setActive(existing.id);
+        return;
+      }
+      const r = await fsRead(found);
+      const id = useDocuments.getState().openDocument({
+        path: found,
+        content: r.content,
+        savedMtime: r.mtime_ms,
+        encoding: r.encoding,
+      });
+      await watcherSubscribe(found);
+      useDocuments.getState().setActive(id);
+    } catch (err) {
+      console.warn("wiki-link resolve failed:", target, err);
     }
   }
 
