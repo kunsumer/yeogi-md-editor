@@ -77,6 +77,12 @@ export function FileTree({ root, onOpenFile }: Props) {
     fsList(root).then(setEntries);
   }, [root]);
   if (!entries) return <div style={{ padding: 6, color: "var(--text-faint)", fontSize: 12 }}>Loading…</div>;
+  if (entries.length === 0)
+    return (
+      <div style={{ padding: 6, color: "var(--text-faint)", fontSize: 12 }}>
+        Empty folder.
+      </div>
+    );
   return (
     <div>
       {entries.map((e) => (
