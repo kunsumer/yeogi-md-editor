@@ -210,6 +210,9 @@ const STEPS: Step[] = [
         <kbd>⌘U</kbd><span>Underline</span>
         <kbd>⇧⌘X</kbd><span>Strikethrough</span>
         <kbd>⌘E</kbd><span>Inline code</span>
+        <kbd>⌘,</kbd><span>Subscript</span>
+        <kbd>⌘.</kbd><span>Superscript</span>
+        <kbd>⇧⌘H</kbd><span>Highlight</span>
         <kbd>⌥⌘1…6</kbd><span>Heading 1 through 6</span>
         <kbd>⌥⌘0</kbd><span>Paragraph</span>
         <kbd>⇧⌘7</kbd><span>Numbered list</span>
@@ -226,7 +229,9 @@ const STEPS: Step[] = [
         <kbd>⌘O</kbd><span>Open files</span>
         <kbd>⌥⌘O</kbd><span>Open folder</span>
         <kbd>⌘W</kbd><span>Close tab</span>
-        <kbd>⌘\</kbd><span>Toggle sidebar</span>
+        <kbd>⌥⌘1</kbd><span>Folder Explorer</span>
+        <kbd>⌥⌘2</kbd><span>Outline</span>
+        <kbd>⌘\</kbd><span>Hide both sidebars</span>
         <kbd>⌘=</kbd><span>Zoom in / out / reset (⌘− ⌘0)</span>
         <kbd>⌘Z</kbd><span>Undo / Redo (⇧⌘Z)</span>
       </div>
