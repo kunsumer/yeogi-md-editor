@@ -50,6 +50,8 @@ export default function App() {
   const autosaveEnabled = usePreferences((s) => s.autosaveEnabled);
   const autosaveDebounceMs = usePreferences((s) => s.autosaveDebounceMs);
   const { focusedPaneId, primary, secondary } = useLayout();
+  const paneSplit = useLayout((s) => s.paneSplit);
+  const setPaneSplit = useLayout.getState().setPaneSplit;
   const focusedPane = focusedPaneId === "primary" ? primary : secondary;
   const activeDocId = focusedPane?.activeTabId ?? null;
   const active = documents.find((d) => d.id === activeDocId) ?? null;
@@ -629,7 +631,15 @@ export default function App() {
   const templateParts: string[] = [];
   if (showFolder) templateParts.push(`${folderWidth}px`, "4px");
   if (showToc) templateParts.push(`${tocWidth}px`, "4px");
-  templateParts.push("minmax(320px, 1fr)");
+  if (secondary) {
+    templateParts.push(
+      `minmax(320px, ${paneSplit}fr)`,
+      "4px",
+      `minmax(320px, ${1 - paneSplit}fr)`,
+    );
+  } else {
+    templateParts.push("minmax(320px, 1fr)");
+  }
 
   const bodyStyle: React.CSSProperties = {
     flex: 1,
@@ -699,39 +709,52 @@ export default function App() {
             />
           </>
         )}
-        <div style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
-          <EditorPane
-            pane={primary}
-            isFocused={focusedPaneId === "primary"}
-            {...paneProps}
-            searchOpen={searchOpen}
-            searchReplace={searchReplace}
-            onSearchClose={() => setSearchOpen(false)}
-            onEditorReady={(view) => {
-              viewRef.current = view;
-            }}
-            updateStatus={updater.status}
-            onUpdateInstall={(u) => updater.applyUpdate(u)}
-            onUpdateDismiss={updater.dismiss}
-            onConflictKeep={async () => {
-              if (!active) return;
-              useDocuments.getState().setConflict(active.id, null);
-              if (flushRef.current) await flushRef.current();
-            }}
-            onConflictReload={async () => {
-              if (!active?.path) return;
-              const r = await fsRead(active.path);
-              useDocuments
-                .getState()
-                .replaceContentFromDisk(active.id, { content: r.content, mtimeMs: r.mtime_ms });
-            }}
-          />
-          <StatusBar
-            saveState={active?.saveState ?? "idle"}
-            watcherOffline={watcherOffline}
-          />
-        </div>
+        <EditorPane
+          pane={primary}
+          isFocused={focusedPaneId === "primary"}
+          {...paneProps}
+          searchOpen={searchOpen}
+          searchReplace={searchReplace}
+          onSearchClose={() => setSearchOpen(false)}
+          onEditorReady={(view) => {
+            viewRef.current = view;
+          }}
+          updateStatus={updater.status}
+          onUpdateInstall={(u) => updater.applyUpdate(u)}
+          onUpdateDismiss={updater.dismiss}
+          onConflictKeep={async () => {
+            if (!active) return;
+            useDocuments.getState().setConflict(active.id, null);
+            if (flushRef.current) await flushRef.current();
+          }}
+          onConflictReload={async () => {
+            if (!active?.path) return;
+            const r = await fsRead(active.path);
+            useDocuments
+              .getState()
+              .replaceContentFromDisk(active.id, { content: r.content, mtimeMs: r.mtime_ms });
+          }}
+        />
+        {secondary && (
+          <>
+            <ResizeHandle
+              width={Math.round(paneSplit * 1000)}
+              min={200}
+              max={800}
+              onChange={(w) => setPaneSplit(w / 1000)}
+            />
+            <EditorPane
+              pane={secondary}
+              isFocused={focusedPaneId === "secondary"}
+              {...paneProps}
+            />
+          </>
+        )}
       </div>
+      <StatusBar
+        saveState={active?.saveState ?? "idle"}
+        watcherOffline={watcherOffline}
+      />
       {tutorialOpen && (
         <Tutorial
           onClose={() => {
