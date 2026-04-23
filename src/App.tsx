@@ -7,15 +7,10 @@ import { tempDir } from "@tauri-apps/api/path";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { ConfirmDialog } from "./components/ConfirmDialog";
-import { ConflictBanner } from "./components/ConflictBanner";
-import { UpdateBanner } from "./components/UpdateBanner";
-import { Editor } from "./components/Editor";
+import { EditorPane } from "./components/EditorPane";
 import { FolderPanel, ResizeHandle, TocPanel } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
-import { TabBar } from "./components/TabBar";
-import { TopBar } from "./components/TopBar";
 import { Tutorial } from "./components/Tutorial";
-import { WysiwygEditor } from "./components/WysiwygEditor";
 import { ensureWelcomeFile, fsList, fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
 import { renderMarkdown } from "./lib/markdown/pipeline";
 import { buildStandaloneHtml } from "./lib/exportHtml";
@@ -39,24 +34,6 @@ const shellStyle: React.CSSProperties = {
   background: "var(--bg)",
 };
 
-const mainStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  minWidth: 0,
-  minHeight: 0,
-  overflow: "hidden",
-};
-
-const emptyStateStyle: React.CSSProperties = {
-  flex: 1,
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 16,
-  color: "var(--text-faint)",
-  fontSize: 13,
-};
 
 export default function App() {
   const [watcherOffline, setWatcherOffline] = useState<string | null>(null);
@@ -450,7 +427,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active?.id, focusedPane?.viewMode]);
 
-  const wordCount = (active?.content ?? "").trim().split(/\s+/).filter(Boolean).length;
   const headings = useMemo(
     () => (active ? extractHeadings(active.content) : []),
     [active?.content, active?.id],
@@ -662,19 +638,28 @@ export default function App() {
     gridTemplateColumns: templateParts.join(" "),
   };
 
+  const paneProps = {
+    documents,
+    onOpenFiles: () => pickAndOpenFiles().catch(console.error),
+    onOpenFolder: () => pickAndOpenFolder().catch(console.error),
+    onCreateBlank: createBlankDocument,
+    onCloseTab: (_paneId: "primary" | "secondary", id: string) => requestCloseDocument(id),
+    onActivateTab: (paneId: "primary" | "secondary", id: string) =>
+      useLayout.getState().setActiveTab(paneId, id),
+    onOpenToSide: (id: string) => useLayout.getState().openToTheSide(id),
+    onSetViewMode: (paneId: "primary" | "secondary", mode: ViewMode) => {
+      if (paneId === focusedPaneId) setViewMode(mode);
+      else useLayout.getState().setViewMode(paneId, mode);
+    },
+    onFocusPane: (paneId: "primary" | "secondary") =>
+      useLayout.getState().setFocusedPane(paneId),
+    onSetContent: (id: string, next: string) => setContent(id, next),
+    onSetAutosaveEnabled: (id: string, enabled: boolean) =>
+      useDocuments.getState().setAutosaveEnabled(id, enabled),
+  };
+
   return (
     <div style={shellStyle}>
-      <TabBar
-        docs={documents.map((d) => ({
-          id: d.id,
-          title: d.path ? d.path.split("/").pop()! : "Untitled",
-          isDirty: d.isDirty,
-        }))}
-        activeId={focusedPane?.activeTabId ?? null}
-        onActivate={(id) => useLayout.getState().openInFocusedPane(id)}
-        onClose={(id) => requestCloseDocument(id)}
-        onNew={createBlankDocument}
-      />
       <div style={bodyStyle}>
         {showFolder && (
           <>
@@ -714,120 +699,38 @@ export default function App() {
             />
           </>
         )}
-        <main style={mainStyle}>
-          <TopBar
-            path={active?.path ?? null}
-            wordCount={wordCount}
-            saveState={active?.saveState ?? "idle"}
-            isDirty={active?.isDirty ?? false}
-            viewMode={focusedPane?.viewMode}
-            onSetViewMode={active ? setViewMode : undefined}
-            autosaveEnabled={active ? docAutosaveEnabled : undefined}
-            onSetAutosaveEnabled={
-              active
-                ? (v) => useDocuments.getState().setAutosaveEnabled(active.id, v)
-                : undefined
-            }
+        <div style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
+          <EditorPane
+            pane={primary}
+            isFocused={focusedPaneId === "primary"}
+            {...paneProps}
+            searchOpen={searchOpen}
+            searchReplace={searchReplace}
+            onSearchClose={() => setSearchOpen(false)}
+            onEditorReady={(view) => {
+              viewRef.current = view;
+            }}
+            updateStatus={updater.status}
+            onUpdateInstall={(u) => updater.applyUpdate(u)}
+            onUpdateDismiss={updater.dismiss}
+            onConflictKeep={async () => {
+              if (!active) return;
+              useDocuments.getState().setConflict(active.id, null);
+              if (flushRef.current) await flushRef.current();
+            }}
+            onConflictReload={async () => {
+              if (!active?.path) return;
+              const r = await fsRead(active.path);
+              useDocuments
+                .getState()
+                .replaceContentFromDisk(active.id, { content: r.content, mtimeMs: r.mtime_ms });
+            }}
           />
-          <UpdateBanner
-            status={updater.status}
-            onInstall={(u) => updater.applyUpdate(u)}
-            onDismiss={updater.dismiss}
-          />
-          {active?.conflict && (
-            <ConflictBanner
-              onKeep={async () => {
-                useDocuments.getState().setConflict(active.id, null);
-                if (flushRef.current) await flushRef.current();
-              }}
-              onReload={async () => {
-                if (!active.path) return;
-                const r = await fsRead(active.path);
-                useDocuments
-                  .getState()
-                  .replaceContentFromDisk(active.id, { content: r.content, mtimeMs: r.mtime_ms });
-              }}
-              onDiff={() => console.log("diff viewer is post-v1")}
-            />
-          )}
-          {active ? (
-            <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden" }}>
-              {(focusedPane?.viewMode ?? "wysiwyg") === "wysiwyg" ? (
-                <WysiwygEditor
-                  key={active.id}
-                  content={active.content}
-                  onChange={(next) => setContent(active.id, next)}
-                  readOnly={active.readOnly}
-                  searchOpen={searchOpen}
-                  searchReplace={searchReplace}
-                  onSearchClose={() => setSearchOpen(false)}
-                />
-              ) : (
-                <Editor
-                  docId={active.id}
-                  value={active.content}
-                  onChange={(next) => setContent(active.id, next)}
-                  readOnly={active.readOnly}
-                  onReady={(view) => {
-                    viewRef.current = view;
-                  }}
-                />
-              )}
-            </div>
-          ) : (
-            <div style={emptyStateStyle}>
-              <button
-                type="button"
-                onClick={createBlankDocument}
-                aria-label="Create blank document"
-                title="Create blank document"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "24px 32px",
-                  border: "1px solid var(--border)",
-                  borderRadius: 12,
-                  background: "var(--bg)",
-                  color: "var(--text)",
-                  cursor: "pointer",
-                  transition: "background 120ms, border-color 120ms",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-hover)";
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-strong)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = "var(--bg)";
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)";
-                }}
-              >
-                <BlankDocumentIcon />
-                <span style={{ fontSize: 13, fontWeight: 500 }}>Create blank document</span>
-              </button>
-              <div style={{ fontSize: 12, color: "var(--text-faint)" }}>or open an existing file</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  className="btn-ghost"
-                  onClick={() => pickAndOpenFiles().catch(console.error)}
-                >
-                  Open file(s)…
-                </button>
-                <button
-                  className="btn-ghost"
-                  onClick={() => pickAndOpenFolder().catch(console.error)}
-                >
-                  Open folder…
-                </button>
-              </div>
-            </div>
-          )}
           <StatusBar
             saveState={active?.saveState ?? "idle"}
             watcherOffline={watcherOffline}
           />
-        </main>
+        </div>
       </div>
       {tutorialOpen && (
         <Tutorial
@@ -872,33 +775,5 @@ export default function App() {
           );
         })()}
     </div>
-  );
-}
-
-function BlankDocumentIcon() {
-  // 64 × 64 document outline with a circled plus at the bottom-right corner.
-  // Stroke-only so the button fill shows through; currentColor lets the icon
-  // pick up the hover-state's text color.
-  return (
-    <svg
-      width="64"
-      height="64"
-      viewBox="0 0 64 64"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {/* Page outline with folded corner */}
-      <path d="M12 6 H38 L52 20 V42" />
-      <path d="M12 6 V58 H52 V42" />
-      <path d="M38 6 V20 H52" />
-      {/* Circle with plus in the lower-right */}
-      <circle cx="48" cy="48" r="10" />
-      <line x1="48" y1="43" x2="48" y2="53" />
-      <line x1="43" y1="48" x2="53" y2="48" />
-    </svg>
   );
 }
