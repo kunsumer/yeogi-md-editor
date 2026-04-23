@@ -162,30 +162,36 @@ pub fn build_menu<R: Runtime>(
         )
         .separator()
         .item(&{
-            // Appearance submenu: three radios for Follow System / Light / Dark.
-            // The check mark follows the `theme` argument so this submenu is
-            // rebuilt whenever the preference flips. No keyboard shortcut —
-            // theme is a set-and-forget preference, not a frequent toggle.
-            SubmenuBuilder::new(app, "Appearance")
-                .item(
-                    &CheckMenuItemBuilder::with_id(
-                        "view:theme-system",
-                        "Follow System",
-                    )
+            // Appearance submenu: Follow System + grouped light/dark themes.
+            // Each named theme's id becomes part of the menu event id
+            // (`view:theme:<id>`), which App.tsx routes straight into
+            // usePreferences.setTheme. Check marks follow `theme` so the
+            // submenu rebuild on pref change shows the new selection.
+            let mut b = SubmenuBuilder::new(app, "Appearance");
+            b = b.item(
+                &CheckMenuItemBuilder::with_id("view:theme:system", "Follow System")
                     .checked(theme == "system")
                     .build(app)?,
-                )
-                .item(
-                    &CheckMenuItemBuilder::with_id("view:theme-light", "Light")
-                        .checked(theme == "light")
+            );
+            b = b.separator();
+            // LIGHT group. Order mirrors THEME_GROUPS in src/lib/themes.ts.
+            for (id, label) in &[("light", "Light"), ("github-light", "GitHub Light")] {
+                b = b.item(
+                    &CheckMenuItemBuilder::with_id(format!("view:theme:{}", id), *label)
+                        .checked(theme == *id)
                         .build(app)?,
-                )
-                .item(
-                    &CheckMenuItemBuilder::with_id("view:theme-dark", "Dark")
-                        .checked(theme == "dark")
+                );
+            }
+            b = b.separator();
+            // DARK group.
+            for (id, label) in &[("dark", "Dark"), ("dracula", "Dracula")] {
+                b = b.item(
+                    &CheckMenuItemBuilder::with_id(format!("view:theme:{}", id), *label)
+                        .checked(theme == *id)
                         .build(app)?,
-                )
-                .build()?
+                );
+            }
+            b.build()?
         })
         .separator()
         .item(

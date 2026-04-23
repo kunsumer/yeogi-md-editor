@@ -2,6 +2,20 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.0 — 2026-04-23
+
+### New
+
+- **Named themes.** `View → Appearance` now offers a starter set of four curated palettes in addition to **Follow System**:
+  - **Light group:** Light, GitHub Light
+  - **Dark group:** Dark, Dracula
+  Follow System (default) picks Light or Dark based on `prefers-color-scheme` and flips live when the OS appearance changes. Picking any named theme switches the full palette (sidebars, tab bar, editor, preview, Shiki code-block syntax highlighting, and Mermaid diagrams) and persists across relaunch. The shape supports arbitrary additions — adding more themes in a future release is a mechanical data change.
+- **Tutorial refresh.** The first-run tour catches up with v0.3.x features: side-by-side panes (⌘-click folder, right-click tab Open-to-the-Side), Save / Save As (⌘S / ⇧⌘S), Open Recent, Appearance menu, wiki-link pipe form + auto-create + backlinks, and fixes the stale "⌘E = inline code" entry (⌘E now toggles WYSIWYG ↔ Edit).
+
+### Fixed
+
+- **Shiki code-block theme follows the app theme.** Previous releases hardcoded `github-dark`, so code blocks rendered with a dark background even in light mode. Each named theme now specifies its preferred Shiki theme (e.g. Light → `github-light`, Dracula → `dracula`), and the preview pipeline re-renders when the theme changes.
+
 ## v0.3.5 — 2026-04-23
 
 ### Fixed

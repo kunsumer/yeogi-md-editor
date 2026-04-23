@@ -19,6 +19,7 @@ import { slugify } from "./lib/slug";
 import { useDocuments } from "./state/documents";
 import { useLayout, type ViewMode } from "./state/layout";
 import { usePreferences } from "./state/preferences";
+import { applyThemeToDOM, resolveTheme } from "./lib/themes";
 import { useAutosave } from "./hooks/useAutosave";
 import { useUpdater } from "./hooks/useUpdater";
 import { useWatcherEvents } from "./hooks/useWatcherEvents";
@@ -79,16 +80,14 @@ export default function App() {
     });
   }, [recentFiles, theme]);
 
-  // Apply the user's theme preference to the <html> element so the CSS var
-  // overrides in index.css (and the CodeMirror theme, which reads the same
-  // vars) take effect. "system" resolves via prefers-color-scheme and
-  // updates live if the OS appearance flips while we're running.
+  // Apply the user's theme preference to <html> via CSS variables. When
+  // `theme === "system"`, resolve to Light or Dark based on prefers-color-
+  // scheme and flip live if the OS appearance changes. Any named theme
+  // (e.g. "github-light", "dracula") is applied verbatim.
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const apply = () => {
-      const resolved =
-        theme === "system" ? (mq.matches ? "dark" : "light") : theme;
-      document.documentElement.dataset.theme = resolved;
+      applyThemeToDOM(resolveTheme(theme));
     };
     apply();
     if (theme !== "system") return;
@@ -474,6 +473,15 @@ export default function App() {
         }
         return;
       }
+      if (id.startsWith("view:theme:")) {
+        // e.g. view:theme:system, view:theme:dracula. Trust the frontend
+        // list of valid ids — any unknown value falls back in resolveTheme.
+        const themeId = id.slice("view:theme:".length) as Parameters<
+          ReturnType<typeof usePreferences.getState>["setTheme"]
+        >[0];
+        usePreferences.getState().setTheme(themeId);
+        return;
+      }
       switch (id) {
         case "file:open":
           pickAndOpenFiles().catch(console.error);
@@ -533,15 +541,8 @@ export default function App() {
           setViewMode(currentMode === "wysiwyg" ? "edit" : "wysiwyg");
           break;
         }
-        case "view:theme-system":
-          usePreferences.getState().setTheme("system");
-          break;
-        case "view:theme-light":
-          usePreferences.getState().setTheme("light");
-          break;
-        case "view:theme-dark":
-          usePreferences.getState().setTheme("dark");
-          break;
+        // view:theme:<id> — handled before the switch via the startsWith
+        // branch below. Keeping the switch clean of a dozen cases.
         case "file:save":
           if (active) saveDocument(active.id).catch(console.error);
           break;

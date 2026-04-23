@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import type { ThemeId } from "../lib/themes";
 
 interface Prefs {
   autosaveEnabled: boolean;
@@ -16,10 +17,11 @@ interface Prefs {
    */
   recentFiles: string[];
   /**
-   * Appearance mode. "system" follows the OS via prefers-color-scheme;
-   * "light" and "dark" override it explicitly. Default: "system".
+   * Appearance mode. `"system"` resolves at runtime via
+   * prefers-color-scheme; any named theme id (e.g. `"github-light"`,
+   * `"dracula"`) overrides. Default: `"system"`.
    */
-  theme: ThemeMode;
+  theme: ThemeId;
   setAutosaveEnabled(v: boolean): void;
   setFolderVisible(v: boolean): void;
   setTocVisible(v: boolean): void;
@@ -27,10 +29,8 @@ interface Prefs {
   setTocWidth(w: number): void;
   pushRecent(path: string): void;
   clearRecent(): void;
-  setTheme(t: ThemeMode): void;
+  setTheme(t: ThemeId): void;
 }
-
-export type ThemeMode = "system" | "light" | "dark";
 
 const RECENT_MAX = 10;
 

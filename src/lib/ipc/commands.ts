@@ -55,7 +55,7 @@ export async function ensureWelcomeFile(): Promise<string> {
  */
 export async function syncMenuState(
   recentFiles: string[],
-  theme: "system" | "light" | "dark",
+  theme: string,
 ): Promise<void> {
   return invoke("sync_menu_state", { recentFiles, theme });
 }

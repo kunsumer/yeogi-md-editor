@@ -12,6 +12,18 @@ import type { Root } from "hast";
 import { rehypeMermaidInline } from "./mermaid-plugin";
 import { remarkInlineMarks } from "./remarkInlineMarks";
 import { remarkWikiLinks } from "./remarkWikiLinks";
+import { THEMES, type ResolvedThemeId } from "../themes";
+
+/**
+ * Read the currently-applied theme id from the document root and look up
+ * its Shiki theme name. Defaults to "github-dark" if the attribute is
+ * missing (server-side rendering, first-render race, etc.).
+ */
+function currentShikiTheme(): string {
+  if (typeof document === "undefined") return "github-dark";
+  const id = document.documentElement.dataset.themeId as ResolvedThemeId | undefined;
+  return id && THEMES[id] ? THEMES[id].shikiTheme : "github-dark";
+}
 
 /**
  * Render markdown to an HTML string.
@@ -38,7 +50,7 @@ export async function renderMarkdown(md: string): Promise<string> {
     .use(rehypeMermaidInline)
     .use(rehypeRaw as Plugin<[], Root>)
     .use(rehypeKatex, { throwOnError: false, errorColor: "#cc0000" })
-    .use(rehypeShiki, { theme: "github-dark" })
+    .use(rehypeShiki, { theme: currentShikiTheme() })
     .use(rehypeStringify, { allowDangerousHtml: true });
   const file = await processor.process(md);
   return String(file);
