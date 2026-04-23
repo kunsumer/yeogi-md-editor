@@ -2,6 +2,12 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.3.2 — 2026-04-23
+
+### New
+
+- **File → Open Recent** is no longer a stub. The submenu now lists up to 10 recently-opened files (most-recent first, basename shown), plus a **Clear Menu** item at the bottom. Click any entry to open it in the focused pane. The list is deduped, persisted in localStorage, and survives relaunch. When empty, the submenu shows a disabled "(No recent files)" placeholder.
+
 ## v0.3.1 — 2026-04-23
 
 ### Fixed
