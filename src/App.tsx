@@ -22,6 +22,7 @@ import { buildStandaloneHtml } from "./lib/exportHtml";
 import { extractHeadings, type Heading } from "./lib/toc";
 import { slugify } from "./lib/slug";
 import { useDocuments, type ViewMode } from "./state/documents";
+import { useLayout } from "./state/layout";
 import { usePreferences } from "./state/preferences";
 import { useAutosave } from "./hooks/useAutosave";
 import { useUpdater } from "./hooks/useUpdater";
@@ -71,7 +72,10 @@ export default function App() {
   const { markSaved, markSaveStarted, markSaveFailed } = useDocuments.getState();
   const autosaveEnabled = usePreferences((s) => s.autosaveEnabled);
   const autosaveDebounceMs = usePreferences((s) => s.autosaveDebounceMs);
-  const active = documents.find((d) => d.id === activeId) ?? null;
+  const { focusedPaneId, primary, secondary } = useLayout();
+  const focusedPane = focusedPaneId === "primary" ? primary : secondary;
+  const activeDocId = focusedPane?.activeTabId ?? null;
+  const active = documents.find((d) => d.id === activeDocId) ?? null;
   const viewRef = useRef<EditorView | null>(null);
   // Remembers the last (folderVisible, tocVisible) pair before Hide Both
   // collapsed them, so the second ⌘\ restores the user's setup.
@@ -209,7 +213,8 @@ export default function App() {
     // CodeMirror's built-in search panel (Find and Replace are the same
     // panel in CM6). WYSIWYG opens our ProseMirror-decoration-based bar
     // with an optional replace row.
-    if (active.viewMode === "edit") {
+    const currentViewMode = focusedPane?.viewMode ?? "wysiwyg";
+    if (currentViewMode === "edit") {
       requestAnimationFrame(() => {
         if (viewRef.current) openSearchPanel(viewRef.current);
       });
@@ -433,7 +438,7 @@ export default function App() {
       p.then((fn) => fn());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active?.id, active?.viewMode]);
+  }, [active?.id, focusedPane?.viewMode]);
 
   const wordCount = (active?.content ?? "").trim().split(/\s+/).filter(Boolean).length;
   const headings = useMemo(
@@ -513,13 +518,13 @@ export default function App() {
   }
 
   function setViewMode(mode: ViewMode) {
-    if (!active) return;
-    if (active.viewMode !== mode) {
-      const captured = captureTopHeadingIndex(active.viewMode);
+    if (!active || !focusedPane) return;
+    if (focusedPane.viewMode !== mode) {
+      const captured = captureTopHeadingIndex(focusedPane.viewMode);
       pendingScrollHeadingRef.current =
         captured != null ? { docId: active.id, index: captured } : null;
     }
-    useDocuments.getState().setViewMode(active.id, mode);
+    useDocuments.getState().setViewMode(active.id, mode); // dual-writes into layout via bridge
   }
 
   // After a view-mode flip, scroll the newly mounted editor to the
@@ -545,10 +550,11 @@ export default function App() {
     }
     let cancelled = false;
     let tries = 0;
+    const currentViewMode = focusedPane?.viewMode ?? "wysiwyg";
     function attempt() {
       if (cancelled || !active) return;
       const ready =
-        active.viewMode === "edit"
+        currentViewMode === "edit"
           ? viewRef.current != null
           : document.querySelector(".wysiwyg-content .ProseMirror") != null;
       if (!ready) {
@@ -568,12 +574,12 @@ export default function App() {
       window.clearTimeout(handle);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active?.viewMode, active?.id]);
+  }, [focusedPane?.viewMode, active?.id]);
 
   function jumpToHeading(h: Heading, tocIndex: number) {
     if (!active) return;
     // Respect the current view mode — don't auto-switch.
-    if (active.viewMode === "wysiwyg") {
+    if ((focusedPane?.viewMode ?? "wysiwyg") === "wysiwyg") {
       const scroller = document.querySelector<HTMLElement>(".wysiwyg-scroll");
       const root = document.querySelector(".wysiwyg-content .ProseMirror");
       if (!scroller || !root) return;
@@ -704,7 +710,7 @@ export default function App() {
             wordCount={wordCount}
             saveState={active?.saveState ?? "idle"}
             isDirty={active?.isDirty ?? false}
-            viewMode={active?.viewMode}
+            viewMode={focusedPane?.viewMode}
             onSetViewMode={active ? setViewMode : undefined}
             autosaveEnabled={active ? docAutosaveEnabled : undefined}
             onSetAutosaveEnabled={
@@ -736,7 +742,7 @@ export default function App() {
           )}
           {active ? (
             <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden" }}>
-              {active.viewMode === "wysiwyg" ? (
+              {(focusedPane?.viewMode ?? "wysiwyg") === "wysiwyg" ? (
                 <WysiwygEditor
                   key={active.id}
                   content={active.content}

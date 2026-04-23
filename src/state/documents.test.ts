@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useDocuments } from "./documents";
+import { useLayout } from "./layout";
 
 describe("useDocuments", () => {
   beforeEach(() => {
@@ -48,5 +49,41 @@ describe("useDocuments", () => {
     const d = useDocuments.getState().documents[0];
     expect(d.isDirty).toBe(false);
     expect(d.savedMtime).toBe(2);
+  });
+});
+
+describe("useDocuments → useLayout bridge", () => {
+  beforeEach(() => {
+    useDocuments.setState({ documents: [], activeId: null, folder: null });
+    useLayout.setState({
+      primary: { id: "primary", tabs: [], activeTabId: null, viewMode: "wysiwyg" },
+      secondary: null,
+      focusedPaneId: "primary",
+      paneSplit: 0.5,
+    });
+  });
+
+  it("openDocument adds the docId to the focused pane's tabs", () => {
+    const { openDocument } = useDocuments.getState();
+    const id = openDocument({ path: "/a.md", content: "x", savedMtime: 1, encoding: "utf-8" });
+    expect(useLayout.getState().primary.tabs).toEqual([id]);
+    expect(useLayout.getState().primary.activeTabId).toBe(id);
+  });
+
+  it("setActive is mirrored into layout.setActiveTab", () => {
+    const { openDocument, setActive } = useDocuments.getState();
+    const id1 = openDocument({ path: "/a.md", content: "a", savedMtime: 1, encoding: "utf-8" });
+    const id2 = openDocument({ path: "/b.md", content: "b", savedMtime: 1, encoding: "utf-8" });
+    setActive(id1);
+    expect(useLayout.getState().primary.activeTabId).toBe(id1);
+    setActive(id2);
+    expect(useLayout.getState().primary.activeTabId).toBe(id2);
+  });
+
+  it("closeDocument removes the tab from the pane", () => {
+    const { openDocument, closeDocument } = useDocuments.getState();
+    const id = openDocument({ path: "/a.md", content: "x", savedMtime: 1, encoding: "utf-8" });
+    closeDocument(id);
+    expect(useLayout.getState().primary.tabs).toEqual([]);
   });
 });

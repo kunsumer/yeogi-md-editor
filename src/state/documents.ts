@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { usePreferences } from "./preferences";
+import { useLayout } from "./layout";
 
 export interface Conflict {
   diskMtime: number;
@@ -71,6 +72,7 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
       const existing = get().documents.find((d) => d.path === path);
       if (existing) {
         set({ activeId: existing.id });
+        useLayout.getState().openInFocusedPane(existing.id); // NEW
         return existing.id;
       }
     }
@@ -94,6 +96,7 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
       autosaveEnabled: autosaveDefault,
     };
     set((s) => ({ documents: [...s.documents, doc], activeId: id }));
+    useLayout.getState().openInFocusedPane(id); // NEW
     return id;
   },
 
@@ -103,10 +106,15 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
       const activeId = s.activeId === id ? (documents[0]?.id ?? null) : s.activeId;
       return { documents, activeId };
     });
+    useLayout.getState().closeTab("primary", id);
+    if (useLayout.getState().secondary) {
+      useLayout.getState().closeTab("secondary", id);
+    }
   },
 
   setActive(id) {
     set({ activeId: id });
+    useLayout.getState().openInFocusedPane(id); // dedupes + activates
   },
 
   setFolder(path) {
@@ -174,6 +182,11 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
     set((s) => ({
       documents: s.documents.map((d) => (d.id === id ? { ...d, viewMode: mode } : d)),
     }));
+    const { focusedPaneId, primary, secondary } = useLayout.getState();
+    const focused = focusedPaneId === "primary" ? primary : secondary;
+    if (focused?.activeTabId === id) {
+      useLayout.getState().setViewMode(focusedPaneId, mode);
+    }
   },
 
   setAutosaveEnabled(id, enabled) {
