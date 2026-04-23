@@ -45,8 +45,14 @@ const segWrap: React.CSSProperties = {
 const segBtn = (active: boolean): React.CSSProperties => ({
   padding: "6px 14px",
   border: 0,
+  // Inverted fill for the selected segment: the background is the
+  // foreground text color, the foreground is the background. In light
+  // mode that reads as black-on-white → dark pill with white text; in
+  // dark mode it flips to white-on-black → light pill with dark text.
+  // Previously the color was hardcoded to "#fff", which collided with
+  // the already-light background var in dark mode.
   background: active ? "var(--text)" : "transparent",
-  color: active ? "#fff" : "var(--text-muted)",
+  color: active ? "var(--bg)" : "var(--text-muted)",
   fontSize: 12,
   fontWeight: active ? 500 : 400,
   cursor: "pointer",

@@ -3,6 +3,7 @@ import mermaid from "mermaid";
 import { Node, mergeAttributes } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
+import { usePreferences } from "../../../state/preferences";
 
 // "strict" security: mermaid sanitizes its own output, so we can skip the
 // serialize → DOMPurify → DOMParser round trip. That round trip was
@@ -45,10 +46,15 @@ function detectDiagramType(source: string): string {
   return "";
 }
 
+function currentTheme(): "dark" | "default" {
+  if (typeof document === "undefined") return "default";
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "default";
+}
+
 function configureMermaid(type: string, width: number): void {
   const base = {
     startOnLoad: false,
-    theme: "default" as const,
+    theme: currentTheme(),
     securityLevel: "strict" as const,
     fontFamily: FONT_STACK,
   };
@@ -103,6 +109,9 @@ function MermaidView({ node }: NodeViewProps) {
   // `tick` forces a re-render whenever the user drags the resize handle.
   // Debounced in the ResizeObserver so we don't run mermaid every pixel.
   const [tick, setTick] = useState(0);
+  // Subscribing to the theme preference re-runs the render effect when the
+  // user flips appearance so the diagram picks up mermaid's "dark" theme.
+  const theme = usePreferences((s) => s.theme);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,7 +144,7 @@ function MermaidView({ node }: NodeViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [source, tick]);
+  }, [source, tick, theme]);
 
   // Re-run mermaid when the user drags the native resize handle so the
   // internal layout (Gantt date ticks especially) gets proper spacing at

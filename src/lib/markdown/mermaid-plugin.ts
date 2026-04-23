@@ -3,19 +3,30 @@ import type { Root, Element } from "hast";
 import { visit } from "unist-util-visit";
 import mermaid from "mermaid";
 
-// securityLevel: "loose" keeps mermaid from prefixing ids / re-sanitizing
-// the SVG it generates (it has its own DOMPurify call when the level is
-// "strict"). We sanitize once at the safeReplaceChildren boundary.
-mermaid.initialize({
-  startOnLoad: false,
-  securityLevel: "loose",
-  theme: "default",
-  fontFamily:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-});
+/**
+ * Mermaid's theme is set globally on the library instance, so we re-
+ * initialize it inside the plugin each render. Reading the resolved theme
+ * from the <html data-theme> attribute lets the plugin pick the right
+ * mermaid theme without being coupled to the React state layer.
+ */
+function currentMermaidTheme(): "dark" | "default" {
+  if (typeof document === "undefined") return "default";
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "default";
+}
 
 export const rehypeMermaidInline: Plugin<[], Root> = () => {
   return async (tree) => {
+    mermaid.initialize({
+      startOnLoad: false,
+      // securityLevel: "loose" keeps mermaid from prefixing ids / re-
+      // sanitizing the SVG it generates (it has its own DOMPurify call when
+      // the level is "strict"). We sanitize once at the safeReplaceChildren
+      // boundary.
+      securityLevel: "loose",
+      theme: currentMermaidTheme(),
+      fontFamily:
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    });
     const jobs: Array<{ node: Element; code: string }> = [];
     visit(tree, "element", (node: Element) => {
       if (node.tagName !== "pre" || !node.children?.[0]) return;

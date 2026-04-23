@@ -2,6 +2,17 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.3.5 — 2026-04-23
+
+### Fixed
+
+- **Dark-mode legibility.** The v0.3.4 dark theme left several surfaces unreadable:
+  - **WYSIWYG / Edit segmented control** — active segment rendered as white-on-white in dark mode. Now inverts with the theme (dark pill in light mode, light pill in dark mode) via a `var(--bg)` foreground instead of hardcoded `#fff`.
+  - **Tables** — header and striped-row backgrounds were hardcoded light gray (`#eceef1`, `#f6f7f9`). Now use `var(--bg-sidebar)` for headers and a `rgba(125,125,125,0.06)` relative tint for stripes, which reads correctly in both modes.
+  - **Inline code pills** (``\`code\```) — background and foreground were hardcoded light values. Now `var(--bg-hover)` + `var(--text)`.
+  - **Mermaid card background** — previously forced `#ffffff`, masking the light-on-light text in dark mode. Now `var(--bg)`.
+- **Mermaid diagrams follow the app theme.** The preview pipeline and the WYSIWYG mermaid node both re-read the resolved theme from `html[data-theme]` at render time and initialize mermaid with its built-in `dark` theme when appropriate. PreviewPane and the mermaid node both re-render when the theme preference flips so existing diagrams pick up the new theme without an edit.
+
 ## v0.3.4 — 2026-04-23
 
 ### New

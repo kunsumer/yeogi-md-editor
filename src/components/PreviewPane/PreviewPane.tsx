@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { usePreferences } from "../../state/preferences";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { renderMarkdown } from "../../lib/markdown/pipeline";
 import { safeReplaceChildren } from "../../lib/safeInsertHtml";
@@ -30,6 +31,12 @@ const inner: React.CSSProperties = {
 
 export function PreviewPane({ content }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  // Subscribe to the theme preference so mermaid diagrams (which read the
+  // resolved theme from document.documentElement.dataset at render time)
+  // get re-drawn when the user flips appearance. Without this dep, the
+  // HTML stays cached and the diagrams keep their old theme until next
+  // content edit.
+  const theme = usePreferences((s) => s.theme);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,7 +49,7 @@ export function PreviewPane({ content }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [content]);
+  }, [content, theme]);
 
   // Intercept link clicks and open in the OS default browser so the webview
   // isn't navigated away from the app. Wiki-links get resolved against the
