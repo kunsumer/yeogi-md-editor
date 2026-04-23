@@ -5,11 +5,18 @@ import {
   startSessionPersistence,
 } from "./sessionPersistence";
 import { useDocuments } from "./documents";
+import { useLayout } from "./layout";
 
 describe("sessionPersistence", () => {
   beforeEach(() => {
     clearPersistedSession();
-    useDocuments.setState({ documents: [], activeId: null, folder: null });
+    useDocuments.setState({ documents: [], folder: null });
+    useLayout.setState({
+      primary: { id: "primary", tabs: [], activeTabId: null, viewMode: "wysiwyg" },
+      secondary: null,
+      focusedPaneId: "primary",
+      paneSplit: 0.5,
+    });
   });
 
   it("loadPersistedSession returns null when nothing is stored", () => {
@@ -19,10 +26,9 @@ describe("sessionPersistence", () => {
   it("subscribe writes paths and activePath after openDocument", () => {
     const stop = startSessionPersistence();
     try {
-      const id = useDocuments
+      useDocuments
         .getState()
         .openDocument({ path: "/x.md", content: "hi", savedMtime: 1, encoding: "utf-8" });
-      useDocuments.getState().setActive(id);
       const persisted = loadPersistedSession();
       expect(persisted).toEqual({ paths: ["/x.md"], activePath: "/x.md", folder: null });
     } finally {

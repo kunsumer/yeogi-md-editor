@@ -6,8 +6,6 @@ export interface Conflict {
   diskMtime: number;
 }
 
-export type ViewMode = "edit" | "wysiwyg";
-
 export interface Document {
   id: string;
   path: string | null;
@@ -23,7 +21,6 @@ export interface Document {
   conflict: Conflict | null;
   saveState: "idle" | "saving" | "saved" | "failed";
   lastSaveError: string | null;
-  viewMode: ViewMode;
   /**
    * Per-document autosave. Seeded from the global preference at open time
    * so new docs pick up the user's default, but can be toggled independently
@@ -34,7 +31,6 @@ export interface Document {
 
 interface DocumentsState {
   documents: Document[];
-  activeId: string | null;
   folder: string | null;
   openDocument(input: {
     path: string | null;
@@ -44,7 +40,6 @@ interface DocumentsState {
     readOnly?: boolean;
   }): string;
   closeDocument(id: string): void;
-  setActive(id: string): void;
   setFolder(path: string | null): void;
   setContent(id: string, content: string): void;
   markSaveStarted(id: string): void;
@@ -53,7 +48,6 @@ interface DocumentsState {
   setPath(id: string, path: string): void;
   setPreviewWindowLabel(id: string, label: string | null): void;
   setConflict(id: string, conflict: Conflict | null): void;
-  setViewMode(id: string, mode: ViewMode): void;
   setAutosaveEnabled(id: string, enabled: boolean): void;
   replaceContentFromDisk(id: string, input: { content: string; mtimeMs: number }): void;
 }
@@ -63,7 +57,6 @@ const newId = () => `doc-${++seq}-${Date.now()}`;
 
 export const useDocuments = create<DocumentsState>((set, get) => ({
   documents: [],
-  activeId: null,
   folder: null,
 
   openDocument({ path, content, savedMtime, encoding, readOnly = false }) {
@@ -71,8 +64,7 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
     if (path) {
       const existing = get().documents.find((d) => d.path === path);
       if (existing) {
-        set({ activeId: existing.id });
-        useLayout.getState().openInFocusedPane(existing.id); // NEW
+        useLayout.getState().openInFocusedPane(existing.id);
         return existing.id;
       }
     }
@@ -92,30 +84,19 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
       conflict: null,
       saveState: "idle",
       lastSaveError: null,
-      viewMode: "wysiwyg",
       autosaveEnabled: autosaveDefault,
     };
-    set((s) => ({ documents: [...s.documents, doc], activeId: id }));
-    useLayout.getState().openInFocusedPane(id); // NEW
+    set((s) => ({ documents: [...s.documents, doc] }));
+    useLayout.getState().openInFocusedPane(id);
     return id;
   },
 
   closeDocument(id) {
-    set((s) => {
-      const documents = s.documents.filter((d) => d.id !== id);
-      const activeId = s.activeId === id ? (documents[0]?.id ?? null) : s.activeId;
-      return { documents, activeId };
-    });
+    set((s) => ({ documents: s.documents.filter((d) => d.id !== id) }));
     useLayout.getState().closeTab("primary", id);
     if (useLayout.getState().secondary) {
       useLayout.getState().closeTab("secondary", id);
     }
-  },
-
-  setActive(id) {
-    set({ activeId: id });
-    const { focusedPaneId } = useLayout.getState();
-    useLayout.getState().setActiveTab(focusedPaneId, id);
   },
 
   setFolder(path) {
@@ -177,17 +158,6 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
     set((s) => ({
       documents: s.documents.map((d) => (d.id === id ? { ...d, conflict } : d)),
     }));
-  },
-
-  setViewMode(id, mode) {
-    set((s) => ({
-      documents: s.documents.map((d) => (d.id === id ? { ...d, viewMode: mode } : d)),
-    }));
-    const { focusedPaneId, primary, secondary } = useLayout.getState();
-    const focused = focusedPaneId === "primary" ? primary : secondary;
-    if (focused?.activeTabId === id) {
-      useLayout.getState().setViewMode(focusedPaneId, mode);
-    }
   },
 
   setAutosaveEnabled(id, enabled) {

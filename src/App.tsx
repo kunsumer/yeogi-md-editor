@@ -21,8 +21,8 @@ import { renderMarkdown } from "./lib/markdown/pipeline";
 import { buildStandaloneHtml } from "./lib/exportHtml";
 import { extractHeadings, type Heading } from "./lib/toc";
 import { slugify } from "./lib/slug";
-import { useDocuments, type ViewMode } from "./state/documents";
-import { useLayout } from "./state/layout";
+import { useDocuments } from "./state/documents";
+import { useLayout, type ViewMode } from "./state/layout";
 import { usePreferences } from "./state/preferences";
 import { useAutosave } from "./hooks/useAutosave";
 import { useUpdater } from "./hooks/useUpdater";
@@ -68,7 +68,7 @@ export default function App() {
   const [closeConfirm, setCloseConfirm] = useState<{ id: string } | null>(null);
   const updater = useUpdater({ checkOnStartup: true });
   useWatcherEvents(setWatcherOffline);
-  const { documents, activeId, openDocument, setActive, setContent } = useDocuments();
+  const { documents, openDocument, setContent } = useDocuments();
   const { markSaved, markSaveStarted, markSaveFailed } = useDocuments.getState();
   const autosaveEnabled = usePreferences((s) => s.autosaveEnabled);
   const autosaveDebounceMs = usePreferences((s) => s.autosaveDebounceMs);
@@ -121,18 +121,17 @@ export default function App() {
   async function openFile(path: string) {
     const existing = useDocuments.getState().documents.find((d) => d.path === path);
     if (existing) {
-      setActive(existing.id);
+      useLayout.getState().openInFocusedPane(existing.id);
       return;
     }
     const r = await fsRead(path);
-    const id = openDocument({
+    openDocument({
       path,
       content: r.content,
       savedMtime: r.mtime_ms,
       encoding: r.encoding,
     });
     await watcherSubscribe(path);
-    setActive(id);
   }
 
   async function pickAndOpenFiles() {
@@ -292,7 +291,7 @@ export default function App() {
           const doc = useDocuments
             .getState()
             .documents.find((d) => d.path === persisted.activePath);
-          if (doc) setActive(doc.id);
+          if (doc) useLayout.getState().openInFocusedPane(doc.id);
         }
         return;
       }
@@ -525,7 +524,6 @@ export default function App() {
         captured != null ? { docId: active.id, index: captured } : null;
     }
     useLayout.getState().setViewMode(focusedPaneId, mode);
-    useDocuments.getState().setViewMode(active.id, mode);
   }
 
   // After a view-mode flip, scroll the newly mounted editor to the
@@ -661,8 +659,8 @@ export default function App() {
           title: d.path ? d.path.split("/").pop()! : "Untitled",
           isDirty: d.isDirty,
         }))}
-        activeId={activeId}
-        onActivate={setActive}
+        activeId={focusedPane?.activeTabId ?? null}
+        onActivate={(id) => useLayout.getState().openInFocusedPane(id)}
         onClose={(id) => requestCloseDocument(id)}
         onNew={() => pickAndOpenFiles().catch(console.error)}
       />

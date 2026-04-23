@@ -4,7 +4,7 @@ import { useLayout } from "./layout";
 
 describe("useDocuments", () => {
   beforeEach(() => {
-    useDocuments.setState({ documents: [], activeId: null });
+    useDocuments.setState({ documents: [] });
   });
 
   it("openDocument adds a tab, sets active, conflict null", () => {
@@ -13,7 +13,6 @@ describe("useDocuments", () => {
     const s = useDocuments.getState();
     expect(s.documents).toHaveLength(1);
     expect(s.documents[0].id).toBe(id);
-    expect(s.activeId).toBe(id);
     expect(s.documents[0].conflict).toBeNull();
   });
 
@@ -30,7 +29,7 @@ describe("useDocuments", () => {
     const id2 = openDocument({ path: "/a.md", content: "v1", savedMtime: 1, encoding: "utf-8" });
     expect(id2).toBe(id1);
     expect(useDocuments.getState().documents).toHaveLength(1);
-    expect(useDocuments.getState().activeId).toBe(id1);
+    expect(useLayout.getState().primary.activeTabId).toBe(id1);
   });
 
   it("openDocument allows multiple Untitled (path: null) buffers", () => {
@@ -54,7 +53,7 @@ describe("useDocuments", () => {
 
 describe("useDocuments → useLayout bridge", () => {
   beforeEach(() => {
-    useDocuments.setState({ documents: [], activeId: null, folder: null });
+    useDocuments.setState({ documents: [], folder: null });
     useLayout.setState({
       primary: { id: "primary", tabs: [], activeTabId: null, viewMode: "wysiwyg" },
       secondary: null,
@@ -68,16 +67,6 @@ describe("useDocuments → useLayout bridge", () => {
     const id = openDocument({ path: "/a.md", content: "x", savedMtime: 1, encoding: "utf-8" });
     expect(useLayout.getState().primary.tabs).toEqual([id]);
     expect(useLayout.getState().primary.activeTabId).toBe(id);
-  });
-
-  it("setActive is mirrored into layout.setActiveTab", () => {
-    const { openDocument, setActive } = useDocuments.getState();
-    const id1 = openDocument({ path: "/a.md", content: "a", savedMtime: 1, encoding: "utf-8" });
-    const id2 = openDocument({ path: "/b.md", content: "b", savedMtime: 1, encoding: "utf-8" });
-    setActive(id1);
-    expect(useLayout.getState().primary.activeTabId).toBe(id1);
-    setActive(id2);
-    expect(useLayout.getState().primary.activeTabId).toBe(id2);
   });
 
   it("closeDocument removes the tab from the pane", () => {

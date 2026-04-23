@@ -1,4 +1,4 @@
-import type { ViewMode } from "../../state/documents";
+import type { ViewMode } from "../../state/layout";
 
 interface Props {
   path: string | null;

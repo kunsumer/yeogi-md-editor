@@ -6,6 +6,7 @@ import { slugify } from "../../lib/slug";
 import { resolveWikiLink } from "../../lib/resolveWikiLink";
 import { fsRead, watcherSubscribe } from "../../lib/ipc/commands";
 import { useDocuments } from "../../state/documents";
+import { useLayout } from "../../state/layout";
 import "./preview-content.css";
 
 interface Props {
@@ -97,18 +98,17 @@ export function PreviewPane({ content }: Props) {
         .getState()
         .documents.find((d) => d.path === found);
       if (existing) {
-        useDocuments.getState().setActive(existing.id);
+        useLayout.getState().openInFocusedPane(existing.id);
         return;
       }
       const r = await fsRead(found);
-      const id = useDocuments.getState().openDocument({
+      useDocuments.getState().openDocument({
         path: found,
         content: r.content,
         savedMtime: r.mtime_ms,
         encoding: r.encoding,
       });
       await watcherSubscribe(found);
-      useDocuments.getState().setActive(id);
     } catch (err) {
       console.warn("wiki-link resolve failed:", target, err);
     }

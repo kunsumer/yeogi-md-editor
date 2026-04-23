@@ -1,4 +1,5 @@
 import { useDocuments } from "./documents";
+import { useLayout } from "./layout";
 
 const KEY = "yeogi-md-editor:session";
 
@@ -17,14 +18,15 @@ function snapshot(state: ReturnType<typeof useDocuments.getState>): PersistedSes
       paths.push(d.path);
     }
   }
-  const active = state.documents.find((d) => d.id === state.activeId);
+  const activeId = useLayout.getState().primary.activeTabId;
+  const active = state.documents.find((d) => d.id === activeId);
   return { paths, activePath: active?.path ?? null, folder: state.folder };
 }
 
 export function startSessionPersistence(): () => void {
   let last = "";
-  return useDocuments.subscribe((state) => {
-    const data = JSON.stringify(snapshot(state));
+  function persist() {
+    const data = JSON.stringify(snapshot(useDocuments.getState()));
     if (data === last) return;
     last = data;
     try {
@@ -32,7 +34,13 @@ export function startSessionPersistence(): () => void {
     } catch {
       // localStorage unavailable / quota exceeded — non-fatal
     }
-  });
+  }
+  const stopDocs = useDocuments.subscribe(persist);
+  const stopLayout = useLayout.subscribe(persist);
+  return () => {
+    stopDocs();
+    stopLayout();
+  };
 }
 
 export function loadPersistedSession(): PersistedSession | null {
