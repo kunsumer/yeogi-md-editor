@@ -24,6 +24,7 @@ interface Props {
   pane: Pane;
   isFocused: boolean;
   documents: Document[];
+  otherPaneActiveTabId: string | null;
   onOpenFiles(): void;
   onOpenFolder(): void;
   onCreateBlank(): void;
@@ -74,6 +75,7 @@ export function EditorPane({
   pane,
   isFocused,
   documents,
+  otherPaneActiveTabId,
   onOpenFiles,
   onOpenFolder,
   onCreateBlank,
@@ -95,6 +97,13 @@ export function EditorPane({
   onConflictReload,
 }: Props) {
   const active = documents.find((d) => d.id === pane.activeTabId) ?? null;
+
+  const sameDocLock =
+    pane.id === "secondary" &&
+    active != null &&
+    otherPaneActiveTabId === active.id;
+
+  const editable = isFocused && !sameDocLock && !active?.readOnly;
 
   return (
     <main
@@ -121,6 +130,20 @@ export function EditorPane({
           if (active) onSetAutosaveEnabled?.(active.id, enabled);
         }}
       />
+      {sameDocLock && (
+        <div
+          role="status"
+          style={{
+            fontSize: 11,
+            color: "var(--text-muted)",
+            padding: "4px 12px",
+            background: "var(--bg-sidebar)",
+            borderBottom: "1px solid var(--border)",
+          }}
+        >
+          Read-only — edit from the primary pane.
+        </div>
+      )}
       {pane.id === "primary" && updateStatus !== undefined && onUpdateInstall && onUpdateDismiss && (
         <UpdateBanner
           status={updateStatus}
@@ -142,7 +165,7 @@ export function EditorPane({
               key={active.id}
               content={active.content}
               onChange={(next) => onSetContent(active.id, next)}
-              readOnly={active.readOnly || !isFocused}
+              readOnly={!editable}
               searchOpen={searchOpen}
               searchReplace={searchReplace}
               onSearchClose={onSearchClose}
@@ -152,7 +175,7 @@ export function EditorPane({
               docId={active.id}
               value={active.content}
               onChange={(next) => onSetContent(active.id, next)}
-              readOnly={active.readOnly || !isFocused}
+              readOnly={!editable}
               onReady={onEditorReady ?? (() => {})}
             />
           )}

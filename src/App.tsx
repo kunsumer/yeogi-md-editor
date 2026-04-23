@@ -719,6 +719,7 @@ export default function App() {
         <EditorPane
           pane={primary}
           isFocused={focusedPaneId === "primary"}
+          otherPaneActiveTabId={secondary?.activeTabId ?? null}
           {...paneProps}
           searchOpen={searchOpen}
           searchReplace={searchReplace}
@@ -753,6 +754,7 @@ export default function App() {
             <EditorPane
               pane={secondary}
               isFocused={focusedPaneId === "secondary"}
+              otherPaneActiveTabId={primary.activeTabId}
               {...paneProps}
             />
           </>
