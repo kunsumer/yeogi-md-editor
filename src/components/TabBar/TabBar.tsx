@@ -34,11 +34,15 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: "0 10px 0 14px",
   borderRadius: "6px 6px 0 0",
   background: active ? "var(--bg-tab-active)" : "var(--bg-tab-inactive)",
-  color: active ? "var(--text)" : "var(--text-on-dark-muted)",
+  color: active ? "var(--text)" : "var(--text-muted)",
+  // 2px brand-red indicator bar on the selected tab (inset so it clips to
+  // the tab's rounded top corners). Inactive tabs keep the empty string
+  // so the transition below doesn't flicker.
+  boxShadow: active ? "inset 0 2px 0 0 var(--brand-red)" : "none",
   cursor: "pointer",
   userSelect: "none",
   fontSize: 12,
-  fontWeight: active ? 500 : 400,
+  fontWeight: active ? 600 : 400,
   whiteSpace: "nowrap",
   transition: "background 120ms, color 120ms",
 });
@@ -88,7 +92,7 @@ const newTabBtnStyle: React.CSSProperties = {
   border: 0,
   borderRadius: 6,
   background: "transparent",
-  color: "var(--text-on-dark-muted)",
+  color: "var(--text-muted)",
   cursor: "pointer",
   fontSize: 18,
   lineHeight: 1,
@@ -116,13 +120,13 @@ export function TabBar({ docs, activeId, onActivate, onClose, onNew }: Props) {
             onMouseEnter={(e) => {
               if (!active) {
                 (e.currentTarget as HTMLDivElement).style.background = "var(--bg-tabbar-hover)";
-                (e.currentTarget as HTMLDivElement).style.color = "var(--text-on-dark)";
+                (e.currentTarget as HTMLDivElement).style.color = "var(--text)";
               }
             }}
             onMouseLeave={(e) => {
               if (!active) {
                 (e.currentTarget as HTMLDivElement).style.background = "transparent";
-                (e.currentTarget as HTMLDivElement).style.color = "var(--text-on-dark-muted)";
+                (e.currentTarget as HTMLDivElement).style.color = "var(--text-muted)";
               }
             }}
             style={tabStyle(active)}
@@ -158,11 +162,11 @@ export function TabBar({ docs, activeId, onActivate, onClose, onNew }: Props) {
           onClick={onNew}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-tabbar-hover)";
-            (e.currentTarget as HTMLButtonElement).style.color = "var(--text-on-dark)";
+            (e.currentTarget as HTMLButtonElement).style.color = "var(--text)";
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-            (e.currentTarget as HTMLButtonElement).style.color = "var(--text-on-dark-muted)";
+            (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
           }}
           style={newTabBtnStyle}
         >

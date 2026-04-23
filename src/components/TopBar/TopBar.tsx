@@ -71,7 +71,7 @@ const switchTrack = (on: boolean): React.CSSProperties => ({
   width: 30,
   height: 16,
   borderRadius: 999,
-  background: on ? "var(--accent)" : "var(--border-strong, #d1d5db)",
+  background: on ? "var(--brand-red)" : "var(--border-strong, #d1d5db)",
   cursor: "pointer",
   transition: "background 140ms ease",
   flexShrink: 0,
