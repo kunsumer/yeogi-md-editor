@@ -177,7 +177,7 @@ export default function App() {
   }
 
   function closeActiveTab() {
-    const id = useDocuments.getState().activeId;
+    const id = focusedPane?.activeTabId ?? null;
     if (id) requestCloseDocument(id);
   }
 
@@ -524,7 +524,8 @@ export default function App() {
       pendingScrollHeadingRef.current =
         captured != null ? { docId: active.id, index: captured } : null;
     }
-    useDocuments.getState().setViewMode(active.id, mode); // dual-writes into layout via bridge
+    useLayout.getState().setViewMode(focusedPaneId, mode);
+    useDocuments.getState().setViewMode(active.id, mode);
   }
 
   // After a view-mode flip, scroll the newly mounted editor to the

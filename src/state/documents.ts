@@ -114,7 +114,8 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
 
   setActive(id) {
     set({ activeId: id });
-    useLayout.getState().openInFocusedPane(id); // dedupes + activates
+    const { focusedPaneId } = useLayout.getState();
+    useLayout.getState().setActiveTab(focusedPaneId, id);
   },
 
   setFolder(path) {
