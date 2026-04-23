@@ -1,0 +1,206 @@
+/* Scoped styles for rendered markdown inside a .preview-content container.
+   Both the inline PreviewPane and the separate Preview window mount under
+   this class so the typography + code + table + mermaid rules are shared. */
+
+.preview-content {
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 15px;
+  word-wrap: break-word;
+}
+
+.preview-content > :first-child { margin-top: 0; }
+.preview-content > :last-child  { margin-bottom: 0; }
+
+/* Headings */
+.preview-content h1,
+.preview-content h2,
+.preview-content h3,
+.preview-content h4,
+.preview-content h5,
+.preview-content h6 {
+  color: var(--text);
+  line-height: 1.3;
+  margin: 1.6em 0 0.5em;
+  font-weight: 600;
+}
+.preview-content h1 {
+  font-size: 1.9em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+.preview-content h2 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+.preview-content h3 { font-size: 1.25em; }
+.preview-content h4 { font-size: 1.05em; }
+.preview-content h5 {
+  font-size: 0.95em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.preview-content h6 {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.preview-content p { margin: 0.7em 0; }
+
+.preview-content a { color: var(--accent); text-decoration: none; }
+.preview-content a:hover { text-decoration: underline; }
+
+.preview-content ul,
+.preview-content ol { padding-left: 1.6em; margin: 0.7em 0; }
+.preview-content li { margin: 0.2em 0; }
+.preview-content li > p { margin: 0.3em 0; }
+
+.preview-content blockquote {
+  border-left: 3px solid var(--border-strong);
+  padding: 0.3em 1em;
+  margin: 0.9em 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.preview-content blockquote code {
+  font-style: normal;
+}
+
+.preview-content hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1.6em 0;
+}
+
+.preview-content img { max-width: 100%; height: auto; border-radius: 4px; }
+
+/* Tables */
+.preview-content table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.95em;
+  display: block;
+  max-width: 100%;
+  overflow: auto;
+  /* Shrink-wrap the table to its content width instead of stretching to
+     the full container — the block overflow wrapper needs width: max-content
+     so cell borders on the right edge stay visible when content is narrow. */
+  width: max-content;
+}
+.preview-content th,
+.preview-content td {
+  border: 1px solid var(--border-strong);
+  padding: 8px 12px;
+  vertical-align: top;
+  text-align: left;
+  line-height: 1.5;
+}
+.preview-content thead th {
+  background: #eceef1;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 1px solid var(--border-strong);
+}
+.preview-content tbody tr:nth-child(even) td {
+  background: #f6f7f9;
+}
+
+/* Inline code — Meva-style gray pill */
+.preview-content code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+}
+.preview-content :not(pre) > code {
+  background: #f1f3f5;
+  color: #1a1a1a;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  white-space: nowrap;
+}
+
+/* Code blocks */
+.preview-content pre {
+  position: relative;
+  margin: 1em 0;
+  padding: 14px 18px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.preview-content pre code {
+  /* Wrap long lines so they don't blow past the column. */
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* Copy button — pinned to bottom-right, fades in on hover, dark-friendly */
+.preview-content pre .copy-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.12);
+  color: #e5e7eb;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 120ms,
+    background 120ms;
+  backdrop-filter: blur(6px);
+}
+.preview-content pre:hover .copy-btn,
+.preview-content pre .copy-btn:focus-visible {
+  opacity: 1;
+}
+.preview-content pre .copy-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+/* Mermaid */
+.preview-content .mermaid {
+  display: flex;
+  justify-content: center;
+  margin: 1em 0;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: auto;
+}
+/* Mermaid stamps inline `max-width` on the generated SVG which caps it at
+   the chart's intrinsic width, leaving the Gantt cramped in a narrow
+   column. Force-fill the card's width so wide diagrams breathe. */
+.preview-content .mermaid svg {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+}
+.preview-content .mermaid-error {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  font-size: 12px;
+  padding: 12px;
+}
+
+/* KaTeX — let the HTML element keep its own fonts; just scope layout */
+.preview-content .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.3em 0;
+}
