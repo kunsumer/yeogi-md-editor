@@ -5,6 +5,23 @@ follow [Semantic Versioning](https://semver.org/); entries highlight
 user-visible behavior (new capabilities and bug fixes), not internal
 refactors or visual tweaks.
 
+## v0.2.2 — 2026-04-23
+
+### New
+
+- Empty state (no file open) offers both **Open file(s)…** and **Open
+  folder…** side-by-side, styled identically so neither is the biased
+  "primary" choice.
+
+### Fixed
+
+- Dock icon no longer renders a white plate behind the red rounded
+  square. The source PNG goes through a more aggressive flood-fill
+  (threshold 70 catches the gray drop-shadow halo) and a despill pass
+  that scales edge-pixel alpha by how red-dominant the pixel is, so
+  anti-aliased edges fade to transparent instead of staying as a
+  pink-tinged ring.
+
 ## v0.2.1 — 2026-04-23
 
 ### Fixed
