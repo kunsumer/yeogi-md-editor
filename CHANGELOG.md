@@ -2,6 +2,16 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.3.3 — 2026-04-23
+
+### New
+
+- **Keyboard shortcut to toggle WYSIWYG ↔ Edit.** `⌘E` flips the focused pane between the rich WYSIWYG renderer and the raw-markdown CodeMirror editor. Matches Obsidian's "Toggle Edit / Reading View" convention; no-op when no document is open.
+
+### Fixed
+
+- **External HTTPS images now display.** Inline `![alt](https://example.com/foo.png)` and raw `<img src="https://...">` tags were blocked by the content-security policy (`img-src` only allowed `self` / `data:` / `blob:` / the Tauri asset bridge). Adding `https:` to `img-src` lets remote images through, while still blocking cleartext `http:` (mixed-content hygiene).
+
 ## v0.3.2 — 2026-04-23
 
 ### New

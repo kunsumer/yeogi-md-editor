@@ -481,6 +481,12 @@ export default function App() {
           }
           break;
         }
+        case "view:toggle-edit-mode": {
+          if (!active) break;
+          const currentMode = focusedPane?.viewMode ?? "wysiwyg";
+          setViewMode(currentMode === "wysiwyg" ? "edit" : "wysiwyg");
+          break;
+        }
         case "view:cycle-theme":
           // Stub — themes land in Phase 13.
           console.info("Cycle Theme: not yet implemented.");

@@ -134,6 +134,12 @@ pub fn build_menu<R: Runtime>(
         )
         .separator()
         .item(
+            &MenuItemBuilder::with_id("view:toggle-edit-mode", "Toggle Edit / WYSIWYG")
+                .accelerator("CmdOrCtrl+E")
+                .build(app)?,
+        )
+        .separator()
+        .item(
             &MenuItemBuilder::with_id("view:cycle-theme", "Cycle Theme")
                 .accelerator("CmdOrCtrl+T")
                 .build(app)?,
