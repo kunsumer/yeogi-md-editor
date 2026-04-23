@@ -1,0 +1,323 @@
+.tutorial-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: tutorial-fade 180ms ease-out;
+}
+
+@keyframes tutorial-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.tutorial-card {
+  width: min(560px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border-radius: 14px;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.25),
+    0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.tutorial-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 0;
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.tutorial-dots {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.tutorial-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  transition: background 120ms;
+}
+
+.tutorial-dot.active {
+  background: var(--accent);
+}
+
+.tutorial-body {
+  padding: 12px 28px 20px;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.tutorial-body h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 12px 0 8px;
+  color: var(--text);
+}
+
+.tutorial-body p,
+.tutorial-body li {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.tutorial-body ul,
+.tutorial-body ol {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.tutorial-body li {
+  margin: 4px 0;
+}
+
+.tutorial-body kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 2px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg-sidebar);
+  box-shadow: 0 1px 0 var(--border);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--text);
+}
+
+.tutorial-illo {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 14px 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+}
+
+.tutorial-tab-strip {
+  display: flex;
+  align-items: flex-end;
+  background: var(--bg-tabbar);
+  padding: 4px 6px 0;
+  border-radius: 6px;
+  gap: 2px;
+}
+
+.tutorial-tab {
+  padding: 5px 12px 5px 14px;
+  font-size: 11px;
+  color: var(--text-on-dark-muted);
+  border-radius: 5px 5px 0 0;
+}
+
+.tutorial-tab.active {
+  background: #fff;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.tutorial-plus {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-on-dark-muted);
+  font-size: 14px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tutorial-segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.tutorial-segmented > span {
+  padding: 5px 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tutorial-segmented > span.active {
+  background: var(--text);
+  color: #fff;
+  font-weight: 500;
+}
+
+/* Ribbon mockup — compact row of toolbar buttons + a heading pill, mirrors
+   the real Word-style ribbon the user sees over the WYSIWYG editor. */
+.tutorial-ribbon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.tutorial-ribbon .trb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.tutorial-ribbon .trb-btn:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+}
+.tutorial-ribbon .trb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg);
+}
+.tutorial-ribbon .trb-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* Inline-rendering chips — little tags listing the things WYSIWYG renders. */
+.tutorial-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  padding: 4px 8px;
+}
+.tutorial-chips span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+/* Autosave switch demo — mirrors the real TopBar switch shape. */
+.tutorial-autosave-demo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.tutorial-switch {
+  position: relative;
+  display: inline-block;
+  width: 30px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--border-strong, #d1d5db);
+}
+.tutorial-switch.on {
+  background: var(--accent);
+}
+.tutorial-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: left 140ms ease;
+}
+.tutorial-switch.on .tutorial-switch-thumb {
+  left: 16px;
+}
+
+.tutorial-shortcuts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.tutorial-shortcuts > *:nth-child(odd) {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.tutorial-steps-num {
+  counter-reset: tut;
+}
+
+.tutorial-steps-num li {
+  counter-increment: tut;
+  list-style: none;
+  position: relative;
+  padding-left: 30px;
+  margin: 6px 0;
+}
+
+.tutorial-steps-num li::before {
+  content: counter(tut);
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tutorial-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.tutorial-actions .spacer {
+  flex: 1;
+}
