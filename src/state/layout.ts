@@ -17,10 +17,12 @@ interface LayoutState {
   paneSplit: number;
 
   openInFocusedPane(docId: string): void;
+  openToTheSide(docId: string): void;
   setActiveTab(paneId: PaneId, docId: string): void;
   setFocusedPane(paneId: PaneId): void;
   setViewMode(paneId: PaneId, mode: ViewMode): void;
   closeTab(paneId: PaneId, docId: string): void;
+  setPaneSplit(fraction: number): void;
 }
 
 const emptyPrimary: Pane = {
@@ -81,6 +83,42 @@ export const useLayout = create<LayoutState>((set, get) => ({
     const pane = paneId === "primary" ? get().primary : get().secondary;
     if (!pane) return;
     setPane(set, paneId, { ...pane, viewMode: mode });
+  },
+
+  openToTheSide(docId) {
+    const { secondary } = get();
+    if (!secondary) {
+      set({
+        secondary: {
+          id: "secondary",
+          tabs: [docId],
+          activeTabId: docId,
+          viewMode: "wysiwyg",
+        },
+        focusedPaneId: "secondary",
+      });
+      return;
+    }
+    if (secondary.tabs.includes(docId)) {
+      set({
+        secondary: { ...secondary, activeTabId: docId },
+        focusedPaneId: "secondary",
+      });
+      return;
+    }
+    set({
+      secondary: {
+        ...secondary,
+        tabs: [...secondary.tabs, docId],
+        activeTabId: docId,
+      },
+      focusedPaneId: "secondary",
+    });
+  },
+
+  setPaneSplit(fraction) {
+    const clamped = Math.max(0.2, Math.min(0.8, fraction));
+    set({ paneSplit: clamped });
   },
 
   closeTab(paneId, docId) {

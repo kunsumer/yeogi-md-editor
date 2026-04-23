@@ -70,3 +70,73 @@ describe("useLayout (primary only)", () => {
     expect(useLayout.getState().focusedPaneId).toBe("primary");
   });
 });
+
+describe("useLayout (secondary pane)", () => {
+  beforeEach(reset);
+
+  it("openToTheSide creates secondary with docId when none exists", () => {
+    useLayout.getState().openInFocusedPane("doc-a");
+    useLayout.getState().openToTheSide("doc-b");
+    const s = useLayout.getState();
+    expect(s.secondary).not.toBeNull();
+    expect(s.secondary!.tabs).toEqual(["doc-b"]);
+    expect(s.secondary!.activeTabId).toBe("doc-b");
+    expect(s.focusedPaneId).toBe("secondary");
+  });
+
+  it("openToTheSide inserts into existing secondary and focuses it", () => {
+    useLayout.getState().openInFocusedPane("doc-a");
+    useLayout.getState().openToTheSide("doc-b");
+    useLayout.getState().setFocusedPane("primary");
+    useLayout.getState().openToTheSide("doc-c");
+    const s = useLayout.getState();
+    expect(s.secondary!.tabs).toEqual(["doc-b", "doc-c"]);
+    expect(s.secondary!.activeTabId).toBe("doc-c");
+    expect(s.focusedPaneId).toBe("secondary");
+  });
+
+  it("openToTheSide re-focuses an existing tab in the destination pane", () => {
+    useLayout.getState().openInFocusedPane("doc-a");
+    useLayout.getState().openToTheSide("doc-b");
+    useLayout.getState().openToTheSide("doc-c");
+    useLayout.getState().openToTheSide("doc-b"); // already in secondary
+    const s = useLayout.getState();
+    expect(s.secondary!.tabs).toEqual(["doc-b", "doc-c"]);
+    expect(s.secondary!.activeTabId).toBe("doc-b");
+  });
+
+  it("openToTheSide allows the same doc in both panes (case d)", () => {
+    useLayout.getState().openInFocusedPane("doc-a");
+    useLayout.getState().openToTheSide("doc-a"); // triggered from primary's tab
+    const s = useLayout.getState();
+    expect(s.primary.tabs).toEqual(["doc-a"]);
+    expect(s.secondary!.tabs).toEqual(["doc-a"]);
+    expect(s.focusedPaneId).toBe("secondary");
+  });
+
+  it("closeTab on last tab in secondary collapses secondary to null", () => {
+    useLayout.getState().openInFocusedPane("doc-a");
+    useLayout.getState().openToTheSide("doc-b");
+    useLayout.getState().closeTab("secondary", "doc-b");
+    const s = useLayout.getState();
+    expect(s.secondary).toBeNull();
+    expect(s.focusedPaneId).toBe("primary");
+  });
+
+  it("setFocusedPane to 'secondary' works when secondary exists", () => {
+    useLayout.getState().openInFocusedPane("doc-a");
+    useLayout.getState().openToTheSide("doc-b");
+    useLayout.getState().setFocusedPane("primary");
+    useLayout.getState().setFocusedPane("secondary");
+    expect(useLayout.getState().focusedPaneId).toBe("secondary");
+  });
+
+  it("setPaneSplit clamps to [0.2, 0.8]", () => {
+    useLayout.getState().setPaneSplit(0.05);
+    expect(useLayout.getState().paneSplit).toBe(0.2);
+    useLayout.getState().setPaneSplit(0.99);
+    expect(useLayout.getState().paneSplit).toBe(0.8);
+    useLayout.getState().setPaneSplit(0.4);
+    expect(useLayout.getState().paneSplit).toBe(0.4);
+  });
+});
