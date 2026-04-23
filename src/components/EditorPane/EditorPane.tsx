@@ -103,7 +103,11 @@ export function EditorPane({
     active != null &&
     otherPaneActiveTabId === active.id;
 
-  const editable = isFocused && !sameDocLock && !active?.readOnly;
+  // Both panes are editable when they show different docs — they're separate
+  // editor instances with separate undo histories, so no dual-undo hazard.
+  // The only hard read-only case is the same-doc lock (secondary mirrors
+  // primary's buffer, so we keep writes one-directional there).
+  const editable = !sameDocLock && !active?.readOnly;
 
   return (
     <main
