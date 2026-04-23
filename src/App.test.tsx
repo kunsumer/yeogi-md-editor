@@ -92,6 +92,7 @@ describe("App — two panes", () => {
   });
 });
 
+import { fireEvent } from "@testing-library/react";
 import { usePreferences } from "./state/preferences";
 import { act } from "@testing-library/react";
 
@@ -141,4 +142,73 @@ it("Outline switches when focus moves between panes", async () => {
   // Re-query the outline after the re-render (it may have remounted).
   const updatedOutline = await screen.findByRole("complementary", { name: /outline/i });
   expect(updatedOutline).toHaveTextContent("Heading B");
+});
+
+describe("App — side-by-side flows", () => {
+  beforeEach(() => {
+    useDocuments.setState({ documents: [], folder: null });
+    useLayout.setState({
+      primary: { id: "primary", tabs: [], activeTabId: null, viewMode: "wysiwyg" },
+      secondary: null,
+      focusedPaneId: "primary",
+      paneSplit: 0.5,
+    });
+    localStorage.clear();
+    localStorage.setItem("yeogi-md-editor:welcome-shown", "true");
+  });
+
+  it("right-click tab menu: Open to the Side creates secondary", () => {
+    useDocuments.getState().openDocument({
+      path: "/a.md", content: "a", savedMtime: 1, encoding: "utf-8",
+    });
+    render(<App />);
+    // There may be multiple "a.md" text nodes (tab + TopBar breadcrumb); grab
+    // the one that lives inside a [role=tab] element.
+    const tabEl = screen
+      .getAllByText("a.md")
+      .map((el) => el.closest("[role=tab]"))
+      .find((el): el is Element => el !== null)!;
+    expect(tabEl).toBeTruthy();
+    fireEvent.contextMenu(tabEl);
+    fireEvent.click(screen.getByText(/open to the side/i));
+    expect(useLayout.getState().secondary).not.toBeNull();
+    expect(useLayout.getState().secondary!.tabs).toContain(
+      useDocuments.getState().documents[0].id,
+    );
+  });
+
+  it("closing the last tab in secondary collapses to single-pane", () => {
+    useDocuments.getState().openDocument({ path: "/a.md", content: "a", savedMtime: 1, encoding: "utf-8" });
+    useDocuments.getState().openDocument({ path: "/b.md", content: "b", savedMtime: 1, encoding: "utf-8" });
+    const docs = useDocuments.getState().documents;
+    useLayout.setState({
+      primary: { id: "primary", tabs: [docs[0].id], activeTabId: docs[0].id, viewMode: "wysiwyg" },
+      secondary: { id: "secondary", tabs: [docs[1].id], activeTabId: docs[1].id, viewMode: "wysiwyg" },
+      focusedPaneId: "secondary",
+      paneSplit: 0.5,
+    });
+    render(<App />);
+    // Find the close button inside the secondary pane's tab strip.
+    const secondaryPane = screen.getByTestId("editor-pane-secondary");
+    const closeBtn = secondaryPane.querySelector('button[aria-label="Close b.md"]') as HTMLButtonElement;
+    expect(closeBtn).toBeTruthy();
+    fireEvent.click(closeBtn);
+    expect(useLayout.getState().secondary).toBeNull();
+    expect(useLayout.getState().focusedPaneId).toBe("primary");
+  });
+
+  it("both panes carry role='region' with distinguishable aria-labels", () => {
+    useDocuments.getState().openDocument({ path: "/a.md", content: "a", savedMtime: 1, encoding: "utf-8" });
+    useDocuments.getState().openDocument({ path: "/b.md", content: "b", savedMtime: 1, encoding: "utf-8" });
+    const docs = useDocuments.getState().documents;
+    useLayout.setState({
+      primary: { id: "primary", tabs: [docs[0].id], activeTabId: docs[0].id, viewMode: "wysiwyg" },
+      secondary: { id: "secondary", tabs: [docs[1].id], activeTabId: docs[1].id, viewMode: "wysiwyg" },
+      focusedPaneId: "primary",
+      paneSplit: 0.5,
+    });
+    render(<App />);
+    expect(screen.getByRole("region", { name: /primary pane/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /secondary pane/i })).toBeInTheDocument();
+  });
 });
