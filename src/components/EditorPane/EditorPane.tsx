@@ -139,14 +139,20 @@ export function EditorPane({
         <div
           role="status"
           style={{
-            fontSize: 11,
+            fontSize: 12,
             color: "var(--text-muted)",
-            padding: "4px 12px",
+            padding: "8px 12px",
             background: "var(--bg-sidebar)",
             borderBottom: "1px solid var(--border)",
+            lineHeight: 1.4,
           }}
         >
-          Read-only — edit from the primary pane.
+          <strong style={{ color: "var(--text)", fontWeight: 600 }}>
+            Read-only preview.
+          </strong>{" "}
+          This document is already open in the left pane. To keep undo
+          history coherent, it can only be edited from there — changes you
+          make on the left will mirror here live.
         </div>
       )}
       {pane.id === "primary" && updateStatus !== undefined && onUpdateInstall && onUpdateDismiss && (
