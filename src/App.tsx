@@ -284,11 +284,41 @@ export default function App() {
             console.warn("session restore: skipping", path, e);
           }
         }
-        if (!cancelled && persisted.activePath) {
-          const doc = useDocuments
-            .getState()
-            .documents.find((d) => d.path === persisted.activePath);
-          if (doc) useLayout.getState().openInFocusedPane(doc.id);
+        if (cancelled) return;
+
+        // Rebuild layout from persisted layout. Migration in loadPersistedSession
+        // guarantees the layout field is always present.
+        if (persisted.layout) {
+          const docs = useDocuments.getState().documents;
+          const pathToId = new Map<string, string>();
+          for (const d of docs) if (d.path) pathToId.set(d.path, d.id);
+
+          function buildPane(
+            p: { tabPaths: string[]; activeTabPath: string | null; viewMode: "edit" | "wysiwyg" },
+            id: "primary" | "secondary",
+          ) {
+            const tabs = p.tabPaths
+              .map((path) => pathToId.get(path))
+              .filter((x): x is string => !!x);
+            const activeTabId = p.activeTabPath ? pathToId.get(p.activeTabPath) ?? null : null;
+            return { id, tabs, activeTabId, viewMode: p.viewMode };
+          }
+
+          const primaryPane = buildPane(persisted.layout.primary, "primary");
+          let secondaryPane = persisted.layout.secondary
+            ? buildPane(persisted.layout.secondary, "secondary")
+            : null;
+          if (secondaryPane && secondaryPane.tabs.length === 0) secondaryPane = null;
+
+          let focusedPaneId = persisted.layout.focusedPaneId;
+          if (focusedPaneId === "secondary" && !secondaryPane) focusedPaneId = "primary";
+
+          useLayout.setState({
+            primary: primaryPane,
+            secondary: secondaryPane,
+            focusedPaneId,
+            paneSplit: persisted.layout.paneSplit,
+          });
         }
         return;
       }
