@@ -2,6 +2,12 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.3.1 — 2026-04-23
+
+### Fixed
+
+- Build is now code-signed with a stable local identity instead of ad-hoc. The on-disk app's code-signing Identifier is now the plist-level `com.yeogi.mdeditor` for every build, where it used to be `yeogi_md_editor-<per-build-hash>`. macOS's TCC (Transparency, Consent, Control) treated each ad-hoc build as a different app and re-asked for Documents-folder access after every auto-update; with a stable identifier the grant persists across updates. (Gatekeeper's "unidentified developer" warning on first install is unchanged — that needs Apple Developer Program notarization, separate upgrade path.)
+
 ## v0.3.0 — 2026-04-23
 
 ### New
