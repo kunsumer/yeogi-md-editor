@@ -754,9 +754,18 @@ export default function App() {
               <div>No file open.</div>
               <button
                 className="btn-primary"
+                style={{ minWidth: 160, justifyContent: "center" }}
                 onClick={() => pickAndOpenFiles().catch(console.error)}
               >
                 Open file(s)…
+              </button>
+              <div style={{ fontSize: 12, color: "var(--text-faint)" }}>or</div>
+              <button
+                className="btn-primary"
+                style={{ minWidth: 160, justifyContent: "center" }}
+                onClick={() => pickAndOpenFolder().catch(console.error)}
+              >
+                Open folder…
               </button>
             </div>
           )}
