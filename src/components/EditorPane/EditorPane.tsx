@@ -95,7 +95,6 @@ export function EditorPane({
   onConflictReload,
 }: Props) {
   const active = documents.find((d) => d.id === pane.activeTabId) ?? null;
-  const wordCount = (active?.content ?? "").trim().split(/\s+/).filter(Boolean).length;
 
   return (
     <main
@@ -115,18 +114,12 @@ export function EditorPane({
         onNew={onCreateBlank}
       />
       <TopBar
-        path={active?.path ?? null}
-        wordCount={wordCount}
-        saveState={active?.saveState ?? "idle"}
-        isDirty={active?.isDirty ?? false}
-        viewMode={pane.viewMode}
-        onSetViewMode={active ? (mode) => onSetViewMode(pane.id, mode) : undefined}
-        autosaveEnabled={active?.autosaveEnabled}
-        onSetAutosaveEnabled={
-          active && onSetAutosaveEnabled
-            ? (enabled) => onSetAutosaveEnabled(active.id, enabled)
-            : undefined
-        }
+        pane={pane}
+        active={active}
+        onSetViewMode={(mode) => onSetViewMode(pane.id, mode)}
+        onSetAutosaveEnabled={(enabled) => {
+          if (active) onSetAutosaveEnabled?.(active.id, enabled);
+        }}
       />
       {pane.id === "primary" && updateStatus !== undefined && onUpdateInstall && onUpdateDismiss && (
         <UpdateBanner

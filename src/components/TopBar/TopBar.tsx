@@ -1,15 +1,11 @@
-import type { ViewMode } from "../../state/layout";
+import type { Pane, ViewMode } from "../../state/layout";
+import type { Document } from "../../state/documents";
 
 interface Props {
-  path: string | null;
-  wordCount: number;
-  saveState: "idle" | "saving" | "saved" | "failed";
-  isDirty: boolean;
-  viewMode?: ViewMode;
-  onSetViewMode?: (mode: ViewMode) => void;
-  /** Per-document autosave toggle; undefined when no doc is active. */
-  autosaveEnabled?: boolean;
-  onSetAutosaveEnabled?: (enabled: boolean) => void;
+  pane: Pane;
+  active: Document | null;
+  onSetViewMode(mode: ViewMode): void;
+  onSetAutosaveEnabled(enabled: boolean): void;
 }
 
 const wrap: React.CSSProperties = {
@@ -89,31 +85,25 @@ const switchThumb = (on: boolean): React.CSSProperties => ({
   transition: "left 140ms ease",
 });
 
-export function TopBar({
-  path,
-  wordCount,
-  saveState,
-  isDirty,
-  viewMode,
-  onSetViewMode,
-  autosaveEnabled,
-  onSetAutosaveEnabled,
-}: Props) {
-  const filename = path ? path.split("/").pop() : "Untitled";
+export function TopBar({ pane, active, onSetViewMode, onSetAutosaveEnabled }: Props) {
+  const filename = active?.path ? active.path.split("/").pop() : "Untitled";
+  const wordCount = (active?.content ?? "").trim().split(/\s+/).filter(Boolean).length;
+  const isDirty = !!active?.isDirty;
+  const saveState = active?.saveState ?? "idle";
+  const autosaveEnabled = active?.autosaveEnabled ?? false;
+  const viewMode = pane.viewMode;
+
   // Priority matters: if the buffer has been modified since the last save
   // we must surface "Unsaved" immediately, even though `saveState` is still
   // "saved" from the previous write. Otherwise the user gets a stale
   // "Saved" label while autosave is off and edits are piling up.
   const saveLabel =
-    saveState === "saving"
-      ? "Saving…"
-      : saveState === "failed"
-        ? "Save failed"
-        : isDirty
-          ? "Unsaved"
-          : saveState === "saved"
-            ? "Saved"
-            : "";
+    saveState === "saving" ? "Saving…"
+    : saveState === "failed" ? "Save failed"
+    : isDirty ? "Unsaved"
+    : saveState === "saved" ? "Saved"
+    : "";
+
   return (
     <div className="app-topbar" style={wrap}>
       <div style={{ ...meta, color: "var(--text)", fontWeight: 500 }}>
@@ -121,11 +111,8 @@ export function TopBar({
           <span
             aria-label="unsaved changes"
             style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: "var(--accent)",
-              marginRight: 6,
+              width: 6, height: 6, borderRadius: "50%",
+              background: "var(--accent)", marginRight: 6,
             }}
           />
         )}
@@ -150,7 +137,7 @@ export function TopBar({
         </>
       )}
       <div style={{ flex: 1 }} />
-      {autosaveEnabled !== undefined && onSetAutosaveEnabled && (
+      {active && (
         <label style={autosaveWrap} title="Autosave this document on every keystroke (debounced)">
           <span>Autosave</span>
           <button
@@ -159,36 +146,30 @@ export function TopBar({
             aria-checked={autosaveEnabled}
             aria-label="Toggle autosave for this document"
             onClick={() => onSetAutosaveEnabled(!autosaveEnabled)}
-            style={{
-              ...switchTrack(autosaveEnabled),
-              border: 0,
-              padding: 0,
-            }}
+            style={{ ...switchTrack(autosaveEnabled), border: 0, padding: 0 }}
           >
             <span style={switchThumb(autosaveEnabled)} aria-hidden="true" />
           </button>
         </label>
       )}
-      {viewMode && onSetViewMode && (
-        <div style={segWrap} role="group" aria-label="View mode">
-          <button
-            type="button"
-            style={segBtn(viewMode === "wysiwyg")}
-            onClick={() => onSetViewMode("wysiwyg")}
-            aria-pressed={viewMode === "wysiwyg"}
-          >
-            WYSIWYG
-          </button>
-          <button
-            type="button"
-            style={segBtn(viewMode === "edit")}
-            onClick={() => onSetViewMode("edit")}
-            aria-pressed={viewMode === "edit"}
-          >
-            Edit
-          </button>
-        </div>
-      )}
+      <div style={segWrap} role="group" aria-label="View mode">
+        <button
+          type="button"
+          style={segBtn(viewMode === "wysiwyg")}
+          onClick={() => onSetViewMode("wysiwyg")}
+          aria-pressed={viewMode === "wysiwyg"}
+        >
+          WYSIWYG
+        </button>
+        <button
+          type="button"
+          style={segBtn(viewMode === "edit")}
+          onClick={() => onSetViewMode("edit")}
+          aria-pressed={viewMode === "edit"}
+        >
+          Edit
+        </button>
+      </div>
     </div>
   );
 }
