@@ -1030,13 +1030,17 @@ function MermaidIcon() {
   );
 }
 function WikiIcon() {
-  // Double-bracket glyph reads as the Obsidian/Logseq wiki-link syntax.
+  // Double-bracket glyph reading as the Obsidian/Logseq `[[ ]]` wiki-link
+  // syntax. Four distinct brackets — the previous version packed the two
+  // halves too tightly and the horizontal caps vanished, reading as `||`.
   return (
     <svg {...ICON}>
-      <path d="M5.5 3 L3.5 3 L3.5 13 L5.5 13" />
-      <path d="M7.5 3 L5.5 3 L5.5 13 L7.5 13" />
-      <path d="M10.5 3 L12.5 3 L12.5 13 L10.5 13" />
-      <path d="M8.5 3 L10.5 3 L10.5 13 L8.5 13" />
+      {/* [[ — outer then inner */}
+      <path d="M4 3 H2 V13 H4" />
+      <path d="M7 3 H5 V13 H7" />
+      {/* ]] — inner then outer */}
+      <path d="M9 3 H11 V13 H9" />
+      <path d="M12 3 H14 V13 H12" />
     </svg>
   );
 }
