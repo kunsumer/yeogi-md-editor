@@ -64,7 +64,8 @@ const STEPS: Step[] = [
         </p>
         <p style={{ marginTop: 10, color: "var(--text-muted)", fontSize: 13 }}>
           Flip to raw Markdown any time from the <strong>WYSIWYG / Edit</strong> toggle
-          in the top bar — your scroll position carries across.
+          in the top bar, or press <kbd>⌘E</kbd> — your scroll position carries
+          across.
         </p>
       </>
     ),
@@ -141,8 +142,16 @@ const STEPS: Step[] = [
           <li>
             <strong>Wiki-links.</strong> Type <kbd>[[Some Note]]</kbd> — clicking it
             opens the matching <kbd>.md</kbd> file anywhere inside the folder in
-            the left sidebar. If no folder is open, the link renders but is
-            inert.
+            the left sidebar. Use the pipe form <kbd>[[Some Note|the display]]</kbd>
+            {" "}when you want different link text. Clicking a link whose target
+            doesn't exist yet <strong>creates the file</strong> automatically and
+            opens it, so you can write forward.
+          </li>
+          <li>
+            <strong>Backlinks.</strong> The Outline panel shows a{" "}
+            <strong>Backlinks</strong> section listing every other file under
+            the open folder that wiki-links to the current document, with a
+            preview line. Click any entry to open that source.
           </li>
           <li>
             <strong>Footnotes.</strong> Drop a reference inline with{" "}
@@ -154,6 +163,41 @@ const STEPS: Step[] = [
         <p style={{ marginTop: 10, color: "var(--text-muted)", fontSize: 13 }}>
           Use <kbd>File → Open Folder…</kbd> first so wiki-links have a vault
           to resolve against.
+        </p>
+      </>
+    ),
+  },
+  {
+    title: "Two documents side-by-side",
+    illustration: (
+      <div className="tutorial-tab-strip">
+        <span className="tutorial-tab active">draft.md</span>
+        <span style={{ color: "var(--text-faint)", padding: "0 8px" }}>│</span>
+        <span className="tutorial-tab active">reference.md</span>
+      </div>
+    ),
+    body: (
+      <>
+        <p>
+          Open any two markdown files next to each other — edit one, reference
+          the other — each pane gets its own tab strip, WYSIWYG / Edit toggle,
+          and scroll position. Two ways in:
+        </p>
+        <ul>
+          <li>
+            <kbd>⌘</kbd>-click a file in the Folder panel → opens in the other
+            pane.
+          </li>
+          <li>
+            Right-click any tab → <strong>Open to the Right Side</strong> (from
+            the left pane) or <strong>Open to the Left Side</strong> (from the
+            right pane).
+          </li>
+        </ul>
+        <p style={{ marginTop: 10, color: "var(--text-muted)", fontSize: 13 }}>
+          Drag the vertical divider to resize. If the same document ends up in
+          both panes, the right pane locks to read-only so your undo history
+          stays coherent — edits on the left mirror live.
         </p>
       </>
     ),
@@ -204,7 +248,7 @@ const STEPS: Step[] = [
     ),
   },
   {
-    title: "Open files and switch between tabs",
+    title: "Open, save, and switch between tabs",
     illustration: (
       <div className="tutorial-tab-strip">
         <span className="tutorial-tab active">Welcome.md</span>
@@ -222,12 +266,41 @@ const STEPS: Step[] = [
           in the sidebar.
         </li>
         <li>
-          Or click the <kbd>+</kbd> at the end of the tab strip for a new document.
+          <strong>File → Open Recent</strong> lists up to 10 recently-opened
+          files. Cleared on demand from the submenu.
+        </li>
+        <li>
+          <kbd>⌘S</kbd> <strong>Save</strong> / <kbd>⇧⌘S</kbd>{" "}
+          <strong>Save As…</strong> — untitled buffers prompt for a location;
+          Save As always prompts and re-points the open tab at the new path.
+        </li>
+        <li>
+          Click the <kbd>+</kbd> at the end of the tab strip to pick between{" "}
+          <strong>Create blank document</strong> and <strong>Open file(s)…</strong>.
         </li>
         <li>
           <kbd>⌘W</kbd> closes the active tab. Your open tabs restore when you relaunch.
         </li>
       </ul>
+    ),
+  },
+  {
+    title: "Appearance: light, dark, or follow the OS",
+    body: (
+      <>
+        <p>
+          <strong>View → Appearance</strong> picks between <strong>Follow
+          System</strong> (default), <strong>Light</strong>, and{" "}
+          <strong>Dark</strong>. Follow System tracks{" "}
+          <kbd>prefers-color-scheme</kbd> live, so the app flips when you toggle
+          your Mac's appearance without needing to quit.
+        </p>
+        <p style={{ marginTop: 10, color: "var(--text-muted)", fontSize: 13 }}>
+          The brand red stays identical in both modes — it's the identity
+          color. Everything else (sidebars, tab bar, editor surface, preview,
+          mermaid diagrams) recolors to fit the palette.
+        </p>
+      </>
     ),
   },
   {
@@ -238,7 +311,6 @@ const STEPS: Step[] = [
         <kbd>⌘I</kbd><span>Italic</span>
         <kbd>⌘U</kbd><span>Underline</span>
         <kbd>⇧⌘X</kbd><span>Strikethrough</span>
-        <kbd>⌘E</kbd><span>Inline code</span>
         <kbd>⌘,</kbd><span>Subscript</span>
         <kbd>⌘.</kbd><span>Superscript</span>
         <kbd>⇧⌘H</kbd><span>Highlight</span>
@@ -250,13 +322,15 @@ const STEPS: Step[] = [
         <kbd>⇧⌘B</kbd><span>Blockquote</span>
         <kbd>⌥⌘C</kbd><span>Code block</span>
         <kbd>⌘K</kbd><span>Insert / edit link</span>
-        <kbd>⇧⌘T</kbd><span>Insert table</span>
         <kbd>⇧⌘M</kbd><span>Insert Mermaid diagram</span>
         <kbd>⇧⌘L</kbd><span>Insert LaTeX math</span>
         <kbd>⌘F</kbd><span>Find</span>
         <kbd>⌥⌘F</kbd><span>Find and replace</span>
         <kbd>⌘O</kbd><span>Open files</span>
         <kbd>⌥⌘O</kbd><span>Open folder</span>
+        <kbd>⌘S</kbd><span>Save</span>
+        <kbd>⇧⌘S</kbd><span>Save As…</span>
+        <kbd>⌘E</kbd><span>Toggle WYSIWYG / Edit</span>
         <kbd>⌘W</kbd><span>Close tab</span>
         <kbd>⌥⌘1</kbd><span>Folder Explorer</span>
         <kbd>⌥⌘2</kbd><span>Outline</span>
