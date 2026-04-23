@@ -79,7 +79,7 @@ export function EditorPane({
   onCreateBlank,
   onCloseTab,
   onActivateTab,
-  onOpenToSide: _onOpenToSide,
+  onOpenToSide,
   onSetViewMode,
   onFocusPane,
   onSetContent,
@@ -97,17 +97,6 @@ export function EditorPane({
   const active = documents.find((d) => d.id === pane.activeTabId) ?? null;
   const wordCount = (active?.content ?? "").trim().split(/\s+/).filter(Boolean).length;
 
-  // TabBar still uses the legacy docs/activeId/onActivate/onClose/onNew shape.
-  // Task 6 migrates it to accept a Pane prop — update this call then.
-  const legacyTabs = pane.tabs.map((id) => {
-    const d = documents.find((doc) => doc.id === id);
-    return {
-      id,
-      title: d?.path ? (d.path.split("/").pop() ?? "Untitled") : "Untitled",
-      isDirty: !!d?.isDirty,
-    };
-  });
-
   return (
     <main
       style={mainStyle}
@@ -117,10 +106,12 @@ export function EditorPane({
       onMouseDown={() => onFocusPane(pane.id)}
     >
       <TabBar
-        docs={legacyTabs}
-        activeId={pane.activeTabId}
+        pane={pane}
+        isFocused={isFocused}
+        documents={documents}
         onActivate={(id) => onActivateTab(pane.id, id)}
         onClose={(id) => onCloseTab(pane.id, id)}
+        onOpenToSide={(id) => onOpenToSide(id)}
         onNew={onCreateBlank}
       />
       <TopBar

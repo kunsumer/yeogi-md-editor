@@ -1,14 +1,13 @@
-interface Tab {
-  id: string;
-  title: string;
-  isDirty: boolean;
-}
+import type { Pane } from "../../state/layout";
+import type { Document } from "../../state/documents";
 
 interface Props {
-  docs: Tab[];
-  activeId: string | null;
+  pane: Pane;
+  isFocused: boolean;
+  documents: Document[];
   onActivate(id: string): void;
   onClose(id: string): void;
+  onOpenToSide(id: string): void;
   onNew?: () => void;
 }
 
@@ -25,7 +24,7 @@ const tablistStyle: React.CSSProperties = {
   flexShrink: 0,
 };
 
-const tabStyle = (active: boolean): React.CSSProperties => ({
+const tabStyle = (active: boolean, isFocused: boolean): React.CSSProperties => ({
   display: "flex",
   alignItems: "center",
   gap: 8,
@@ -35,10 +34,9 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
   borderRadius: "6px 6px 0 0",
   background: active ? "var(--bg-tab-active)" : "var(--bg-tab-inactive)",
   color: active ? "var(--text)" : "var(--text-muted)",
-  // 2px brand-red indicator bar on the selected tab (inset so it clips to
-  // the tab's rounded top corners). Inactive tabs keep the empty string
-  // so the transition below doesn't flicker.
-  boxShadow: active ? "inset 0 2px 0 0 var(--brand-red)" : "none",
+  boxShadow: active
+    ? `inset 0 2px 0 0 var(${isFocused ? "--brand-red" : "--border-strong"})`
+    : "none",
   cursor: "pointer",
   userSelect: "none",
   fontSize: 12,
@@ -99,11 +97,27 @@ const newTabBtnStyle: React.CSSProperties = {
   alignSelf: "center",
 };
 
-export function TabBar({ docs, activeId, onActivate, onClose, onNew }: Props) {
+export function TabBar({
+  pane,
+  isFocused,
+  documents,
+  onActivate,
+  onClose,
+  onOpenToSide: _onOpenToSide,
+  onNew,
+}: Props) {
+  const tabs = pane.tabs.map((id) => {
+    const d = documents.find((doc) => doc.id === id);
+    return {
+      id,
+      title: d?.path ? d.path.split("/").pop()! : "Untitled",
+      isDirty: !!d?.isDirty,
+    };
+  });
   return (
     <div role="tablist" className="app-tabbar" style={tablistStyle}>
-      {docs.map((d) => {
-        const active = d.id === activeId;
+      {tabs.map((d) => {
+        const active = d.id === pane.activeTabId;
         return (
           <div
             key={d.id}
@@ -129,7 +143,7 @@ export function TabBar({ docs, activeId, onActivate, onClose, onNew }: Props) {
                 (e.currentTarget as HTMLDivElement).style.color = "var(--text-muted)";
               }
             }}
-            style={tabStyle(active)}
+            style={tabStyle(active, isFocused)}
           >
             {d.isDirty && <span aria-hidden="true" style={dotStyle} />}
             <span style={titleStyle}>{d.title}</span>

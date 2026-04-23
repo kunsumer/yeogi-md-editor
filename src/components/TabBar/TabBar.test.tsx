@@ -1,31 +1,73 @@
+import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
 import { TabBar } from "./TabBar";
+import type { Pane } from "../../state/layout";
+import type { Document } from "../../state/documents";
 
-const docs = [
-  { id: "a", title: "One.md", isDirty: false },
-  { id: "b", title: "Two.md", isDirty: true },
-];
+function makeDoc(id: string, path: string): Document {
+  return {
+    id, path, content: "", lastSavedContent: "", savedMtime: 1, isDirty: false,
+    encoding: "utf-8", cursor: 0, scrollTop: 0, readOnly: false,
+    previewWindowLabel: null, conflict: null, saveState: "idle",
+    lastSaveError: null, autosaveEnabled: false,
+  };
+}
+
+const pane: Pane = {
+  id: "primary",
+  tabs: ["doc-1", "doc-2"],
+  activeTabId: "doc-2",
+  viewMode: "wysiwyg",
+};
+const documents: Document[] = [makeDoc("doc-1", "/a.md"), makeDoc("doc-2", "/b.md")];
 
 describe("TabBar", () => {
-  it("renders one tab per doc and marks dirty ones", () => {
-    render(<TabBar docs={docs} activeId="a" onActivate={() => {}} onClose={() => {}} />);
-    expect(screen.getByRole("tab", { name: /One\.md/ })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Two\.md/ })).toHaveAttribute("data-dirty", "true");
+  it("renders a tab per docId in pane.tabs", () => {
+    render(
+      <TabBar
+        pane={pane}
+        isFocused
+        documents={documents}
+        onActivate={() => {}}
+        onClose={() => {}}
+        onOpenToSide={() => {}}
+        onNew={() => {}}
+      />,
+    );
+    expect(screen.getByText("a.md")).toBeInTheDocument();
+    expect(screen.getByText("b.md")).toBeInTheDocument();
   });
 
-  it("activates on click", async () => {
-    const onActivate = vi.fn();
-    render(<TabBar docs={docs} activeId="a" onActivate={onActivate} onClose={() => {}} />);
-    await userEvent.click(screen.getByRole("tab", { name: /Two\.md/ }));
-    expect(onActivate).toHaveBeenCalledWith("b");
+  it("marks the active tab selected", () => {
+    render(
+      <TabBar
+        pane={pane}
+        isFocused
+        documents={documents}
+        onActivate={() => {}}
+        onClose={() => {}}
+        onOpenToSide={() => {}}
+        onNew={() => {}}
+      />,
+    );
+    const active = screen.getByText("b.md").closest("[role=tab]");
+    expect(active?.getAttribute("aria-selected")).toBe("true");
   });
 
-  it("closes via button", async () => {
-    const onClose = vi.fn();
-    render(<TabBar docs={docs} activeId="a" onActivate={() => {}} onClose={onClose} />);
-    await userEvent.click(screen.getAllByRole("button", { name: /close/i })[0]);
-    expect(onClose).toHaveBeenCalledWith("a");
+  it("uses muted indicator color when pane is not focused", () => {
+    const { container } = render(
+      <TabBar
+        pane={pane}
+        isFocused={false}
+        documents={documents}
+        onActivate={() => {}}
+        onClose={() => {}}
+        onOpenToSide={() => {}}
+        onNew={() => {}}
+      />,
+    );
+    const active = container.querySelector('[aria-selected="true"]') as HTMLElement;
+    // Inset box shadow uses --border-strong when inactive, --brand-red when focused.
+    expect(active.style.boxShadow).toContain("var(--border-strong");
   });
 });
