@@ -2,6 +2,18 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.1 — 2026-04-23
+
+### Changed
+
+- **Light-group themes reshuffled.** GitHub Light was indistinguishable from the default Light palette (both used the same `#0969da` accent and near-identical grays), so it was dropped. The Light group now has five clearly-differentiated options:
+  - **Light** — Yeogi's default, neutral grays, GitHub-style blue accent
+  - **Atom One Light** — warm-tinted, slightly blue-purple accent
+  - **Solarized Light** — warm beige `#fdf6e3`, teal accent — Ethan Schoonover's canonical palette
+  - **Ayu Light** — soft warm whites, bright orange accent
+  - **Alabaster** — minimalist off-white, pure black text, muted blue accent
+  Dark group unchanged (Dark, Dracula).
+
 ## v0.4.0 — 2026-04-23
 
 ### New

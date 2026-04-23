@@ -175,7 +175,13 @@ pub fn build_menu<R: Runtime>(
             );
             b = b.separator();
             // LIGHT group. Order mirrors THEME_GROUPS in src/lib/themes.ts.
-            for (id, label) in &[("light", "Light"), ("github-light", "GitHub Light")] {
+            for (id, label) in &[
+                ("light", "Light"),
+                ("atom-one-light", "Atom One Light"),
+                ("solarized-light", "Solarized Light"),
+                ("ayu-light", "Ayu Light"),
+                ("alabaster", "Alabaster"),
+            ] {
                 b = b.item(
                     &CheckMenuItemBuilder::with_id(format!("view:theme:{}", id), *label)
                         .checked(theme == *id)
