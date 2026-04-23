@@ -57,7 +57,15 @@ export const WikiLink = Mark.create({
     return {
       markdown: {
         serialize: {
-          open: "[[",
+          // `open` always emits `[[<target>|` so the target travels alongside
+          // the (possibly different) display text. When target equals display,
+          // the pair collapses to `[[<target>]]` in `getMarkdown` via a simple
+          // post-regex pass — that's cheaper than teaching the serializer to
+          // peek at the inner text from the `open` callback.
+          open: (_state: unknown, mark: { attrs: { target?: string } }) => {
+            const target = mark.attrs.target || "";
+            return target ? `[[${target}|` : "[[";
+          },
           close: "]]",
           mixable: false,
           expelEnclosingWhitespace: true,

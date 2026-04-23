@@ -4,6 +4,7 @@ import { renderMarkdown } from "../../lib/markdown/pipeline";
 import { safeReplaceChildren } from "../../lib/safeInsertHtml";
 import { slugify } from "../../lib/slug";
 import { resolveWikiLink } from "../../lib/resolveWikiLink";
+import { createWikiLinkFile } from "../../lib/wikiLinkCreate";
 import { fsRead, watcherSubscribe } from "../../lib/ipc/commands";
 import { useDocuments } from "../../state/documents";
 import { useLayout } from "../../state/layout";
@@ -89,10 +90,14 @@ export function PreviewPane({ content }: Props) {
       return;
     }
     try {
-      const found = await resolveWikiLink(folder, target);
+      let found = await resolveWikiLink(folder, target);
       if (!found) {
-        console.info("wiki-link: no file matched", target);
-        return;
+        // Auto-create — matches Obsidian's create-on-click behavior.
+        found = await createWikiLinkFile(folder, target);
+        if (!found) {
+          console.info("wiki-link: target has no valid filename", target);
+          return;
+        }
       }
       const existing = useDocuments
         .getState()

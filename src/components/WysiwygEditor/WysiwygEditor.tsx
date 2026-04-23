@@ -85,6 +85,7 @@ import { Markdown } from "tiptap-markdown";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { slugify } from "../../lib/slug";
 import { resolveWikiLink } from "../../lib/resolveWikiLink";
+import { createWikiLinkFile } from "../../lib/wikiLinkCreate";
 import { fsRead, watcherSubscribe } from "../../lib/ipc/commands";
 import { useDocuments } from "../../state/documents";
 import { useLayout } from "../../state/layout";
@@ -124,7 +125,12 @@ function getMarkdown(editor: Editor): string {
     string,
     { getMarkdown: () => string } | undefined
   >;
-  return storage.markdown?.getMarkdown() ?? "";
+  const raw = storage.markdown?.getMarkdown() ?? "";
+  // The WikiLink mark always serializes as `[[<target>|<display>]]`. When
+  // target === display we don't want the pipe noise, so collapse the pair
+  // here. The negative character class [^\[\]|\n] keeps us away from nested
+  // brackets / newlines / second pipes — matching the parser's bail rules.
+  return raw.replace(/\[\[([^\[\]|\n]+)\|\1\]\]/g, "[[$1]]");
 }
 
 interface Props {
@@ -257,10 +263,16 @@ export function WysiwygEditor({
         return;
       }
       try {
-        const found = await resolveWikiLink(folder, target);
+        let found = await resolveWikiLink(folder, target);
         if (!found) {
-          console.info("wiki-link: no file matched", target);
-          return;
+          // Auto-create an empty markdown file at the folder root so
+          // clicking a link to a not-yet-written note "just works" —
+          // matches Obsidian's create-on-click behavior.
+          found = await createWikiLinkFile(folder, target);
+          if (!found) {
+            console.info("wiki-link: target has no valid filename", target);
+            return;
+          }
         }
         const existing = useDocuments
           .getState()

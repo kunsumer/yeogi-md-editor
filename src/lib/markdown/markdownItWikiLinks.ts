@@ -1,15 +1,15 @@
 /**
- * markdown-it plugin: `[[Target]]` → `<span class="wikilink" data-wiki-target="Target">Target</span>`
+ * markdown-it plugin: parses `[[Target]]` and `[[Target|Display]]` into
+ * `<span class="wikilink" data-wiki-target="Target">Display</span>`.
  *
  * Installed into tiptap-markdown's internal markdown-it so WYSIWYG picks up
  * Obsidian/Logseq-style wiki-links. The emitted span is picked up downstream
  * by the Tiptap `wikiLink` mark (inline) which also owns round-trip
- * serialization back to `[[…]]` on save.
+ * serialization back to `[[…]]` (or `[[…|…]]`) on save.
  *
- * The piped form `[[Target|Display]]` is intentionally NOT supported here —
- * MVP only. Tiptap marks don't have a clean path for "store target attr
- * separately from visible text" without promoting to an atom node, and
- * cases where display text differs from the link target are rare.
+ * Malformed inputs (`[[Unclosed`, `[[Empty|]]`, `[[|Nothing]]`, inner
+ * newlines, nested brackets) fall through as plain text — the parser returns
+ * false and markdown-it continues with normal rules.
  */
 type RulerMd = {
   inline: {
@@ -41,6 +41,29 @@ function escHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * Parses the inner text of a wiki-link. Returns `null` for any malformed
+ * input so the markdown-it rule can fall through to plain-text rendering.
+ */
+export function parseWikiLinkInner(
+  inner: string,
+): { target: string; display: string } | null {
+  // No line breaks or nested brackets inside the delimiters.
+  if (/[\n\[\]]/.test(inner)) return null;
+  const pipeIdx = inner.indexOf("|");
+  if (pipeIdx === -1) {
+    const target = inner.trim();
+    if (!target) return null;
+    return { target, display: target };
+  }
+  // A pipe may appear at most once. Two-piped forms are rejected.
+  if (inner.indexOf("|", pipeIdx + 1) !== -1) return null;
+  const target = inner.slice(0, pipeIdx).trim();
+  const display = inner.slice(pipeIdx + 1).trim();
+  if (!target || !display) return null;
+  return { target, display };
+}
+
 export function markdownItWikiLinks(md: RulerMd): void {
   md.inline.ruler.after("link", "wikilink", (state, silent) => {
     const src = state.src;
@@ -54,19 +77,15 @@ export function markdownItWikiLinks(md: RulerMd): void {
     }
     const end = src.indexOf("]]", pos + 2);
     if (end === -1) return false;
-    const inner = src.slice(pos + 2, end);
-    // Bail on newlines, pipes (piped display form not supported), or nested
-    // brackets — let markdown-it's regular link rules handle edge forms.
-    if (/[\n\[\]|]/.test(inner)) return false;
-    const target = inner.trim();
-    if (!target) return false;
+    const parsed = parseWikiLinkInner(src.slice(pos + 2, end));
+    if (!parsed) return false;
     if (!silent) {
       const token = state.push("html_inline", "", 0);
       token.content =
         '<span class="wikilink" data-wiki-target="' +
-        escHtml(target) +
+        escHtml(parsed.target) +
         '">' +
-        escHtml(target) +
+        escHtml(parsed.display) +
         "</span>";
     }
     state.pos = end + 2;
