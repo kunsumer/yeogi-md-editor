@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { Pane } from "../../state/layout";
 import type { Document } from "../../state/documents";
+import { TabContextMenu } from "./TabContextMenu";
 
 interface Props {
   pane: Pane;
@@ -103,9 +105,10 @@ export function TabBar({
   documents,
   onActivate,
   onClose,
-  onOpenToSide: _onOpenToSide,
+  onOpenToSide,
   onNew,
 }: Props) {
+  const [ctx, setCtx] = useState<{ docId: string; x: number; y: number } | null>(null);
   const tabs = pane.tabs.map((id) => {
     const d = documents.find((doc) => doc.id === id);
     return {
@@ -129,6 +132,10 @@ export function TabBar({
                 e.preventDefault();
                 onClose(d.id);
               }
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setCtx({ docId: d.id, x: e.clientX, y: e.clientY });
             }}
             onClick={() => onActivate(d.id)}
             onMouseEnter={(e) => {
@@ -186,6 +193,15 @@ export function TabBar({
         >
           +
         </button>
+      )}
+      {ctx && (
+        <TabContextMenu
+          docId={ctx.docId}
+          x={ctx.x}
+          y={ctx.y}
+          onOpenToSide={(id) => onOpenToSide(id)}
+          onClose={() => setCtx(null)}
+        />
       )}
     </div>
   );

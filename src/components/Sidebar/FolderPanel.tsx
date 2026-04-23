@@ -8,7 +8,7 @@ interface Props {
   /** Called when the user clicks "Choose folder…" — App.tsx owns the dialog. */
   onPickFolder(): void;
   /** Forwarded to FileTree — opens the clicked file as a tab. */
-  onOpenFile(path: string): void;
+  onOpenFile(path: string, opts?: { toSide: boolean }): void;
   /** Dismisses the panel (equivalent to the View menu / ⌥⌘1 toggle). */
   onClose?: () => void;
 }

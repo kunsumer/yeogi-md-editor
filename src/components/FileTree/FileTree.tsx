@@ -3,7 +3,7 @@ import { fsList, type DirEntry } from "../../lib/ipc/commands";
 
 interface Props {
   root: string;
-  onOpenFile(path: string): void;
+  onOpenFile(path: string, opts?: { toSide: boolean }): void;
   /** Case-insensitive filter applied to file/dir names across the currently-loaded tree. */
   filter?: string;
   /** Monotonic counter — incrementing triggers "expand all loaded dirs". */
@@ -88,7 +88,7 @@ function Row({
 }: {
   entry: DirEntry;
   isDirExpanded: boolean;
-  onActivate: () => void;
+  onActivate: (e: React.MouseEvent) => void;
 }) {
   const [hover, setHover] = useState(false);
   return (
@@ -139,9 +139,13 @@ export function FileTree({
     };
   }, [root]);
 
-  async function toggle(entry: DirEntry) {
+  async function handleActivate(
+    entry: DirEntry,
+    e?: React.MouseEvent | React.KeyboardEvent,
+  ) {
     if (!entry.is_dir) {
-      onOpenFile(entry.path);
+      const toSide = !!(e && "metaKey" in e && e.metaKey);
+      onOpenFile(entry.path, toSide ? { toSide: true } : undefined);
       return;
     }
     const path = entry.path;
@@ -252,7 +256,7 @@ export function FileTree({
         const children = cache.get(e.path);
         out.push(
           <div key={e.path}>
-            <Row entry={e} isDirExpanded={isExpanded} onActivate={() => toggle(e)} />
+            <Row entry={e} isDirExpanded={isExpanded} onActivate={(ev) => handleActivate(e, ev)} />
             {isExpanded && children && (
               <div style={{ paddingLeft: 16 }}>
                 {renderEntries(children, ancestorNameMatched || nameMatches)}
@@ -267,7 +271,7 @@ export function FileTree({
             key={e.path}
             entry={e}
             isDirExpanded={false}
-            onActivate={() => onOpenFile(e.path)}
+            onActivate={(ev) => handleActivate(e, ev)}
           />,
         );
       }

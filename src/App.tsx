@@ -97,10 +97,11 @@ export default function App() {
     return () => window.removeEventListener("pagehide", handler);
   }, []);
 
-  async function openFile(path: string) {
+  async function openFile(path: string, opts?: { toSide: boolean }) {
     const existing = useDocuments.getState().documents.find((d) => d.path === path);
     if (existing) {
-      useLayout.getState().openInFocusedPane(existing.id);
+      if (opts?.toSide) useLayout.getState().openToTheSide(existing.id);
+      else useLayout.getState().openInFocusedPane(existing.id);
       return;
     }
     const r = await fsRead(path);
@@ -111,6 +112,12 @@ export default function App() {
       encoding: r.encoding,
     });
     await watcherSubscribe(path);
+    if (opts?.toSide) {
+      // openDocument's bridge already pushed into the focused pane. Promote
+      // to secondary now that the doc exists.
+      const doc = useDocuments.getState().documents.find((d) => d.path === path);
+      if (doc) useLayout.getState().openToTheSide(doc.id);
+    }
   }
 
   async function pickAndOpenFiles() {
@@ -676,7 +683,7 @@ export default function App() {
             <FolderPanel
               folder={folder}
               onPickFolder={() => pickAndOpenFolder().catch(console.error)}
-              onOpenFile={(p) => openFile(p).catch(console.error)}
+              onOpenFile={(p, opts) => openFile(p, opts).catch(console.error)}
               onClose={() => {
                 usePreferences.getState().setFolderVisible(false);
                 preHideStateRef.current = null;
