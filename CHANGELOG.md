@@ -2,6 +2,13 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.3.4 — 2026-04-23
+
+### New
+
+- **Dark mode.** `View → Appearance` submenu with three radios: **Follow System** (default — follows the OS appearance and updates live if you flip it), **Light**, **Dark**. The dark palette recolors sidebars, tab bar, top bar, editor surface, gutters, and the Markdown preview; the brand red stays identical as the identity color. Preference persists across relaunch. CodeMirror's Edit mode also recolors without a remount (theme is driven off CSS vars the root element controls).
+- **File → Save** (`⌘S`) and **File → Save As…** (`⌘⇧S`). Save writes the current buffer to its path (prompting Save As if the doc is untitled). Save As always prompts for a destination; the open document is re-pointed to the new path so subsequent saves go there, and the watcher re-subscribes so external-change detection follows the copy.
+
 ## v0.3.3 — 2026-04-23
 
 ### New

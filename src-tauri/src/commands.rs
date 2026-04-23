@@ -97,14 +97,18 @@ pub fn ensure_welcome_file(app: AppHandle) -> Result<String, FsError> {
     Ok(file_path.to_string_lossy().to_string())
 }
 
-/// Rebuild the native menu with a new "Open Recent" submenu and swap it in.
-/// Called from the frontend whenever the MRU list in usePreferences changes
-/// (including once at mount, so the menu is populated after hydration).
-/// Paths are absolute; the basename is derived here so the frontend doesn't
-/// have to know about filesystem separators.
+/// Rebuild the native menu to reflect the frontend's current state and swap
+/// it in. Called once at mount (after preferences hydrate) and any time
+/// either the MRU list or the theme preference changes. Batching both into
+/// one command avoids the Rust side needing to cache either piece of state
+/// — the frontend already does, and sends both on every change.
 #[tauri::command]
-pub fn set_recent_files(app: AppHandle, paths: Vec<String>) -> Result<(), FsError> {
-    let entries: Vec<crate::menu::RecentFile> = paths
+pub fn sync_menu_state(
+    app: AppHandle,
+    recent_files: Vec<String>,
+    theme: String,
+) -> Result<(), FsError> {
+    let entries: Vec<crate::menu::RecentFile> = recent_files
         .into_iter()
         .map(|path| {
             let display = std::path::Path::new(&path)
@@ -115,7 +119,7 @@ pub fn set_recent_files(app: AppHandle, paths: Vec<String>) -> Result<(), FsErro
             crate::menu::RecentFile { path, display }
         })
         .collect();
-    let menu = crate::menu::build_menu(&app, &entries)
+    let menu = crate::menu::build_menu(&app, &entries, theme.as_str())
         .map_err(|e| FsError::Io(format!("menu build failed: {}", e)))?;
     app.set_menu(menu)
         .map_err(|e| FsError::Io(format!("set_menu failed: {}", e)))?;

@@ -15,6 +15,11 @@ interface Prefs {
    * 10 entries; dedupe by path. Drives the File → Open Recent menu.
    */
   recentFiles: string[];
+  /**
+   * Appearance mode. "system" follows the OS via prefers-color-scheme;
+   * "light" and "dark" override it explicitly. Default: "system".
+   */
+  theme: ThemeMode;
   setAutosaveEnabled(v: boolean): void;
   setFolderVisible(v: boolean): void;
   setTocVisible(v: boolean): void;
@@ -22,7 +27,10 @@ interface Prefs {
   setTocWidth(w: number): void;
   pushRecent(path: string): void;
   clearRecent(): void;
+  setTheme(t: ThemeMode): void;
 }
+
+export type ThemeMode = "system" | "light" | "dark";
 
 const RECENT_MAX = 10;
 
@@ -45,6 +53,7 @@ export const usePreferences = create<Prefs>()(
       folderWidth: 260,
       tocWidth: 220,
       recentFiles: [],
+      theme: "system",
       setAutosaveEnabled: (v) => set({ autosaveEnabled: v }),
       setFolderVisible: (v) => set({ folderVisible: v }),
       setTocVisible: (v) => set({ tocVisible: v }),
@@ -56,6 +65,7 @@ export const usePreferences = create<Prefs>()(
           return { recentFiles: next.slice(0, RECENT_MAX) };
         }),
       clearRecent: () => set({ recentFiles: [] }),
+      setTheme: (t) => set({ theme: t }),
     }),
     {
       name: "yeogi-md-editor:prefs",
@@ -69,6 +79,7 @@ export const usePreferences = create<Prefs>()(
         folderWidth: s.folderWidth,
         tocWidth: s.tocWidth,
         recentFiles: s.recentFiles,
+        theme: s.theme,
       }),
     },
   ),

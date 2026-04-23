@@ -48,12 +48,16 @@ export async function ensureWelcomeFile(): Promise<string> {
 }
 
 /**
- * Rebuild the native menu with a new File → Open Recent submenu. `paths` is
- * the MRU list of absolute paths (up to 10). Called whenever the frontend's
- * `recentFiles` preference changes.
+ * Rebuild the native menu to reflect the current `recentFiles` list and
+ * `theme` preference. Called at mount and on every change to either. One
+ * command (rather than two) means either change triggers the same server-
+ * side rebuild path, keeping the menu in a known-consistent state.
  */
-export async function setRecentFiles(paths: string[]): Promise<void> {
-  return invoke("set_recent_files", { paths });
+export async function syncMenuState(
+  recentFiles: string[],
+  theme: "system" | "light" | "dark",
+): Promise<void> {
+  return invoke("sync_menu_state", { recentFiles, theme });
 }
 
 export type { DirEntry, FsError };

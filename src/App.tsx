@@ -11,7 +11,7 @@ import { EditorPane } from "./components/EditorPane";
 import { FolderPanel, ResizeHandle, TocPanel } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
 import { Tutorial } from "./components/Tutorial";
-import { ensureWelcomeFile, fsList, fsRead, fsWrite, setRecentFiles, watcherSubscribe } from "./lib/ipc/commands";
+import { ensureWelcomeFile, fsList, fsRead, fsWrite, syncMenuState, watcherSubscribe } from "./lib/ipc/commands";
 import { renderMarkdown } from "./lib/markdown/pipeline";
 import { buildStandaloneHtml } from "./lib/exportHtml";
 import { extractHeadings, type Heading } from "./lib/toc";
@@ -67,16 +67,34 @@ export default function App() {
     document.documentElement.style.setProperty("--app-zoom", String(zoom));
   }, [zoom]);
 
-  // Sync the persisted MRU to the native File → Open Recent submenu. Runs
-  // once at mount (after zustand-persist has hydrated) and any time the
-  // list changes. The subscriber-based approach keeps the menu and the
+  // Sync the persisted MRU + theme preference to the native menu. Runs
+  // once at mount (after zustand-persist has hydrated) and any time either
+  // dependency changes. The subscriber approach keeps the menu and the
   // preference store in lockstep without coupling the store to Tauri IPC.
   const recentFiles = usePreferences((s) => s.recentFiles);
+  const theme = usePreferences((s) => s.theme);
   useEffect(() => {
-    setRecentFiles(recentFiles).catch((err) => {
-      console.warn("set_recent_files failed:", err);
+    syncMenuState(recentFiles, theme).catch((err) => {
+      console.warn("sync_menu_state failed:", err);
     });
-  }, [recentFiles]);
+  }, [recentFiles, theme]);
+
+  // Apply the user's theme preference to the <html> element so the CSS var
+  // overrides in index.css (and the CodeMirror theme, which reads the same
+  // vars) take effect. "system" resolves via prefers-color-scheme and
+  // updates live if the OS appearance flips while we're running.
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      const resolved =
+        theme === "system" ? (mq.matches ? "dark" : "light") : theme;
+      document.documentElement.dataset.theme = resolved;
+    };
+    apply();
+    if (theme !== "system") return;
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, [theme]);
 
   // Autosave is now per-document: the global preference seeds the default
   // at open time, but each doc has its own toggle (TopBar pill switch).
@@ -231,6 +249,34 @@ export default function App() {
       markSaveStarted(id);
       const r = await fsWrite(path, doc.content);
       markSaved(id, { content: doc.content, mtimeMs: r.mtime_ms });
+      return true;
+    } catch (e) {
+      markSaveFailed(id, String(e));
+      return false;
+    }
+  }
+
+  /**
+   * Save As: always prompt for a destination, even if the doc already has a
+   * path. Writes the current buffer to the chosen location and re-points
+   * the open document at that new path (so subsequent saves go there).
+   */
+  async function saveDocumentAs(id: string): Promise<boolean> {
+    const doc = useDocuments.getState().documents.find((d) => d.id === id);
+    if (!doc) return false;
+    const target = await save({
+      defaultPath: doc.path ?? undefined,
+      filters: [{ name: "Markdown", extensions: ["md", "markdown", "mdown", "mkd"] }],
+    });
+    if (!target) return false;
+    try {
+      markSaveStarted(id);
+      const r = await fsWrite(target, doc.content);
+      useDocuments.getState().setPath(id, target);
+      markSaved(id, { content: doc.content, mtimeMs: r.mtime_ms });
+      // Subscribe the watcher to the new path so external-change detection
+      // works on the copy too. Best-effort; failures just skip watching.
+      watcherSubscribe(target).catch(() => {});
       return true;
     } catch (e) {
       markSaveFailed(id, String(e));
@@ -487,9 +533,20 @@ export default function App() {
           setViewMode(currentMode === "wysiwyg" ? "edit" : "wysiwyg");
           break;
         }
-        case "view:cycle-theme":
-          // Stub — themes land in Phase 13.
-          console.info("Cycle Theme: not yet implemented.");
+        case "view:theme-system":
+          usePreferences.getState().setTheme("system");
+          break;
+        case "view:theme-light":
+          usePreferences.getState().setTheme("light");
+          break;
+        case "view:theme-dark":
+          usePreferences.getState().setTheme("dark");
+          break;
+        case "file:save":
+          if (active) saveDocument(active.id).catch(console.error);
+          break;
+        case "file:save-as":
+          if (active) saveDocumentAs(active.id).catch(console.error);
           break;
         case "view:zoom-in":
           setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2)));

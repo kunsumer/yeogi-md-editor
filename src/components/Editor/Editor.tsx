@@ -5,15 +5,16 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { search, searchKeymap } from "@codemirror/search";
 
-// Make the CodeMirror view fill its flex parent and scroll internally
-// instead of growing beyond it. Also gives the editor a calm light surface
-// that matches the Meva-style chrome.
+// Theme strings reference the app's CSS variables, so when App.tsx flips
+// `document.documentElement.dataset.theme`, CodeMirror's surface recolors
+// without a remount — the browser reresolves `var(--…)` values on
+// attribute change.
 const editorTheme = EditorView.theme({
   "&": {
     height: "100%",
     fontSize: "14px",
-    backgroundColor: "#ffffff",
-    color: "#1a1a1a",
+    backgroundColor: "var(--bg)",
+    color: "var(--text)",
   },
   "&.cm-focused": {
     outline: "none",
@@ -26,22 +27,22 @@ const editorTheme = EditorView.theme({
     padding: "16px 24px",
   },
   ".cm-content": {
-    caretColor: "#1a1a1a",
+    caretColor: "var(--text)",
   },
   ".cm-gutters": {
-    backgroundColor: "#fafafa",
-    color: "#9ca3af",
+    backgroundColor: "var(--bg-sidebar)",
+    color: "var(--text-faint)",
     border: "none",
-    borderRight: "1px solid #eeeeee",
+    borderRight: "1px solid var(--border)",
   },
   ".cm-activeLineGutter": {
-    backgroundColor: "#f1f5f9",
+    backgroundColor: "var(--bg-hover)",
   },
   ".cm-activeLine": {
-    backgroundColor: "rgba(0, 0, 0, 0.02)",
+    backgroundColor: "rgba(125, 125, 125, 0.08)",
   },
   ".cm-selectionBackground, ::selection": {
-    backgroundColor: "#cfe4ff !important",
+    backgroundColor: "rgba(88, 166, 255, 0.35) !important",
   },
 });
 

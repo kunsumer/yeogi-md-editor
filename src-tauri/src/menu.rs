@@ -1,4 +1,6 @@
-use tauri::menu::{Menu, MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
+use tauri::menu::{
+    CheckMenuItemBuilder, Menu, MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder,
+};
 use tauri::{AppHandle, Runtime};
 
 /// An entry in the File → Open Recent submenu. `path` is the absolute path we
@@ -9,15 +11,24 @@ pub struct RecentFile {
     pub display: String,
 }
 
+/// Which radio in the View → Appearance submenu should carry the check mark.
+/// "system" / "light" / "dark". Kept as a &str to avoid an enum round-trip —
+/// the frontend's preference is already the source of truth.
+pub type ThemeMode<'a> = &'a str;
+
 /// Build the native menu for the main window. Mirrors Meva's layout plus a
 /// "+" accelerator for Zoom In that Meva is missing.
 ///
 /// `recent_files` drives the File → Open Recent submenu. When empty, the
-/// entry is shown as a disabled item ("Open Recent…"). When non-empty, it
-/// becomes a submenu of one item per file plus a trailing "Clear Menu".
+/// entry is shown as a disabled item. When non-empty, it becomes a submenu
+/// of one item per file plus a trailing "Clear Menu".
+///
+/// `theme` sets which of "Follow System / Light / Dark" carries the
+/// checkmark in View → Appearance.
 pub fn build_menu<R: Runtime>(
     app: &AppHandle<R>,
     recent_files: &[RecentFile],
+    theme: ThemeMode<'_>,
 ) -> tauri::Result<Menu<R>> {
     let app_name = "Yeogi .MD Editor";
 
@@ -71,6 +82,17 @@ pub fn build_menu<R: Runtime>(
                 .build(app)?,
         )
         .item(&open_recent)
+        .separator()
+        .item(
+            &MenuItemBuilder::with_id("file:save", "Save")
+                .accelerator("CmdOrCtrl+S")
+                .build(app)?,
+        )
+        .item(
+            &MenuItemBuilder::with_id("file:save-as", "Save As…")
+                .accelerator("Shift+CmdOrCtrl+S")
+                .build(app)?,
+        )
         .separator()
         .item(
             &MenuItemBuilder::with_id("file:export-html", "Export to HTML…")
@@ -139,11 +161,32 @@ pub fn build_menu<R: Runtime>(
                 .build(app)?,
         )
         .separator()
-        .item(
-            &MenuItemBuilder::with_id("view:cycle-theme", "Cycle Theme")
-                .accelerator("CmdOrCtrl+T")
-                .build(app)?,
-        )
+        .item(&{
+            // Appearance submenu: three radios for Follow System / Light / Dark.
+            // The check mark follows the `theme` argument so this submenu is
+            // rebuilt whenever the preference flips. No keyboard shortcut —
+            // theme is a set-and-forget preference, not a frequent toggle.
+            SubmenuBuilder::new(app, "Appearance")
+                .item(
+                    &CheckMenuItemBuilder::with_id(
+                        "view:theme-system",
+                        "Follow System",
+                    )
+                    .checked(theme == "system")
+                    .build(app)?,
+                )
+                .item(
+                    &CheckMenuItemBuilder::with_id("view:theme-light", "Light")
+                        .checked(theme == "light")
+                        .build(app)?,
+                )
+                .item(
+                    &CheckMenuItemBuilder::with_id("view:theme-dark", "Dark")
+                        .checked(theme == "dark")
+                        .build(app)?,
+                )
+                .build()?
+        })
         .separator()
         .item(
             &MenuItemBuilder::with_id("view:zoom-in", "Zoom In")

@@ -30,7 +30,7 @@ vi.mock("./lib/ipc/commands", () => ({
   fsRead: vi.fn(() => Promise.resolve({ content: "", mtime_ms: 0, encoding: "utf-8" })),
   fsWrite: vi.fn(() => Promise.resolve({ mtime_ms: 0 })),
   watcherSubscribe: vi.fn(() => Promise.resolve()),
-  setRecentFiles: vi.fn(() => Promise.resolve()),
+  syncMenuState: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("./lib/markdown/pipeline", () => ({
