@@ -5,6 +5,23 @@ follow [Semantic Versioning](https://semver.org/); entries highlight
 user-visible behavior (new capabilities and bug fixes), not internal
 refactors or visual tweaks.
 
+## v0.2.4 — 2026-04-23
+
+### New
+
+- Primary-action buttons (Open file(s), Open folder, Install & Restart)
+  and the update banner adopt a near-black theme instead of the accent
+  blue, so the CTA is calmer and the banner doesn't compete with link
+  blues elsewhere in the UI.
+
+### Fixed
+
+- App icon now sits inside macOS's 824 × 824 safe area on the 1024 × 1024
+  canvas (per Apple's macOS Big Sur+ template), with 100 px transparent
+  margin on every side. This removes the persistent grey rim the Dock
+  was rendering around the edge: with no artwork pressed against the
+  canvas boundary, there's nothing for the OS to outline.
+
 ## v0.2.3 — 2026-04-23
 
 ### New

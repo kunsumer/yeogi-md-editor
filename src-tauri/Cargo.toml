@@ -1,6 +1,6 @@
 [package]
 name = "yeogi-md-editor"
-version = "0.2.3"
+version = "0.2.4"
 description = "macOS Markdown editor"
 authors = ["Yeogi"]
 edition = "2021"

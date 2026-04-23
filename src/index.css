@@ -75,9 +75,9 @@ a:focus-visible {
   gap: 6px;
   height: 28px;
   padding: 0 12px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--text);
   border-radius: 6px;
-  background: var(--accent);
+  background: var(--text);
   color: #ffffff;
   font-size: 12px;
   font-weight: 500;
@@ -87,8 +87,8 @@ a:focus-visible {
     border-color 120ms;
 }
 .btn-primary:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: #000;
+  border-color: #000;
 }
 
 .btn-ghost {
