@@ -756,7 +756,10 @@ export default function App() {
             <TocPanel
               hasDocument={active != null}
               headings={headings}
+              activeDocPath={active?.path ?? null}
+              folder={folder}
               onJump={(h, i) => jumpToHeading(h, i)}
+              onOpenBacklink={(p) => openFile(p).catch(console.error)}
               onClose={() => {
                 usePreferences.getState().setTocVisible(false);
                 preHideStateRef.current = null;
