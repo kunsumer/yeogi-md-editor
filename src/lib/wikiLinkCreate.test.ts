@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { sanitizeWikiTargetFilename } from "./wikiLinkCreate";
+import { stripMdExt } from "./resolveWikiLink";
 
 describe("sanitizeWikiTargetFilename", () => {
   it("passes plain names through unchanged", () => {
@@ -28,5 +29,24 @@ describe("sanitizeWikiTargetFilename", () => {
     expect(sanitizeWikiTargetFilename("///")).toBe("---"); // hyphens ARE valid
     expect(sanitizeWikiTargetFilename("\x00\x01")).toBe("--"); // ditto
     expect(sanitizeWikiTargetFilename("   ")).toBe("");
+  });
+});
+
+describe("stripMdExt", () => {
+  it("strips .md (and variants) when present", () => {
+    expect(stripMdExt("README.md")).toBe("README");
+    expect(stripMdExt("notes.markdown")).toBe("notes");
+    expect(stripMdExt("topic.MDOWN")).toBe("topic");
+    expect(stripMdExt("thing.mkd")).toBe("thing");
+  });
+
+  it("leaves names without a markdown extension alone", () => {
+    expect(stripMdExt("README")).toBe("README");
+    expect(stripMdExt("notes.txt")).toBe("notes.txt");
+    expect(stripMdExt("My Doc")).toBe("My Doc");
+  });
+
+  it("strips only the trailing extension, not earlier dots", () => {
+    expect(stripMdExt("v1.2.md")).toBe("v1.2");
   });
 });

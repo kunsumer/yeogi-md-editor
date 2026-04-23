@@ -3,17 +3,17 @@ import { fsList, type DirEntry } from "./ipc/commands";
 const MD_EXTENSIONS = new Set(["md", "markdown", "mdown", "mkd"]);
 
 /**
- * Resolves an Obsidian/Logseq-style wiki-link target ("Some Note") to an
- * absolute file path inside the currently-open folder, or null if no match.
+ * Resolves an Obsidian/Logseq-style wiki-link target ("Some Note" or
+ * "Some Note.md") to an absolute file path inside the currently-open
+ * folder, or null if no match.
  *
- * Matching rules, in priority order:
- *   1. Literal case-sensitive match on the basename minus its markdown
- *      extension.
- *   2. Case-insensitive match on the same.
+ * The target may include the markdown extension (`[[README.md]]`) or omit
+ * it (`[[README]]`) — we match either form. Matching order:
+ *   1. Case-sensitive basename match at the shallowest depth that has it.
+ *   2. Case-insensitive fallback at the same depth.
  *
- * Searches the tree one level at a time (BFS) so shallow matches win over
- * deep namespace collisions — mirrors Obsidian's default vault behaviour
- * close enough for v0.1.
+ * BFS so shallow matches win over deep namespace collisions — mirrors
+ * Obsidian's default vault behaviour closely enough for v0.1.
  */
 export async function resolveWikiLink(
   folder: string,
@@ -21,8 +21,11 @@ export async function resolveWikiLink(
 ): Promise<string | null> {
   const trimmed = target.trim();
   if (!trimmed) return null;
-  const exact = trimmed;
-  const lower = trimmed.toLowerCase();
+  // Accept both "README" and "README.md" forms by stripping any trailing
+  // markdown extension from the target before comparing.
+  const exact = stripMdExt(trimmed);
+  const lower = exact.toLowerCase();
+  if (!exact) return null;
 
   let queue: string[] = [folder];
   // Bound total visits so a huge folder can't wedge the UI. 500 dirs is
@@ -76,4 +79,12 @@ function extOf(name: string): string {
 function basenameNoExt(name: string): string {
   const dot = name.lastIndexOf(".");
   return dot === -1 ? name : name.slice(0, dot);
+}
+
+/** Strip a trailing markdown extension from a wiki-link target if present. */
+export function stripMdExt(target: string): string {
+  const dot = target.lastIndexOf(".");
+  if (dot === -1) return target;
+  const ext = target.slice(dot + 1).toLowerCase();
+  return MD_EXTENSIONS.has(ext) ? target.slice(0, dot) : target;
 }

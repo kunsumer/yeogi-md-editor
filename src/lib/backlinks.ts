@@ -1,4 +1,5 @@
 import { fsList, fsRead, type DirEntry } from "./ipc/commands";
+import { stripMdExt } from "./resolveWikiLink";
 
 const MD_EXTENSIONS = new Set(["md", "markdown", "mdown", "mkd"]);
 const SCAN_DIR_BUDGET = 500;
@@ -72,7 +73,11 @@ export function findLinksTo(
   let firstLen = 0;
   let count = 0;
   for (const m of content.matchAll(re)) {
-    if (m[1].trim().toLowerCase() !== targetLower) continue;
+    // Normalize the match the same way the resolver does — strip a
+    // trailing `.md`/`.markdown`/`.mdown`/`.mkd` so `[[README.md]]` and
+    // `[[README]]` both count as a link to README.md.
+    const normalized = stripMdExt(m[1].trim()).toLowerCase();
+    if (normalized !== targetLower) continue;
     if (firstIdx === -1) {
       firstIdx = m.index ?? 0;
       firstLen = m[0].length;
