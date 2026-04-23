@@ -5,14 +5,15 @@ follow [Semantic Versioning](https://semver.org/); entries highlight
 user-visible behavior (new capabilities and bug fixes), not internal
 refactors or visual tweaks.
 
-## v0.2.4 — 2026-04-23
+## v0.2.5 — 2026-04-23
 
 ### New
 
 - Primary-action buttons (Open file(s), Open folder, Install & Restart)
-  and the update banner adopt a near-black theme instead of the accent
-  blue, so the CTA is calmer and the banner doesn't compete with link
-  blues elsewhere in the UI.
+  and the update banner adopt the brand red (Pantone Red 032 C —
+  `#F7323F`) as their CTA color, matching the app icon. Accent blue is
+  still used for focus rings, caret, text selection, and links so it
+  remains the "live-interaction" signal.
 
 ### Fixed
 
@@ -21,6 +22,11 @@ refactors or visual tweaks.
   margin on every side. This removes the persistent grey rim the Dock
   was rendering around the edge: with no artwork pressed against the
   canvas boundary, there's nothing for the OS to outline.
+
+## v0.2.4 — unreleased
+
+Collapsed into v0.2.5 (the near-black CTA theme was superseded by the
+brand-red theme before the tag went public).
 
 ## v0.2.3 — 2026-04-23
 

@@ -18,6 +18,9 @@
   --accent: #0969da;
   --accent-hover: #0a5fb8;
   --danger: #d1242f;
+  /* Pantone Red 032 C — brand CTA color (primary buttons, update banner). */
+  --brand-red: #f7323f;
+  --brand-red-hover: #d9252f;
 
   --font-ui:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica,
@@ -75,9 +78,9 @@ a:focus-visible {
   gap: 6px;
   height: 28px;
   padding: 0 12px;
-  border: 1px solid var(--text);
+  border: 1px solid var(--brand-red);
   border-radius: 6px;
-  background: var(--text);
+  background: var(--brand-red);
   color: #ffffff;
   font-size: 12px;
   font-weight: 500;
@@ -87,8 +90,8 @@ a:focus-visible {
     border-color 120ms;
 }
 .btn-primary:hover {
-  background: #000;
-  border-color: #000;
+  background: var(--brand-red-hover);
+  border-color: var(--brand-red-hover);
 }
 
 .btn-ghost {

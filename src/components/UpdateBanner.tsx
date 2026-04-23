@@ -27,8 +27,8 @@ const wrap: React.CSSProperties = {
   alignItems: "center",
   gap: 12,
   padding: "10px 16px",
-  background: "rgba(26, 26, 26, 0.06)",
-  borderBottom: "1px solid var(--text)",
+  background: "rgba(247, 50, 63, 0.08)",
+  borderBottom: "1px solid var(--brand-red)",
   fontSize: 13,
   color: "var(--text)",
 };
@@ -45,9 +45,9 @@ const btn: React.CSSProperties = {
 
 const primaryBtn: React.CSSProperties = {
   ...btn,
-  background: "var(--text)",
+  background: "var(--brand-red)",
   color: "#ffffff",
-  border: "1px solid var(--text)",
+  border: "1px solid var(--brand-red)",
 };
 
 const dangerWrap: React.CSSProperties = {
