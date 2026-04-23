@@ -157,8 +157,8 @@ export function TabBar({ docs, activeId, onActivate, onClose, onNew }: Props) {
       {onNew && (
         <button
           type="button"
-          aria-label="Open new file"
-          title="Open file(s)…"
+          aria-label="Create blank document"
+          title="Create blank document"
           onClick={onNew}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-tabbar-hover)";

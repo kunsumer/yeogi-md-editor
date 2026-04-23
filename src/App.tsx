@@ -149,6 +149,17 @@ export default function App() {
     }
   }
 
+  function createBlankDocument() {
+    // New untitled in-memory buffer — path is null until Save As promotes it.
+    // Bridge from openDocument pushes into focused pane + activates.
+    openDocument({
+      path: null,
+      content: "",
+      savedMtime: 0,
+      encoding: "utf-8",
+    });
+  }
+
   async function pickAndOpenFolder() {
     const picked = await open({ directory: true, multiple: false });
     if (typeof picked === "string") {
@@ -662,7 +673,7 @@ export default function App() {
         activeId={focusedPane?.activeTabId ?? null}
         onActivate={(id) => useLayout.getState().openInFocusedPane(id)}
         onClose={(id) => requestCloseDocument(id)}
-        onNew={() => pickAndOpenFiles().catch(console.error)}
+        onNew={createBlankDocument}
       />
       <div style={bodyStyle}>
         {showFolder && (
@@ -765,22 +776,51 @@ export default function App() {
             </div>
           ) : (
             <div style={emptyStateStyle}>
-              <div>No file open.</div>
               <button
-                className="btn-primary"
-                style={{ minWidth: 130, justifyContent: "center" }}
-                onClick={() => pickAndOpenFiles().catch(console.error)}
+                type="button"
+                onClick={createBlankDocument}
+                aria-label="Create blank document"
+                title="Create blank document"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "24px 32px",
+                  border: "1px solid var(--border)",
+                  borderRadius: 12,
+                  background: "var(--bg)",
+                  color: "var(--text)",
+                  cursor: "pointer",
+                  transition: "background 120ms, border-color 120ms",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-hover)";
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-strong)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = "var(--bg)";
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)";
+                }}
               >
-                Open file(s)…
+                <BlankDocumentIcon />
+                <span style={{ fontSize: 13, fontWeight: 500 }}>Create blank document</span>
               </button>
-              <div style={{ fontSize: 12, color: "var(--text-faint)" }}>or</div>
-              <button
-                className="btn-primary"
-                style={{ minWidth: 130, justifyContent: "center" }}
-                onClick={() => pickAndOpenFolder().catch(console.error)}
-              >
-                Open folder…
-              </button>
+              <div style={{ fontSize: 12, color: "var(--text-faint)" }}>or open an existing file</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  className="btn-ghost"
+                  onClick={() => pickAndOpenFiles().catch(console.error)}
+                >
+                  Open file(s)…
+                </button>
+                <button
+                  className="btn-ghost"
+                  onClick={() => pickAndOpenFolder().catch(console.error)}
+                >
+                  Open folder…
+                </button>
+              </div>
             </div>
           )}
           <StatusBar
@@ -832,5 +872,33 @@ export default function App() {
           );
         })()}
     </div>
+  );
+}
+
+function BlankDocumentIcon() {
+  // 64 × 64 document outline with a circled plus at the bottom-right corner.
+  // Stroke-only so the button fill shows through; currentColor lets the icon
+  // pick up the hover-state's text color.
+  return (
+    <svg
+      width="64"
+      height="64"
+      viewBox="0 0 64 64"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {/* Page outline with folded corner */}
+      <path d="M12 6 H38 L52 20 V42" />
+      <path d="M12 6 V58 H52 V42" />
+      <path d="M38 6 V20 H52" />
+      {/* Circle with plus in the lower-right */}
+      <circle cx="48" cy="48" r="10" />
+      <line x1="48" y1="43" x2="48" y2="53" />
+      <line x1="43" y1="48" x2="53" y2="48" />
+    </svg>
   );
 }

@@ -19,7 +19,7 @@ const rowStyle: React.CSSProperties = {
   cursor: "pointer",
   padding: "5px 6px",
   borderRadius: 4,
-  fontSize: 14,
+  fontSize: 13,
   color: "var(--text)",
   userSelect: "none",
 };
