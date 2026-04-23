@@ -46,7 +46,9 @@ pub fn run() {
             let _ = app.emit("menu", event.id().0.clone());
         })
         .setup(move |app| {
-            let menu = menu::build_menu(app.handle())?;
+            // Initial menu with no recent files — the frontend will push the
+            // persisted list on mount via `set_recent_files`, which rebuilds.
+            let menu = menu::build_menu(app.handle(), &[])?;
             app.set_menu(menu)?;
 
             let handle = app.handle().clone();
@@ -72,6 +74,7 @@ pub fn run() {
             commands::window_close,
             commands::app_exit,
             commands::ensure_welcome_file,
+            commands::set_recent_files,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

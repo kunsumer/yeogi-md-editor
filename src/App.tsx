@@ -11,7 +11,7 @@ import { EditorPane } from "./components/EditorPane";
 import { FolderPanel, ResizeHandle, TocPanel } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
 import { Tutorial } from "./components/Tutorial";
-import { ensureWelcomeFile, fsList, fsRead, fsWrite, watcherSubscribe } from "./lib/ipc/commands";
+import { ensureWelcomeFile, fsList, fsRead, fsWrite, setRecentFiles, watcherSubscribe } from "./lib/ipc/commands";
 import { renderMarkdown } from "./lib/markdown/pipeline";
 import { buildStandaloneHtml } from "./lib/exportHtml";
 import { extractHeadings, type Heading } from "./lib/toc";
@@ -67,6 +67,17 @@ export default function App() {
     document.documentElement.style.setProperty("--app-zoom", String(zoom));
   }, [zoom]);
 
+  // Sync the persisted MRU to the native File → Open Recent submenu. Runs
+  // once at mount (after zustand-persist has hydrated) and any time the
+  // list changes. The subscriber-based approach keeps the menu and the
+  // preference store in lockstep without coupling the store to Tauri IPC.
+  const recentFiles = usePreferences((s) => s.recentFiles);
+  useEffect(() => {
+    setRecentFiles(recentFiles).catch((err) => {
+      console.warn("set_recent_files failed:", err);
+    });
+  }, [recentFiles]);
+
   // Autosave is now per-document: the global preference seeds the default
   // at open time, but each doc has its own toggle (TopBar pill switch).
   const docAutosaveEnabled = active?.autosaveEnabled ?? autosaveEnabled;
@@ -104,6 +115,7 @@ export default function App() {
     if (existing) {
       if (opts?.toSide) useLayout.getState().openToTheSide(existing.id);
       else useLayout.getState().openInFocusedPane(existing.id);
+      usePreferences.getState().pushRecent(path);
       return;
     }
     const r = await fsRead(path);
@@ -120,6 +132,7 @@ export default function App() {
       const doc = useDocuments.getState().documents.find((d) => d.path === path);
       if (doc) useLayout.getState().openToTheSide(doc.id);
     }
+    usePreferences.getState().pushRecent(path);
   }
 
   async function pickAndOpenFiles() {
@@ -401,17 +414,26 @@ export default function App() {
   useEffect(() => {
     const p = listen<string>("menu", (e) => {
       const id = e.payload;
+      // File → Open Recent → <path> and File → Open Recent → Clear Menu are
+      // dynamic, so they come through with computed ids rather than a fixed
+      // constant. Handle them before the static switch.
+      if (id === "file:recent-clear") {
+        usePreferences.getState().clearRecent();
+        return;
+      }
+      if (id.startsWith("file:recent:")) {
+        const path = id.slice("file:recent:".length);
+        if (path && path !== "placeholder") {
+          openFile(path).catch(console.error);
+        }
+        return;
+      }
       switch (id) {
         case "file:open":
           pickAndOpenFiles().catch(console.error);
           break;
         case "file:open-folder":
           pickAndOpenFolder().catch(console.error);
-          break;
-        case "file:open-recent":
-          // Stub: session restore already handles "last open". A real recent-
-          // files menu lives behind a preference store (Phase 13 material).
-          console.info("Open Recent: not yet implemented.");
           break;
         case "file:export-html":
           exportHtml().catch(console.error);

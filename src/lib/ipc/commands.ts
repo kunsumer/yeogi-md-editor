@@ -47,4 +47,13 @@ export async function ensureWelcomeFile(): Promise<string> {
   return invoke("ensure_welcome_file");
 }
 
+/**
+ * Rebuild the native menu with a new File → Open Recent submenu. `paths` is
+ * the MRU list of absolute paths (up to 10). Called whenever the frontend's
+ * `recentFiles` preference changes.
+ */
+export async function setRecentFiles(paths: string[]): Promise<void> {
+  return invoke("set_recent_files", { paths });
+}
+
 export type { DirEntry, FsError };

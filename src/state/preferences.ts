@@ -10,12 +10,21 @@ interface Prefs {
   folderWidth: number;
   /** Pixel width of the Outline panel, clamped [180, 480]. */
   tocWidth: number;
+  /**
+   * Most-recently-opened files (absolute paths). MRU at index 0; capped at
+   * 10 entries; dedupe by path. Drives the File → Open Recent menu.
+   */
+  recentFiles: string[];
   setAutosaveEnabled(v: boolean): void;
   setFolderVisible(v: boolean): void;
   setTocVisible(v: boolean): void;
   setFolderWidth(w: number): void;
   setTocWidth(w: number): void;
+  pushRecent(path: string): void;
+  clearRecent(): void;
 }
+
+const RECENT_MAX = 10;
 
 // Panels narrower than 180 px truncate tree item names aggressively; wider
 // than 480 px eats too much of the editor column on a typical laptop screen.
@@ -35,11 +44,18 @@ export const usePreferences = create<Prefs>()(
       tocVisible: true,
       folderWidth: 260,
       tocWidth: 220,
+      recentFiles: [],
       setAutosaveEnabled: (v) => set({ autosaveEnabled: v }),
       setFolderVisible: (v) => set({ folderVisible: v }),
       setTocVisible: (v) => set({ tocVisible: v }),
       setFolderWidth: (w) => set({ folderWidth: clampWidth(w) }),
       setTocWidth: (w) => set({ tocWidth: clampWidth(w) }),
+      pushRecent: (path) =>
+        set((s) => {
+          const next = [path, ...s.recentFiles.filter((p) => p !== path)];
+          return { recentFiles: next.slice(0, RECENT_MAX) };
+        }),
+      clearRecent: () => set({ recentFiles: [] }),
     }),
     {
       name: "yeogi-md-editor:prefs",
@@ -52,6 +68,7 @@ export const usePreferences = create<Prefs>()(
         tocVisible: s.tocVisible,
         folderWidth: s.folderWidth,
         tocWidth: s.tocWidth,
+        recentFiles: s.recentFiles,
       }),
     },
   ),
