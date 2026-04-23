@@ -5,22 +5,22 @@ follow [Semantic Versioning](https://semver.org/); entries highlight
 user-visible behavior (new capabilities and bug fixes), not internal
 refactors or visual tweaks.
 
-## v0.2.2 — 2026-04-23
+## v0.2.3 — 2026-04-23
 
 ### New
 
 - Empty state (no file open) offers both **Open file(s)…** and **Open
   folder…** side-by-side, styled identically so neither is the biased
-  "primary" choice.
+  "primary" choice. Button widths tightened — less blank padding.
+- Opening a folder automatically reveals the Folder Explorer panel if
+  it was hidden, so you don't have to toggle ⌥⌘1 after picking.
 
 ### Fixed
 
-- Dock icon no longer renders a white plate behind the red rounded
-  square. The source PNG goes through a more aggressive flood-fill
-  (threshold 70 catches the gray drop-shadow halo) and a despill pass
-  that scales edge-pixel alpha by how red-dominant the pixel is, so
-  anti-aliased edges fade to transparent instead of staying as a
-  pink-tinged ring.
+- Dock icon fully transparent around the red rounded square. The source
+  goes through an aggressive flood-fill, a despill pass, AND a second
+  flood + despill after the Lanczos upscale — so the anti-aliased ring
+  the resize introduced doesn't bleed as a gray/pink halo.
 
 ## v0.2.1 — 2026-04-23
 

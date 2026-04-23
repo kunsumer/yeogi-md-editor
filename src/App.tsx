@@ -148,7 +148,16 @@ export default function App() {
 
   async function pickAndOpenFolder() {
     const picked = await open({ directory: true, multiple: false });
-    if (typeof picked === "string") useDocuments.getState().setFolder(picked);
+    if (typeof picked === "string") {
+      useDocuments.getState().setFolder(picked);
+      // Auto-reveal the Folder Explorer panel. If the user had hidden it
+      // (⌥⌘1 or the X close button), picking a new folder should show the
+      // tree they just chose rather than silently stashing the selection.
+      if (!usePreferences.getState().folderVisible) {
+        usePreferences.getState().setFolderVisible(true);
+        preHideStateRef.current = null;
+      }
+    }
   }
 
   function requestCloseDocument(id: string) {
@@ -754,7 +763,7 @@ export default function App() {
               <div>No file open.</div>
               <button
                 className="btn-primary"
-                style={{ minWidth: 160, justifyContent: "center" }}
+                style={{ minWidth: 130, justifyContent: "center" }}
                 onClick={() => pickAndOpenFiles().catch(console.error)}
               >
                 Open file(s)…
@@ -762,7 +771,7 @@ export default function App() {
               <div style={{ fontSize: 12, color: "var(--text-faint)" }}>or</div>
               <button
                 className="btn-primary"
-                style={{ minWidth: 160, justifyContent: "center" }}
+                style={{ minWidth: 130, justifyContent: "center" }}
                 onClick={() => pickAndOpenFolder().catch(console.error)}
               >
                 Open folder…
