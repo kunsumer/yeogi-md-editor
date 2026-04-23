@@ -157,7 +157,7 @@ describe("App — side-by-side flows", () => {
     localStorage.setItem("yeogi-md-editor:welcome-shown", "true");
   });
 
-  it("right-click tab menu: Open to the Side creates secondary", () => {
+  it("right-click tab menu: 'Open to the Right Side' creates secondary from primary", () => {
     useDocuments.getState().openDocument({
       path: "/a.md", content: "a", savedMtime: 1, encoding: "utf-8",
     });
@@ -170,7 +170,7 @@ describe("App — side-by-side flows", () => {
       .find((el): el is Element => el !== null)!;
     expect(tabEl).toBeTruthy();
     fireEvent.contextMenu(tabEl);
-    fireEvent.click(screen.getByText(/open to the side/i));
+    fireEvent.click(screen.getByText(/open to the right side/i));
     expect(useLayout.getState().secondary).not.toBeNull();
     expect(useLayout.getState().secondary!.tabs).toContain(
       useDocuments.getState().documents[0].id,

@@ -42,7 +42,9 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchReplace, setSearchReplace] = useState(false);
   // Pending close request blocked by unsaved changes. null = no prompt up.
-  const [closeConfirm, setCloseConfirm] = useState<{ id: string } | null>(null);
+  const [closeConfirm, setCloseConfirm] = useState<
+    { id: string; paneId: "primary" | "secondary" } | null
+  >(null);
   const updater = useUpdater({ checkOnStartup: true });
   useWatcherEvents(setWatcherOffline);
   const { documents, openDocument, setContent } = useDocuments();
@@ -160,21 +162,41 @@ export default function App() {
     }
   }
 
-  function requestCloseDocument(id: string) {
-    const doc = useDocuments.getState().documents.find((d) => d.id === id);
+  /**
+   * Pane-aware close. Removing a tab from one pane must not close the doc in
+   * the other pane if it's still there (case d: same doc open in both sides).
+   * Only drop the underlying buffer once the doc is orphaned from both panes.
+   */
+  function requestClosePaneTab(
+    paneId: "primary" | "secondary",
+    docId: string,
+  ) {
+    const doc = useDocuments.getState().documents.find((d) => d.id === docId);
     if (!doc) return;
-    if (doc.isDirty) {
-      // Unsaved work — stop and ask. The ConfirmDialog handles Save /
-      // Don't Save / Cancel. We never auto-close a dirty buffer.
-      setCloseConfirm({ id });
+    const layout = useLayout.getState();
+    const otherPane = paneId === "primary" ? layout.secondary : layout.primary;
+    const existsInOtherPane = !!otherPane?.tabs.includes(docId);
+
+    if (existsInOtherPane) {
+      // Buffer stays alive on the other side. Safe to just drop the tab here
+      // without a dirty-check prompt — no data loss possible.
+      useLayout.getState().closeTab(paneId, docId);
       return;
     }
-    useDocuments.getState().closeDocument(id);
+
+    if (doc.isDirty) {
+      // Unsaved and this is the last pane holding it — prompt before losing
+      // the buffer.
+      setCloseConfirm({ id: docId, paneId });
+      return;
+    }
+    useLayout.getState().closeTab(paneId, docId);
+    useDocuments.getState().closeDocument(docId);
   }
 
   function closeActiveTab() {
     const id = focusedPane?.activeTabId ?? null;
-    if (id) requestCloseDocument(id);
+    if (id) requestClosePaneTab(focusedPaneId, id);
   }
 
   async function saveDocument(id: string): Promise<boolean> {
@@ -690,10 +712,12 @@ export default function App() {
     onOpenFiles: () => pickAndOpenFiles().catch(console.error),
     onOpenFolder: () => pickAndOpenFolder().catch(console.error),
     onCreateBlank: createBlankDocument,
-    onCloseTab: (_paneId: "primary" | "secondary", id: string) => requestCloseDocument(id),
+    onCloseTab: (paneId: "primary" | "secondary", id: string) =>
+      requestClosePaneTab(paneId, id),
     onActivateTab: (paneId: "primary" | "secondary", id: string) =>
       useLayout.getState().setActiveTab(paneId, id),
-    onOpenToSide: (id: string) => useLayout.getState().openToTheSide(id),
+    onOpenToSide: (id: string, sourcePaneId: "primary" | "secondary") =>
+      useLayout.getState().openInOtherPane(sourcePaneId, id),
     onSetViewMode: (paneId: "primary" | "secondary", mode: ViewMode) => {
       if (paneId === focusedPaneId) setViewMode(mode);
       else useLayout.getState().setViewMode(paneId, mode);
@@ -823,14 +847,26 @@ export default function App() {
               onConfirm={async () => {
                 const ok = await saveDocument(closeConfirm.id);
                 if (!ok) return; // Save failed — keep the dialog + the doc open.
-                const idToClose = closeConfirm.id;
+                const { id: idToClose, paneId } = closeConfirm;
                 setCloseConfirm(null);
-                useDocuments.getState().closeDocument(idToClose);
+                useLayout.getState().closeTab(paneId, idToClose);
+                // Buffer is now orphaned from this pane; drop it globally if
+                // no other pane holds it.
+                const layout = useLayout.getState();
+                const stillOpen =
+                  layout.primary.tabs.includes(idToClose) ||
+                  !!layout.secondary?.tabs.includes(idToClose);
+                if (!stillOpen) useDocuments.getState().closeDocument(idToClose);
               }}
               onDiscard={() => {
-                const idToClose = closeConfirm.id;
+                const { id: idToClose, paneId } = closeConfirm;
                 setCloseConfirm(null);
-                useDocuments.getState().closeDocument(idToClose);
+                useLayout.getState().closeTab(paneId, idToClose);
+                const layout = useLayout.getState();
+                const stillOpen =
+                  layout.primary.tabs.includes(idToClose) ||
+                  !!layout.secondary?.tabs.includes(idToClose);
+                if (!stillOpen) useDocuments.getState().closeDocument(idToClose);
               }}
               onCancel={() => setCloseConfirm(null)}
             />

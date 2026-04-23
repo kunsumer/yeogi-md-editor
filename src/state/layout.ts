@@ -18,6 +18,9 @@ interface LayoutState {
 
   openInFocusedPane(docId: string): void;
   openToTheSide(docId: string): void;
+  /** Open `docId` in the pane OPPOSITE to `sourcePaneId`. From primary →
+   *  secondary (creates secondary if null); from secondary → primary. */
+  openInOtherPane(sourcePaneId: PaneId, docId: string): void;
   setActiveTab(paneId: PaneId, docId: string): void;
   setFocusedPane(paneId: PaneId): void;
   setViewMode(paneId: PaneId, mode: ViewMode): void;
@@ -114,6 +117,26 @@ export const useLayout = create<LayoutState>((set, get) => ({
       },
       focusedPaneId: "secondary",
     });
+  },
+
+  openInOtherPane(sourcePaneId, docId) {
+    if (sourcePaneId === "primary") {
+      // From the left pane: open in secondary (matches openToTheSide).
+      get().openToTheSide(docId);
+      return;
+    }
+    // From the right pane: open in primary, which is guaranteed to exist.
+    const { primary } = get();
+    if (primary.tabs.includes(docId)) {
+      setPane(set, "primary", { ...primary, activeTabId: docId });
+    } else {
+      setPane(set, "primary", {
+        ...primary,
+        tabs: [...primary.tabs, docId],
+        activeTabId: docId,
+      });
+    }
+    set({ focusedPaneId: "primary" });
   },
 
   setPaneSplit(fraction) {

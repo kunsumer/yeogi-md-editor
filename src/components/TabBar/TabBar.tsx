@@ -1,7 +1,8 @@
 import { useState } from "react";
-import type { Pane } from "../../state/layout";
+import type { Pane, PaneId } from "../../state/layout";
 import type { Document } from "../../state/documents";
 import { TabContextMenu } from "./TabContextMenu";
+import { TabNewMenu } from "./TabNewMenu";
 
 interface Props {
   pane: Pane;
@@ -9,8 +10,11 @@ interface Props {
   documents: Document[];
   onActivate(id: string): void;
   onClose(id: string): void;
-  onOpenToSide(id: string): void;
-  onNew?: () => void;
+  onOpenToSide(id: string, sourcePaneId: PaneId): void;
+  /** When either is provided, a "+" button renders at the end of the tab
+   *  strip. Clicking it opens a menu offering both options. */
+  onCreateBlank?: () => void;
+  onOpenFiles?: () => void;
 }
 
 const tablistStyle: React.CSSProperties = {
@@ -106,9 +110,12 @@ export function TabBar({
   onActivate,
   onClose,
   onOpenToSide,
-  onNew,
+  onCreateBlank,
+  onOpenFiles,
 }: Props) {
   const [ctx, setCtx] = useState<{ docId: string; x: number; y: number } | null>(null);
+  const [newMenu, setNewMenu] = useState<{ x: number; y: number } | null>(null);
+  const showNewBtn = !!(onCreateBlank || onOpenFiles);
   const tabs = pane.tabs.map((id) => {
     const d = documents.find((doc) => doc.id === id);
     return {
@@ -175,12 +182,15 @@ export function TabBar({
           </div>
         );
       })}
-      {onNew && (
+      {showNewBtn && (
         <button
           type="button"
-          aria-label="Create blank document"
-          title="Create blank document"
-          onClick={onNew}
+          aria-label="New tab"
+          title="New tab"
+          onClick={(e) => {
+            const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+            setNewMenu({ x: rect.left, y: rect.bottom + 4 });
+          }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-tabbar-hover)";
             (e.currentTarget as HTMLButtonElement).style.color = "var(--text)";
@@ -199,8 +209,18 @@ export function TabBar({
           docId={ctx.docId}
           x={ctx.x}
           y={ctx.y}
-          onOpenToSide={(id) => onOpenToSide(id)}
+          sourcePaneId={pane.id}
+          onOpenToSide={(id, source) => onOpenToSide(id, source)}
           onClose={() => setCtx(null)}
+        />
+      )}
+      {newMenu && (
+        <TabNewMenu
+          x={newMenu.x}
+          y={newMenu.y}
+          onCreateBlank={() => onCreateBlank?.()}
+          onOpenFiles={() => onOpenFiles?.()}
+          onClose={() => setNewMenu(null)}
         />
       )}
     </div>

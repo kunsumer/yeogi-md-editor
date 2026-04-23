@@ -30,7 +30,7 @@ interface Props {
   onCreateBlank(): void;
   onCloseTab(paneId: PaneId, docId: string): void;
   onActivateTab(paneId: PaneId, docId: string): void;
-  onOpenToSide(docId: string): void;
+  onOpenToSide(docId: string, sourcePaneId: PaneId): void;
   onSetViewMode(paneId: PaneId, mode: ViewMode): void;
   onFocusPane(paneId: PaneId): void;
   onSetContent(docId: string, next: string): void;
@@ -119,8 +119,9 @@ export function EditorPane({
         documents={documents}
         onActivate={(id) => onActivateTab(pane.id, id)}
         onClose={(id) => onCloseTab(pane.id, id)}
-        onOpenToSide={(id) => onOpenToSide(id)}
-        onNew={onCreateBlank}
+        onOpenToSide={(id, source) => onOpenToSide(id, source)}
+        onCreateBlank={onCreateBlank}
+        onOpenFiles={onOpenFiles}
       />
       <TopBar
         pane={pane}
@@ -246,9 +247,10 @@ function EmptyState({
 }
 
 function BlankDocumentIcon() {
-  // 64 × 64 document outline with a circled plus at the bottom-right corner.
-  // Stroke-only so the button fill shows through; currentColor lets the icon
-  // pick up the hover-state's text color.
+  // 64 × 64 document with rounded corners and a circled plus overlaid on
+  // the bottom-right. The circle is filled with the page/button background
+  // (`var(--bg)`) so the document's stroke is OCCLUDED behind it — the two
+  // shapes read as one stacked glyph, not as see-through overlapping outlines.
   return (
     <svg
       width="64"
@@ -261,14 +263,16 @@ function BlankDocumentIcon() {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      {/* Page outline with folded corner */}
-      <path d="M12 6 H38 L52 20 V42" />
-      <path d="M12 6 V58 H52 V42" />
-      <path d="M38 6 V20 H52" />
-      {/* Circle with plus in the lower-right */}
-      <circle cx="48" cy="48" r="10" />
-      <line x1="48" y1="43" x2="48" y2="53" />
-      <line x1="43" y1="48" x2="53" y2="48" />
+      {/* Page body: rounded rectangle with a folded top-right corner.
+          Occupies x=10..46 / y=8..56. */}
+      <path d="M14 8 H36 L46 18 V52 Q46 56 42 56 H14 Q10 56 10 52 V12 Q10 8 14 8 Z" />
+      {/* Folded corner indicator */}
+      <path d="M36 8 V18 H46" />
+      {/* Circle overlay — filled with the button background so the page
+          stroke disappears behind it. Placed over the page's bottom-right. */}
+      <circle cx="46" cy="50" r="10" fill="var(--bg)" />
+      <line x1="46" y1="45" x2="46" y2="55" />
+      <line x1="41" y1="50" x2="51" y2="50" />
     </svg>
   );
 }

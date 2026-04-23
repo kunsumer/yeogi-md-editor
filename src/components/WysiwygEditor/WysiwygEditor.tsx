@@ -211,6 +211,10 @@ export function WysiwygEditor({
       }),
     ],
     editable: !readOnly,
+    // Auto-focus on mount so a freshly-opened doc (blank or otherwise) lands
+    // with a caret ready. `"end"` puts the caret after existing content;
+    // for an empty doc that's position 0, i.e. "ready to type."
+    autofocus: !readOnly ? "end" : false,
     content,
     onUpdate({ editor }) {
       const md = getMarkdown(editor);
@@ -218,6 +222,15 @@ export function WysiwygEditor({
       onChange(md);
     },
   });
+
+  // `useEditor` only reads `editable` at creation time; flipping the prop
+  // later (e.g. when another pane toggles the same-doc read-only lock) would
+  // otherwise silently no-op. Sync explicitly.
+  useEffect(() => {
+    if (!editor) return;
+    if (editor.isEditable === !readOnly) return;
+    editor.setEditable(!readOnly);
+  }, [editor, readOnly]);
 
   // Sync external content changes (e.g. tab switch, external reload) without
   // clobbering the user's cursor when the change came from ourselves.

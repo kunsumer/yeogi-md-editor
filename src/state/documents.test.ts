@@ -69,10 +69,16 @@ describe("useDocuments → useLayout bridge", () => {
     expect(useLayout.getState().primary.activeTabId).toBe(id);
   });
 
-  it("closeDocument removes the tab from the pane", () => {
+  it("closeDocument removes only the buffer; pane tabs are App-level state", () => {
+    // Pane-aware tab removal moved to App.tsx (`requestClosePaneTab`) so that
+    // closing a tab in one pane doesn't evict the doc from the other side
+    // when case (d) has it in both.
     const { openDocument, closeDocument } = useDocuments.getState();
     const id = openDocument({ path: "/a.md", content: "x", savedMtime: 1, encoding: "utf-8" });
     closeDocument(id);
-    expect(useLayout.getState().primary.tabs).toEqual([]);
+    expect(useDocuments.getState().documents).toHaveLength(0);
+    // Pane state is untouched — callers route the tab removal through
+    // useLayout.closeTab themselves.
+    expect(useLayout.getState().primary.tabs).toEqual([id]);
   });
 });

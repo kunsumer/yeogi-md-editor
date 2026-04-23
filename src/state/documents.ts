@@ -91,12 +91,16 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
     return id;
   },
 
+  /**
+   * Document-level close: remove the buffer entirely. Pane tabs are NOT
+   * touched here — callers that close from a specific pane should use the
+   * pane-aware flow in App.tsx (`requestClosePaneTab`) which removes the tab
+   * from one pane only and calls `closeDocument` once the buffer is orphaned
+   * (not referenced by any pane). This keeps "close in one pane, keep in the
+   * other" working correctly for case (d).
+   */
   closeDocument(id) {
     set((s) => ({ documents: s.documents.filter((d) => d.id !== id) }));
-    useLayout.getState().closeTab("primary", id);
-    if (useLayout.getState().secondary) {
-      useLayout.getState().closeTab("secondary", id);
-    }
   },
 
   setFolder(path) {

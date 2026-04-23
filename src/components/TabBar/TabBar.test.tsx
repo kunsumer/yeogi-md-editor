@@ -31,7 +31,8 @@ describe("TabBar", () => {
         onActivate={() => {}}
         onClose={() => {}}
         onOpenToSide={() => {}}
-        onNew={() => {}}
+        onCreateBlank={() => {}}
+        onOpenFiles={() => {}}
       />,
     );
     expect(screen.getByText("a.md")).toBeInTheDocument();
@@ -47,7 +48,8 @@ describe("TabBar", () => {
         onActivate={() => {}}
         onClose={() => {}}
         onOpenToSide={() => {}}
-        onNew={() => {}}
+        onCreateBlank={() => {}}
+        onOpenFiles={() => {}}
       />,
     );
     const active = screen.getByText("b.md").closest("[role=tab]");
@@ -63,7 +65,8 @@ describe("TabBar", () => {
         onActivate={() => {}}
         onClose={() => {}}
         onOpenToSide={() => {}}
-        onNew={() => {}}
+        onCreateBlank={() => {}}
+        onOpenFiles={() => {}}
       />,
     );
     const active = container.querySelector('[aria-selected="true"]') as HTMLElement;
