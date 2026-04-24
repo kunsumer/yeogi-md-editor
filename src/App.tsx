@@ -20,7 +20,10 @@ import {
   syncMenuState,
   watcherSubscribe,
 } from "./lib/ipc/commands";
-import { renderMarkdown } from "./lib/markdown/pipeline";
+// renderMarkdown is dynamic-imported at the two call sites below (export-html
+// and print-to-PDF). The pipeline bundle (remark/rehype/shiki) is ~1 MB and
+// isn't needed for anyone who only uses WYSIWYG mode, so we defer the cost
+// to the first time the user triggers one of those export actions.
 import { buildStandaloneHtml } from "./lib/exportHtml";
 import { extractBlocks, extractHeadings, type Block, type Heading } from "./lib/toc";
 import { slugify } from "./lib/slug";
@@ -313,6 +316,7 @@ export default function App() {
   async function exportHtml() {
     if (!active) return;
     try {
+      const { renderMarkdown } = await import("./lib/markdown/pipeline");
       const html = await renderMarkdown(active.content);
       const title = (active.path?.split("/").pop() ?? "document").replace(/\.md$/i, "");
       const standalone = buildStandaloneHtml(title, html);
@@ -338,6 +342,7 @@ export default function App() {
     // reliably and macOS's "Save as PDF" option in the print dialog handles
     // PDF export.
     try {
+      const { renderMarkdown } = await import("./lib/markdown/pipeline");
       const html = await renderMarkdown(active.content);
       const title = (active.path?.split("/").pop() ?? "document").replace(/\.md$/i, "");
       const standalone = buildStandaloneHtml(title, html);

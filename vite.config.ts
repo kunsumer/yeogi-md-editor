@@ -31,10 +31,42 @@ export default defineConfig(async () => ({
     },
   },
   build: {
+    // Default 500 kB warning threshold fires on our vendor chunks (mermaid,
+    // shiki, katex) even after splitting — they're genuinely large libraries
+    // and we accept that cost. Bumped to 800 kB to only flag unexpected
+    // regressions without losing the signal entirely.
+    chunkSizeWarningLimit: 800,
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
         preview: resolve(__dirname, "preview.html"),
+      },
+      output: {
+        // Split heavy vendor libraries into dedicated chunks so (a) the
+        // main entry stays small enough for a snappy first paint and (b)
+        // individual libraries can be cached independently across releases.
+        //
+        // Pragmatic grouping: keep React tight (used everywhere), split
+        // editor stacks (Tiptap, CodeMirror) since they're large, and
+        // isolate each syntax-highlighting / diagramming library. Shiki's
+        // per-language grammars already split automatically — no help
+        // needed there.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          // Stable libraries that benefit from grouping: small enough to
+          // bundle as one chunk, and frequently changed together. Mermaid
+          // and Shiki are INTENTIONALLY not grouped here — Rollup's default
+          // splitting gives them per-diagram-type and per-grammar chunks
+          // that dynamic-import on demand, which we want to keep.
+          if (id.includes("/katex/")) return "vendor-katex";
+          if (id.includes("/@tiptap/") || id.includes("/tiptap-markdown/") || id.includes("/prosemirror"))
+            return "vendor-tiptap";
+          if (id.includes("/@codemirror/") || id.includes("/codemirror/"))
+            return "vendor-codemirror";
+          if (id.includes("/react/") || id.includes("/react-dom/") || id.includes("/scheduler/"))
+            return "vendor-react";
+          return undefined;
+        },
       },
     },
   },
