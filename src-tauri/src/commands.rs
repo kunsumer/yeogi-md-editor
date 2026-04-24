@@ -97,6 +97,24 @@ pub fn ensure_welcome_file(app: AppHandle) -> Result<String, FsError> {
     Ok(file_path.to_string_lossy().to_string())
 }
 
+/// Overwrite "Welcome.md" with the bundled seed. Unlike `ensure_welcome_file`,
+/// this unconditionally replaces the file — used by the "Help → Reset
+/// Welcome.md to Default" menu item so users can pick up the latest seed
+/// after an app update. Callers are expected to have already shown the user
+/// a destructive-confirmation prompt before invoking this.
+#[tauri::command]
+pub fn reseed_welcome_file(app: AppHandle) -> Result<String, FsError> {
+    let docs = app
+        .path()
+        .document_dir()
+        .map_err(|e| FsError::Io(format!("document_dir: {}", e)))?;
+    let app_dir = docs.join("Yeogi .MD Editor");
+    std::fs::create_dir_all(&app_dir).map_err(|e| FsError::Io(e.to_string()))?;
+    let file_path = app_dir.join("Welcome.md");
+    std::fs::write(&file_path, WELCOME_CONTENT).map_err(|e| FsError::Io(e.to_string()))?;
+    Ok(file_path.to_string_lossy().to_string())
+}
+
 /// Rebuild the native menu to reflect the frontend's current state and swap
 /// it in. Called once at mount (after preferences hydrate) and any time
 /// either the MRU list or the theme preference changes. Batching both into

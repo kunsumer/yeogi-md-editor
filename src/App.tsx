@@ -11,7 +11,15 @@ import { EditorPane } from "./components/EditorPane";
 import { FolderPanel, ResizeHandle, TocPanel } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
 import { Tutorial } from "./components/Tutorial";
-import { ensureWelcomeFile, fsList, fsRead, fsWrite, syncMenuState, watcherSubscribe } from "./lib/ipc/commands";
+import {
+  ensureWelcomeFile,
+  fsList,
+  fsRead,
+  fsWrite,
+  reseedWelcomeFile,
+  syncMenuState,
+  watcherSubscribe,
+} from "./lib/ipc/commands";
 import { renderMarkdown } from "./lib/markdown/pipeline";
 import { buildStandaloneHtml } from "./lib/exportHtml";
 import { extractBlocks, extractHeadings, type Block, type Heading } from "./lib/toc";
@@ -46,6 +54,8 @@ export default function App() {
   const [closeConfirm, setCloseConfirm] = useState<
     { id: string; paneId: "primary" | "secondary" } | null
   >(null);
+  // Confirmation for Help → Reset Welcome.md to Default. Null = no prompt.
+  const [resetWelcomeConfirmOpen, setResetWelcomeConfirmOpen] = useState(false);
   const updater = useUpdater({ checkOnStartup: true });
   useWatcherEvents(setWatcherOffline);
   const { documents, openDocument, setContent } = useDocuments();
@@ -561,6 +571,9 @@ export default function App() {
         case "help:show-tutorial":
           setTutorialOpen(true);
           break;
+        case "help:reset-welcome":
+          setResetWelcomeConfirmOpen(true);
+          break;
         case "help:check-for-updates":
           updater.runCheck();
           break;
@@ -996,6 +1009,46 @@ export default function App() {
             />
           );
         })()}
+      {resetWelcomeConfirmOpen && (
+        <ConfirmDialog
+          title="Reset Welcome.md to default?"
+          message={
+            <>
+              This overwrites{" "}
+              <strong>~/Documents/Yeogi .MD Editor/Welcome.md</strong> with the
+              version bundled in the current app release. Any edits you've made
+              to that specific file will be lost. Other documents aren't touched.
+            </>
+          }
+          confirmLabel="Reset"
+          cancelLabel="Cancel"
+          tone="danger"
+          onConfirm={async () => {
+            setResetWelcomeConfirmOpen(false);
+            try {
+              const path = await reseedWelcomeFile();
+              // If Welcome.md is already open in any pane, reload the fresh
+              // bytes so the user sees the new content immediately without
+              // waiting for the file-watcher to deliver the change event.
+              const openDoc = useDocuments
+                .getState()
+                .documents.find((d) => d.path === path);
+              if (openDoc) {
+                const r = await fsRead(path);
+                useDocuments
+                  .getState()
+                  .replaceContentFromDisk(openDoc.id, {
+                    content: r.content,
+                    mtimeMs: r.mtime_ms,
+                  });
+              }
+            } catch (e) {
+              console.error("reset welcome failed:", e);
+            }
+          }}
+          onCancel={() => setResetWelcomeConfirmOpen(false)}
+        />
+      )}
     </div>
   );
 }

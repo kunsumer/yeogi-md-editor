@@ -229,6 +229,13 @@ pub fn build_menu<R: Runtime>(
             &MenuItemBuilder::with_id("help:show-tutorial", "Show Tutorial")
                 .build(app)?,
         )
+        .item(
+            &MenuItemBuilder::with_id(
+                "help:reset-welcome",
+                "Reset Welcome.md to Default",
+            )
+            .build(app)?,
+        )
         .separator()
         .item(
             &MenuItemBuilder::with_id("help:check-for-updates", "Check for Updates…")

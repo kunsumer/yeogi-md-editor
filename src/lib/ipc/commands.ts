@@ -48,6 +48,16 @@ export async function ensureWelcomeFile(): Promise<string> {
 }
 
 /**
+ * Overwrite ~/Documents/Yeogi .MD Editor/Welcome.md with the bundled seed,
+ * replacing whatever's there. Returns the file's path. Callers must
+ * prompt the user for destructive confirmation before invoking — the Rust
+ * command itself trusts its caller.
+ */
+export async function reseedWelcomeFile(): Promise<string> {
+  return invoke("reseed_welcome_file");
+}
+
+/**
  * Rebuild the native menu to reflect the current `recentFiles` list and
  * `theme` preference. Called at mount and on every change to either. One
  * command (rather than two) means either change triggers the same server-

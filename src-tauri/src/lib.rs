@@ -75,6 +75,7 @@ pub fn run() {
             commands::window_close,
             commands::app_exit,
             commands::ensure_welcome_file,
+            commands::reseed_welcome_file,
             commands::sync_menu_state,
         ])
         .build(tauri::generate_context!())
