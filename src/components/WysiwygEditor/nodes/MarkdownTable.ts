@@ -129,14 +129,13 @@ export const MarkdownTable = BaseTable.extend({
               if (j) state.write(" | ");
               // Cell content is a single block child (paragraph, usually)
               // when the table is GFM-serializable; render its inline
-              // children if any. Text nodes can appear directly when
-              // markdown-it parses a raw <td>text</td>, so fall through
-              // to rendering them too.
-              const cellContent = col.firstChild as
-                | (PMNodeLike & { textContent?: string })
-                | null;
-              const text = cellContent?.textContent ?? "";
-              if (cellContent && text.trim().length > 0) {
+              // children if any. Atom inline nodes (math_inline, mermaid
+              // inline, wiki-link mark anchors, images, etc.) have empty
+              // textContent because their payload lives in node attrs —
+              // gate on childCount instead so their own serializers get
+              // to emit the right source form.
+              const cellContent = col.firstChild as PMNodeLike | null;
+              if (cellContent && cellContent.childCount > 0) {
                 state.renderInline(cellContent);
               }
             });
