@@ -190,7 +190,14 @@ pub fn build_menu<R: Runtime>(
             }
             b = b.separator();
             // DARK group.
-            for (id, label) in &[("dark", "Dark"), ("dracula", "Dracula")] {
+            for (id, label) in &[
+                ("dark", "Dark"),
+                ("dracula", "Dracula"),
+                ("one-dark-pro", "One Dark Pro"),
+                ("nord", "Nord"),
+                ("github-dark", "GitHub Dark"),
+                ("tokyo-night", "Tokyo Night"),
+            ] {
                 b = b.item(
                     &CheckMenuItemBuilder::with_id(format!("view:theme:{}", id), *label)
                         .checked(theme == *id)

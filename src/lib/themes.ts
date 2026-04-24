@@ -26,7 +26,11 @@ export type ResolvedThemeId =
   | "ayu-light"
   | "alabaster"
   | "dark"
-  | "dracula";
+  | "dracula"
+  | "one-dark-pro"
+  | "nord"
+  | "github-dark"
+  | "tokyo-night";
 
 export type ThemeId = "system" | ResolvedThemeId;
 
@@ -263,12 +267,127 @@ export const THEMES: Record<ResolvedThemeId, Theme> = {
       "--danger": "#ff5555",
     },
   },
+  "one-dark-pro": {
+    id: "one-dark-pro",
+    name: "One Dark Pro",
+    kind: "dark",
+    shikiTheme: "one-dark-pro",
+    mermaidTheme: "dark",
+    vars: {
+      ...common(),
+      "--bg": "#282c34",
+      "--bg-sidebar": "#21252b",
+      "--bg-tabbar": "#21252b",
+      "--bg-tabbar-hover": "#2c313a",
+      "--bg-tab-active": "#282c34",
+      "--bg-tab-inactive": "transparent",
+      "--bg-topbar": "#21252b",
+      "--bg-hover": "#2c313a",
+      "--text": "#abb2bf",
+      "--text-muted": "#8b92a2",
+      "--text-faint": "#5c6370",
+      "--text-on-dark": "#abb2bf",
+      "--text-on-dark-muted": "#8b92a2",
+      "--border": "#3e4451",
+      "--border-strong": "#4f5665",
+      "--accent": "#61afef",
+      "--accent-hover": "#7cc3ff",
+      "--danger": "#e06c75",
+    },
+  },
+  nord: {
+    id: "nord",
+    name: "Nord",
+    kind: "dark",
+    shikiTheme: "nord",
+    mermaidTheme: "dark",
+    vars: {
+      ...common(),
+      "--bg": "#2e3440",
+      "--bg-sidebar": "#272c36",
+      "--bg-tabbar": "#272c36",
+      "--bg-tabbar-hover": "#3b4252",
+      "--bg-tab-active": "#2e3440",
+      "--bg-tab-inactive": "transparent",
+      "--bg-topbar": "#272c36",
+      "--bg-hover": "#3b4252",
+      "--text": "#d8dee9",
+      "--text-muted": "#a8b1c2",
+      "--text-faint": "#7a8495",
+      "--text-on-dark": "#d8dee9",
+      "--text-on-dark-muted": "#a8b1c2",
+      "--border": "#434c5e",
+      "--border-strong": "#4c566a",
+      "--accent": "#88c0d0",
+      "--accent-hover": "#a3d1df",
+      "--danger": "#bf616a",
+    },
+  },
+  "github-dark": {
+    id: "github-dark",
+    name: "GitHub Dark",
+    kind: "dark",
+    // Shiki's "github-dark-default" matches github.com's exact dark palette;
+    // our default "Dark" theme uses plain "github-dark" (slightly different
+    // background), so use the suffixed variant to keep them visually distinct.
+    shikiTheme: "github-dark-default",
+    mermaidTheme: "dark",
+    vars: {
+      ...common(),
+      "--bg": "#0d1117",
+      "--bg-sidebar": "#010409",
+      "--bg-tabbar": "#010409",
+      "--bg-tabbar-hover": "#161b22",
+      "--bg-tab-active": "#0d1117",
+      "--bg-tab-inactive": "transparent",
+      "--bg-topbar": "#010409",
+      "--bg-hover": "#161b22",
+      "--text": "#c9d1d9",
+      "--text-muted": "#8b949e",
+      "--text-faint": "#6e7681",
+      "--text-on-dark": "#c9d1d9",
+      "--text-on-dark-muted": "#8b949e",
+      "--border": "#30363d",
+      "--border-strong": "#484f58",
+      "--accent": "#58a6ff",
+      "--accent-hover": "#79b8ff",
+      "--danger": "#f85149",
+    },
+  },
+  "tokyo-night": {
+    id: "tokyo-night",
+    name: "Tokyo Night",
+    kind: "dark",
+    shikiTheme: "tokyo-night",
+    mermaidTheme: "dark",
+    vars: {
+      ...common(),
+      "--bg": "#1a1b26",
+      "--bg-sidebar": "#16161e",
+      "--bg-tabbar": "#16161e",
+      "--bg-tabbar-hover": "#24253a",
+      "--bg-tab-active": "#1a1b26",
+      "--bg-tab-inactive": "transparent",
+      "--bg-topbar": "#16161e",
+      "--bg-hover": "#24253a",
+      "--text": "#c0caf5",
+      "--text-muted": "#9aa5ce",
+      "--text-faint": "#565f89",
+      "--text-on-dark": "#c0caf5",
+      "--text-on-dark-muted": "#9aa5ce",
+      "--border": "#2a2b3d",
+      "--border-strong": "#3b3d57",
+      "--accent": "#7aa2f7",
+      "--accent-hover": "#9abdf9",
+      "--danger": "#f7768e",
+    },
+  },
 };
 
 /** Theme IDs grouped by light/dark for the menu. Order = menu order. */
 export const THEME_GROUPS: Record<ThemeKind, ResolvedThemeId[]> = {
   light: ["light", "atom-one-light", "solarized-light", "ayu-light", "alabaster"],
-  dark: ["dark", "dracula"],
+  dark: ["dark", "dracula", "one-dark-pro", "nord", "github-dark", "tokyo-night"],
 };
 
 /**
