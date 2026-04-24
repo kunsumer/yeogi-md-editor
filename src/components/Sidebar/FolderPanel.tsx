@@ -18,6 +18,7 @@ export function FolderPanel({ folder, onPickFolder, onOpenFile, onClose }: Props
   const [query, setQuery] = useState("");
   const [expandSeq, setExpandSeq] = useState(0);
   const [collapseSeq, setCollapseSeq] = useState(0);
+  const [reloadSeq, setReloadSeq] = useState(0);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const basename = folder ? (folder.split("/").pop() ?? "") : "";
@@ -53,6 +54,15 @@ export function FolderPanel({ folder, onPickFolder, onOpenFile, onClose }: Props
         className={`aside-header-btn${searchOpen ? " is-active" : ""}`}
       >
         <SearchIcon />
+      </button>
+      <button
+        type="button"
+        aria-label="Reload folder"
+        title="Reload folder contents from disk"
+        onClick={() => setReloadSeq((n) => n + 1)}
+        className="aside-header-btn"
+      >
+        <ReloadIcon />
       </button>
       <button
         type="button"
@@ -141,6 +151,7 @@ export function FolderPanel({ folder, onPickFolder, onOpenFile, onClose }: Props
             filter={searchOpen ? query : ""}
             expandAllSeq={expandSeq}
             collapseAllSeq={collapseSeq}
+            reloadSeq={reloadSeq}
           />
         </>
       )}
@@ -167,6 +178,18 @@ function SearchIcon() {
     <svg {...HEADER_ICON}>
       <circle cx="6" cy="6" r="4" />
       <line x1="9" y1="9" x2="12" y2="12" />
+    </svg>
+  );
+}
+
+function ReloadIcon() {
+  // Three-quarter circular arrow with a small arrowhead on the sweep end.
+  // Reads as the standard "refresh" glyph used in browsers / macOS Finder.
+  // The arc opens at the top-right so the arrowhead points that way.
+  return (
+    <svg {...HEADER_ICON}>
+      <path d="M 11 4 A 4 4 0 1 0 12 7.5" />
+      <polyline points="11 2 11 4 9 4" />
     </svg>
   );
 }

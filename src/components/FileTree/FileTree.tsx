@@ -10,6 +10,12 @@ interface Props {
   expandAllSeq?: number;
   /** Monotonic counter — incrementing triggers "collapse all". */
   collapseAllSeq?: number;
+  /**
+   * Monotonic counter — incrementing re-fetches the root + every currently-
+   * cached subdir from disk, so files added / removed / renamed outside the
+   * app show up without a folder-pick roundtrip. Expanded state is preserved.
+   */
+  reloadSeq?: number;
 }
 
 const rowStyle: React.CSSProperties = {
@@ -112,6 +118,7 @@ export function FileTree({
   filter = "",
   expandAllSeq = 0,
   collapseAllSeq = 0,
+  reloadSeq = 0,
 }: Props) {
   // Flat cache so filter / expand-all / collapse-all can operate across the
   // whole loaded tree in a single pass. Each Node is now presentational —
@@ -217,6 +224,49 @@ export function FileTree({
     if (collapseAllSeq === 0) return;
     setExpanded(new Set());
   }, [collapseAllSeq]);
+
+  // Reload: re-fetch the root and every currently-cached subdir so external
+  // filesystem changes (new file, deleted file, rename) show up. Preserves
+  // the expanded-state set so the tree looks the same afterwards, just
+  // with fresh contents. A cached dir that no longer exists on disk
+  // silently drops out of the cache (fsList error → skip).
+  useEffect(() => {
+    if (reloadSeq === 0) return;
+    let cancelled = false;
+    (async () => {
+      // Snapshot the cache keys so we know what to re-fetch even if the
+      // cache mutates underneath us mid-loop.
+      const paths = Array.from(cache.keys());
+      if (!paths.includes(root)) paths.unshift(root);
+      const next = new Map<string, DirEntry[]>();
+      for (const p of paths) {
+        try {
+          const entries = await fsList(p);
+          if (cancelled) return;
+          next.set(p, entries);
+        } catch {
+          // Path vanished or became unreadable — drop from cache silently.
+        }
+      }
+      if (cancelled) return;
+      setCache(next);
+      // Prune expanded state for paths that no longer have a cached entry
+      // (the directory was deleted). Keeps expanded-state consistent with
+      // the cache.
+      setExpanded((prev) => {
+        const filtered = new Set<string>();
+        for (const p of prev) if (next.has(p)) filtered.add(p);
+        return filtered;
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // `cache` is intentionally read-through a snapshot, not a reactive dep —
+    // we want each reloadSeq bump to fire exactly once regardless of
+    // cache mutations it might trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadSeq]);
 
   const q = filter.trim().toLowerCase();
   const filterActive = q.length > 0;
