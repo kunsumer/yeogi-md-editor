@@ -1151,3 +1151,16 @@
 .wysiwyg-content .hljs-selector-pseudo { color: #116329; }
 .wysiwyg-content .hljs-emphasis { font-style: italic; }
 .wysiwyg-content .hljs-deletion { color: #82071e; background: #ffebe9; }
+
+/* --- Definition lists (Pandoc / extended-markdown style) --- */
+.wysiwyg-content dl.deflist {
+  margin: 0.9em 0;
+}
+.wysiwyg-content dl.deflist dt {
+  font-weight: 600;
+  margin-top: 0.6em;
+}
+.wysiwyg-content dl.deflist dd {
+  margin: 0.15em 0 0.4em 1.6em;
+  color: var(--text);
+}

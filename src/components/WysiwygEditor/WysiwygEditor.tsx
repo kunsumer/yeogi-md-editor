@@ -103,6 +103,11 @@ import { Subscript, Superscript, Highlight } from "./nodes/SubSup";
 import { WikiLink } from "./nodes/WikiLink";
 import { HeadingWithSyntax } from "./nodes/HeadingWithSyntax";
 import { HardBreakTwoSpace } from "./nodes/HardBreakTwoSpace";
+import {
+  DefinitionList,
+  DefinitionTerm,
+  DefinitionDescription,
+} from "./nodes/DefinitionList";
 import { postProcessMarkdown } from "./postProcessMarkdown";
 import TextAlign from "@tiptap/extension-text-align";
 import "./wysiwyg.css";
@@ -213,6 +218,9 @@ export function WysiwygEditor({
       Mermaid,
       Details,
       Summary,
+      DefinitionList,
+      DefinitionTerm,
+      DefinitionDescription,
       FootnoteRef,
       FootnoteSection,
       FootnoteItem,
