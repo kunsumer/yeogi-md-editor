@@ -83,7 +83,18 @@ export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/yeogi-update.key)"
 
    > **Filename quirk:** we upload the tarball as literally `Yeogi .MD Editor.app.tar.gz` (with spaces). GitHub normalizes spaces to dots on the download URL, so the URL in `latest.json` must use `Yeogi.MD.Editor.app.tar.gz` (dots, no `_universal`). On-disk filename ≠ URL filename — don't add `_universal` to the local filename to match; it breaks the URL mapping.
 
-4. **Publish a GitHub Release** tagged `v0.X.Y`. Upload the three bundle artifacts + `latest.json` in one `gh release create` call — `gh` handles the dot-normalization of spaces automatically, so you can pass the on-disk paths verbatim:
+4. **(If working from a firewalled network)** Squash-push the tree to remote `main` via `scripts/api-push.py`. This is a workaround for networks that block git-over-ssh/https — it uses GitHub's Git Data API to upload every tracked file as a blob, assembles a tree, and fast-forwards `main`:
+
+   ```bash
+   python3 scripts/api-push.py                    # commit message from HEAD
+   python3 scripts/api-push.py <release-sha>      # use a specific commit's message
+   ```
+
+   If `HEAD` is the commit you want to publish, no args needed. If `HEAD` is a follow-up (e.g. a Cargo.lock bump) and you want the earlier release commit's message on the remote, pass its SHA.
+
+   Skip this step entirely on networks where native `git push` works.
+
+5. **Publish a GitHub Release** tagged `v0.X.Y`. Upload the three bundle artifacts + `latest.json` in one `gh release create` call — `gh` handles the dot-normalization of spaces automatically, so you can pass the on-disk paths verbatim:
    ```bash
    BUNDLE="src-tauri/target/universal-apple-darwin/release/bundle"
    gh release create v0.X.Y \
@@ -102,7 +113,7 @@ export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/yeogi-update.key)"
    ```
    Should echo `"0.X.Y"`. If it echoes a stale version, the release probably isn't marked latest yet — `gh release edit v0.X.Y --latest`.
 
-5. **Point users at the DMG for the first install** (one-time). Subsequent versions install automatically: the app checks `latest.json` on launch, shows a banner if the remote `version` beats the local one, and on Install + Restart verifies `.sig` against the baked-in pubkey before swapping the `.app` in place.
+6. **Point users at the DMG for the first install** (one-time). Subsequent versions install automatically: the app checks `latest.json` on launch, shows a banner if the remote `version` beats the local one, and on Install + Restart verifies `.sig` against the baked-in pubkey before swapping the `.app` in place.
 
 ## What users see
 
