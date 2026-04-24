@@ -2,6 +2,37 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.3 — 2026-04-24
+
+### New
+
+- **Instant link tooltips.** Hovering a link in the WYSIWYG editor or Preview pane now shows the link's title + href immediately instead of waiting for the OS's ~1 s native-tooltip delay. Custom floating tooltip with title on top, href below in monospace; native browser tooltip is suppressed by moving the `title` attribute to a data attribute on first hover.
+- **More dark themes.** `View → Appearance → Dark` group adds **One Dark Pro**, **Nord**, **GitHub Dark** (canonical `#0d1117` palette, distinct from the default Dark theme), and **Tokyo Night**. Each pairs a Shiki code-block theme that matches its palette.
+- **"Help → Reset Welcome.md to Default"** menu item — overwrites your `~/Documents/Yeogi .MD Editor/Welcome.md` with the bundled seed (the source ships an updated demo doc on every release; this lets you pick up the latest without manually deleting the file). Destructive confirmation prompt warns before replacing local edits.
+
+### Fixed
+
+- **Save-time crash on documents containing tables.** The WYSIWYG table cell serializer's textContent guard threw `TypeError: No default value` in WebKit on cells containing inline math atoms (`$\LaTeX$`), crashing the editor on every keystroke. Replaced the dead leftover with a `cellContent.childCount > 0` check so atom cells round-trip safely.
+- **Inline math, wiki-links, and other atom-shaped inline content in table cells** no longer disappear on save. The same fix as above; a cell with `$x^2$` or `[[Note]]` now round-trips with content intact.
+- **`<details>` / `<summary>` round-trip.** Previously the WYSIWYG serializer dropped the `<details>` wrapper on save, collapsing the disclosure widget to bare content. Now emits a proper HTML block with `[open]` attribute preserved. Click-to-expand inside the editor works via a NodeView that routes summary clicks through a ProseMirror transaction.
+- **Footnote `[^id]` round-trip.** Footnote references were being serialized as the grotesque `[^1^](#fn-1)` form because the `<sup data-footnote-ref>` HTML matched both Tiptap's footnote-ref node and the Superscript mark + Link mark at the same parse priority. Bumped FootnoteRef / FootnoteSection / FootnoteItem parseHTML priorities so the specialized rules win.
+- **Email autolinks `<x@y>`** stay as `<x@y>` on save instead of being converted to `[x@y](mailto:x@y)`. URL autolinks already round-tripped correctly; this completes the symmetry.
+- **Setext headings `===` / `---`** survive WYSIWYG round-trips instead of being silently rewritten to ATX `#` / `##`. New `HeadingWithSyntax` extension carries a `syntax` attr through parse/serialize.
+- **Hard line breaks** canonicalized to the conventional two-trailing-spaces form on save (was `\\\n`). Both render identically; two-space is the canonical CommonMark form.
+- **Definition lists** (`term\n: defn` Pandoc form) round-trip without flattening to inline `term : defn`. New schema nodes for `<dl>` / `<dt>` / `<dd>` plus `markdown-it-deflist` parser. CSS treatment in the WYSIWYG matches the Preview rendering.
+- **Tauri event names with dots** (`file.changed`, `watcher.lost`, `preview.contentUpdate`, `editor.closed`) were rejected by Tauri 2's event-name validator, raising "Unhandled Promise Rejection" on every app launch. Renamed all four to `:` separators on both Rust and TS sides.
+- **Toolbar responds to selection changes instantly.** Clicking into a table cell or moving the caret across differently-marked text now updates the toolbar's table row and bold/italic/code highlights in the same frame, instead of waiting for some unrelated transaction to trigger a re-render.
+- **Finer-grained scroll sync** between WYSIWYG and Edit. Toggling ⌘E now lands on (or near) the exact source line you were on inside the current block, not just the top of the block. Most noticeable in long code blocks where the within-block precision matters.
+
+### Performance
+
+- **4.7× smaller initial bundle.** Vite manualChunks groups React, Tiptap, CodeMirror, and KaTeX into dedicated vendor chunks. The markdown-rendering pipeline (remark + rehype + Shiki) is dynamic-imported at the two surfaces that need it (Export HTML, Print to PDF, Preview pane), so WYSIWYG-only users never pay for it. Main entry chunk dropped from 1,450 kB to 309 kB (479 kB → 92 kB gzipped).
+
+### Developer / release infrastructure
+
+- **GitHub Actions release workflow.** Pushing a `v*` tag now builds the universal bundle on CI, generates `latest.json`, publishes the GitHub Release, and verifies the updater endpoint — replacing the manual `pnpm release:build` + `gh release create` ceremony. Manual flow still works as fallback (`docs/releasing.md`).
+- **`scripts/api-push.py`** (the firewall-bypass squash-push) now defaults its commit-message ref to HEAD instead of requiring a hand-edited SHA before each release.
+
 ## v0.4.2 — 2026-04-24
 
 ### Fixed
