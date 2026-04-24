@@ -4,6 +4,12 @@ import type { Document } from "../../state/documents";
 interface Props {
   pane: Pane;
   active: Document | null;
+  /**
+   * When true the WYSIWYG/Edit segmented control is hidden — used for
+   * non-markdown files (.txt / .json / .sh / etc.) where Tiptap's parser
+   * doesn't apply and Edit mode is the only meaningful option.
+   */
+  viewModeLocked?: boolean;
   onSetViewMode(mode: ViewMode): void;
   onSetAutosaveEnabled(enabled: boolean): void;
 }
@@ -91,7 +97,13 @@ const switchThumb = (on: boolean): React.CSSProperties => ({
   transition: "left 140ms ease",
 });
 
-export function TopBar({ pane, active, onSetViewMode, onSetAutosaveEnabled }: Props) {
+export function TopBar({
+  pane,
+  active,
+  viewModeLocked = false,
+  onSetViewMode,
+  onSetAutosaveEnabled,
+}: Props) {
   const filename = active?.path ? active.path.split("/").pop() : "Untitled";
   const wordCount = (active?.content ?? "").trim().split(/\s+/).filter(Boolean).length;
   const isDirty = !!active?.isDirty;
@@ -158,24 +170,26 @@ export function TopBar({ pane, active, onSetViewMode, onSetAutosaveEnabled }: Pr
           </button>
         </label>
       )}
-      <div style={segWrap} role="group" aria-label="View mode">
-        <button
-          type="button"
-          style={segBtn(viewMode === "wysiwyg")}
-          onClick={() => onSetViewMode("wysiwyg")}
-          aria-pressed={viewMode === "wysiwyg"}
-        >
-          WYSIWYG
-        </button>
-        <button
-          type="button"
-          style={segBtn(viewMode === "edit")}
-          onClick={() => onSetViewMode("edit")}
-          aria-pressed={viewMode === "edit"}
-        >
-          Edit
-        </button>
-      </div>
+      {!viewModeLocked && (
+        <div style={segWrap} role="group" aria-label="View mode">
+          <button
+            type="button"
+            style={segBtn(viewMode === "wysiwyg")}
+            onClick={() => onSetViewMode("wysiwyg")}
+            aria-pressed={viewMode === "wysiwyg"}
+          >
+            WYSIWYG
+          </button>
+          <button
+            type="button"
+            style={segBtn(viewMode === "edit")}
+            onClick={() => onSetViewMode("edit")}
+            aria-pressed={viewMode === "edit"}
+          >
+            Edit
+          </button>
+        </div>
+      )}
     </div>
   );
 }

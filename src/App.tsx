@@ -27,6 +27,7 @@ import {
 // to the first time the user triggers one of those export actions.
 import { buildStandaloneHtml } from "./lib/exportHtml";
 import { extractBlocks, extractHeadings, type Block, type Heading } from "./lib/toc";
+import { isMarkdownPath } from "./lib/isMarkdownPath";
 import { slugify } from "./lib/slug";
 import { useDocuments } from "./state/documents";
 import { useLayout, type ViewMode } from "./state/layout";
@@ -197,7 +198,20 @@ export default function App() {
   async function pickAndOpenFiles() {
     const picked = await open({
       multiple: true,
-      filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
+      // Two-tier filter: Markdown extensions surface first (the app's primary
+      // file type), then the broader "Text" set so people can open .json /
+      // .sh / .log / .yaml / etc. neighbors of their notes without switching
+      // to another editor. Keep in sync with src-tauri/src/fs.rs ALLOWED.
+      filters: [
+        { name: "Markdown", extensions: ["md", "markdown", "mdown", "mkd"] },
+        {
+          name: "Text",
+          extensions: [
+            "md", "markdown", "mdown", "mkd",
+            "txt", "json", "yaml", "yml", "toml", "sh", "log", "csv",
+          ],
+        },
+      ],
     });
     const list = Array.isArray(picked) ? picked : typeof picked === "string" ? [picked] : [];
     for (const p of list) {
@@ -581,6 +595,11 @@ export default function App() {
         }
         case "view:toggle-edit-mode": {
           if (!active) break;
+          // Non-markdown files (.txt / .json / .sh / etc.) only render in
+          // Edit mode; ⌘E is a no-op for them so it doesn't switch into
+          // a WYSIWYG view that immediately gets locked back to Edit by
+          // the EditorPane's effective-view-mode override.
+          if (!isMarkdownPath(active.path)) break;
           const currentMode = focusedPane?.viewMode ?? "wysiwyg";
           setViewMode(currentMode === "wysiwyg" ? "edit" : "wysiwyg");
           break;

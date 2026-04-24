@@ -84,8 +84,20 @@ pub fn list(path: &str) -> Result<Vec<DirEntry>, FsError> {
         // dotfile-style sidecar metadata) can navigate to them.
         if name == ".DS_Store" { continue; }
         if !is_dir {
-            let ext = ep.extension().and_then(|s| s.to_str()).unwrap_or("");
-            if ext != "md" && ext != "markdown" { continue; }
+            let ext = ep
+                .extension()
+                .and_then(|s| s.to_str())
+                .map(|s| s.to_ascii_lowercase())
+                .unwrap_or_default();
+            // Markdown is the primary file type; the rest are "viewable as
+            // plain text" extensions that open in Edit mode only — see
+            // src/lib/isMarkdownPath.ts for the markdown-vs-other split.
+            // Keep this list in sync with the file-dialog filters in App.tsx.
+            const ALLOWED: &[&str] = &[
+                "md", "markdown", "mdown", "mkd",
+                "txt", "json", "yaml", "yml", "toml", "sh", "log", "csv",
+            ];
+            if !ALLOWED.contains(&ext.as_str()) { continue; }
         }
         out.push(DirEntry { name, path: ep.to_string_lossy().to_string(), is_dir });
     }

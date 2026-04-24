@@ -6,6 +6,7 @@ import { ConflictBanner } from "../ConflictBanner";
 import { UpdateBanner } from "../UpdateBanner";
 import type { Pane, PaneId, ViewMode } from "../../state/layout";
 import type { Document } from "../../state/documents";
+import { isMarkdownPath } from "../../lib/isMarkdownPath";
 import type { EditorView } from "@codemirror/view";
 import type { Update } from "@tauri-apps/plugin-updater";
 
@@ -103,6 +104,14 @@ export function EditorPane({
     active != null &&
     otherPaneActiveTabId === active.id;
 
+  // Non-markdown files (.txt / .json / .sh / .yaml / .yml / .toml / .log /
+  // .csv) open in Edit mode only — Tiptap's parser would mangle them and
+  // the formatting toolbar wouldn't apply anyway. Force the view mode for
+  // the renderer below regardless of what's stored on the pane, and pass
+  // a flag down to TopBar so it can hide the WYSIWYG/Edit toggle.
+  const isMarkdown = isMarkdownPath(active?.path);
+  const effectiveViewMode: ViewMode = isMarkdown ? pane.viewMode : "edit";
+
   // Both panes are editable when they show different docs — they're separate
   // editor instances with separate undo histories, so no dual-undo hazard.
   // The only hard read-only case is the same-doc lock (secondary mirrors
@@ -130,6 +139,7 @@ export function EditorPane({
       <TopBar
         pane={pane}
         active={active}
+        viewModeLocked={!isMarkdown}
         onSetViewMode={(mode) => onSetViewMode(pane.id, mode)}
         onSetAutosaveEnabled={(enabled) => {
           if (active) onSetAutosaveEnabled?.(active.id, enabled);
@@ -171,7 +181,7 @@ export function EditorPane({
       )}
       {active ? (
         <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden" }}>
-          {pane.viewMode === "wysiwyg" ? (
+          {effectiveViewMode === "wysiwyg" ? (
             <WysiwygEditor
               key={active.id}
               content={active.content}

@@ -2,6 +2,14 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.4 — 2026-04-24
+
+### New
+
+- **Open more file types alongside your notes.** The folder explorer + Open dialog now surface `.txt`, `.json`, `.yaml`, `.yml`, `.toml`, `.sh`, `.log`, and `.csv` files in addition to the four markdown extensions. They open in Edit mode (CodeMirror) only — Tiptap's WYSIWYG would mangle non-markdown content, so the WYSIWYG/Edit toggle is hidden for those files and ⌘E becomes a no-op. Save / autosave / file-watcher all work identically. Useful for glancing at a `package.json` or `.zshrc` without leaving the editor.
+- **Dot-folders show in the explorer.** Folders starting with `.` (like `.obsidian/`, `.notes/`) used to be filtered out unconditionally; now only `.DS_Store` is excluded so notes-app sidecar conventions are visible. Regular `.dotfile`s are still filtered by the same extension allow-list as everything else.
+- **Chrome-style tab shortcuts.** `⌘1`..`⌘8` jump to the corresponding tab of the focused pane; `⌘9` jumps to the last tab regardless of count (matches Chrome / Safari convention).
+
 ## v0.4.3 — 2026-04-24
 
 ### New
