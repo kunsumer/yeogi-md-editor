@@ -10,6 +10,7 @@ import { ConfirmDialog } from "./components/ConfirmDialog";
 import { EditorPane } from "./components/EditorPane";
 import { FolderPanel, ResizeHandle, TocPanel } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
+import { LinkTooltip } from "./components/LinkTooltip";
 import { Tutorial } from "./components/Tutorial";
 import {
   ensureWelcomeFile,
@@ -960,6 +961,7 @@ export default function App() {
         saveState={active?.saveState ?? "idle"}
         watcherOffline={watcherOffline}
       />
+      <LinkTooltip />
       {tutorialOpen && (
         <Tutorial
           onClose={() => {
