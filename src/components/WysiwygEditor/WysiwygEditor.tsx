@@ -101,6 +101,7 @@ import { FocusCell } from "./nodes/FocusCell";
 import { SearchHighlight } from "./nodes/SearchHighlight";
 import { Subscript, Superscript, Highlight } from "./nodes/SubSup";
 import { WikiLink } from "./nodes/WikiLink";
+import { HeadingWithSyntax } from "./nodes/HeadingWithSyntax";
 import { postProcessMarkdown } from "./postProcessMarkdown";
 import TextAlign from "@tiptap/extension-text-align";
 import "./wysiwyg.css";
@@ -158,7 +159,12 @@ export function WysiwygEditor({
         // Disable StarterKit's plain CodeBlock — we swap in the Lowlight-backed
         // variant below for syntax highlighting.
         codeBlock: false,
+        // Disable StarterKit's default Heading — we substitute
+        // HeadingWithSyntax so `===` / `---` Setext underlines survive the
+        // WYSIWYG round-trip instead of being normalized to ATX `#` / `##`.
+        heading: false,
       }),
+      HeadingWithSyntax,
       CodeBlockWithCopy.configure({
         lowlight,
         HTMLAttributes: { spellcheck: "false" },
