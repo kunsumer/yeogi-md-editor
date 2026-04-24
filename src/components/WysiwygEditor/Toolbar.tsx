@@ -33,6 +33,28 @@ export function Toolbar({ editor }: Props) {
   const headingBtnRef = useRef<HTMLButtonElement | null>(null);
   const headingMenuRef = useRef<HTMLDivElement | null>(null);
 
+  // Tiptap v3's `useEditor` re-renders the host component on content updates
+  // but NOT on selection changes. The toolbar reads `editor.isActive(...)`
+  // on every render to decide what to show (bold/italic buttons, the table
+  // row, per-column alignment state, etc.) — without a selection-driven
+  // re-render, those checks use stale truth and the user sees a lag between
+  // clicking into a table cell and the table-row of the ribbon appearing
+  // (same for bold/italic state on text selection moves). Subscribe here
+  // and bump a counter so every selection change forces a re-render.
+  //
+  // Cost: one extra render per caret move. Toolbar is cheap (all small
+  // buttons reading sync state off the editor), and React bails quickly
+  // where nothing structurally changed. Content-change re-renders are
+  // already handled by useEditor, so we only subscribe to selectionUpdate.
+  const [, forceRender] = useState(0);
+  useEffect(() => {
+    const tick = () => forceRender((n) => n + 1);
+    editor.on("selectionUpdate", tick);
+    return () => {
+      editor.off("selectionUpdate", tick);
+    };
+  }, [editor]);
+
   // Close the heading popover on outside click / Escape.
   useEffect(() => {
     if (!headingOpen) return;
