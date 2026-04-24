@@ -248,6 +248,35 @@ export default function App() {
     }
   }
 
+  async function pickAndAddFolder() {
+    const picked = await open({ directory: true, multiple: false });
+    if (typeof picked !== "string") return;
+    useDocuments.getState().addExtraFolder(picked);
+    // Auto-reveal the Folder Explorer panel for the same reason as above.
+    if (!usePreferences.getState().folderVisible) {
+      usePreferences.getState().setFolderVisible(true);
+      preHideStateRef.current = null;
+    }
+  }
+
+  /**
+   * Close a folder group from the explorer. Handles both the primary and
+   * extras uniformly from the caller's perspective:
+   *   - extra folder: just drops out of extraFolders
+   *   - primary folder: if there are extras, promote extras[0] to primary
+   *     and shift the list; else clear the primary entirely.
+   */
+  function closeFolderFromExplorer(path: string) {
+    const docs = useDocuments.getState();
+    if (docs.folder === path) {
+      const [next, ...rest] = docs.extraFolders;
+      docs.setFolder(next ?? null);
+      docs.setExtraFolders(rest);
+    } else {
+      docs.removeExtraFolder(path);
+    }
+  }
+
   /**
    * Pane-aware close. Removing a tab from one pane must not close the doc in
    * the other pane if it's still there (case d: same doc open in both sides).
@@ -411,6 +440,9 @@ export default function App() {
     // on disk and clear it if not.
     if (persisted?.folder) {
       useDocuments.getState().setFolder(persisted.folder);
+    }
+    if (persisted?.extraFolders?.length) {
+      useDocuments.getState().setExtraFolders(persisted.extraFolders);
     }
     (async () => {
       if (persisted && persisted.paths.length > 0) {
@@ -895,6 +927,7 @@ export default function App() {
   // Three-column layout: [Folder] [Outline] [Editor]. Columns collapse when
   // their panel is hidden. Widths come from usePreferences so they persist.
   const folder = useDocuments((s) => s.folder);
+  const extraFolders = useDocuments((s) => s.extraFolders);
   const folderVisible = usePreferences((s) => s.folderVisible);
   const tocVisible = usePreferences((s) => s.tocVisible);
   const folderWidth = usePreferences((s) => s.folderWidth);
@@ -953,7 +986,10 @@ export default function App() {
           <>
             <FolderPanel
               folder={folder}
+              extraFolders={extraFolders}
               onPickFolder={() => pickAndOpenFolder().catch(console.error)}
+              onAddFolder={() => pickAndAddFolder().catch(console.error)}
+              onCloseFolder={closeFolderFromExplorer}
               onOpenFile={(p, opts) => openFile(p, opts).catch(console.error)}
               onClose={() => {
                 usePreferences.getState().setFolderVisible(false);

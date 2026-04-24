@@ -1,19 +1,44 @@
 import { useEffect, useRef, useState } from "react";
 import { FileTree } from "../FileTree";
 import { AsidePanel } from "./AsidePanel";
+import { MAX_OPEN_FOLDERS } from "../../state/documents";
 
 interface Props {
-  /** Absolute filesystem path; null means no folder has been picked yet. */
+  /** Primary folder root. null means no folder has been picked yet. */
   folder: string | null;
-  /** Called when the user clicks "Choose folder…" — App.tsx owns the dialog. */
+  /**
+   * Additional folder roots stacked below the primary. Each renders with
+   * its own collapsible header + FileTree. Bounded at MAX_OPEN_FOLDERS - 1.
+   */
+  extraFolders: string[];
+  /** Called when the user clicks "Open folder…" — App.tsx owns the dialog. */
   onPickFolder(): void;
-  /** Forwarded to FileTree — opens the clicked file as a tab. */
+  /**
+   * Called when the user clicks "Add folder…". App.tsx owns the dialog and
+   * appends the picked path to extraFolders (subject to MAX_OPEN_FOLDERS).
+   */
+  onAddFolder(): void;
+  /**
+   * Close a folder group. Called from the X on any folder's header — both
+   * the primary and extras. The App-level handler decides what happens:
+   * primary closes by promoting extras[0] to primary, extras just drop out.
+   */
+  onCloseFolder(path: string): void;
+  /** Forwarded to each FileTree — opens the clicked file as a tab. */
   onOpenFile(path: string, opts?: { toSide: boolean }): void;
   /** Dismisses the panel (equivalent to the View menu / ⌥⌘1 toggle). */
   onClose?: () => void;
 }
 
-export function FolderPanel({ folder, onPickFolder, onOpenFile, onClose }: Props) {
+export function FolderPanel({
+  folder,
+  extraFolders,
+  onPickFolder,
+  onAddFolder,
+  onCloseFolder,
+  onOpenFile,
+  onClose,
+}: Props) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [expandSeq, setExpandSeq] = useState(0);
@@ -21,7 +46,21 @@ export function FolderPanel({ folder, onPickFolder, onOpenFile, onClose }: Props
   const [reloadSeq, setReloadSeq] = useState(0);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  const basename = folder ? (folder.split("/").pop() ?? "") : "";
+  // Per-folder expand/collapse of the whole FolderGroup (affects the
+  // FileTree visibility underneath). Tracked as a set of collapsed paths
+  // so the default is "all expanded" — closing by omission reads naturally.
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
+    new Set(),
+  );
+
+  function toggleFolderCollapsed(path: string) {
+    setCollapsedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }
 
   // Focus the input when the user toggles search on. Clearing+hiding when
   // they toggle off so the filter prop drops back to empty.
@@ -34,16 +73,33 @@ export function FolderPanel({ folder, onPickFolder, onOpenFile, onClose }: Props
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchOpen]);
 
+  const totalFolders = (folder ? 1 : 0) + extraFolders.length;
+  const canAddMore = totalFolders < MAX_OPEN_FOLDERS;
+
   const actions = folder != null && (
     <>
       <button
         type="button"
         aria-label="Open folder"
-        title="Open a different folder…"
+        title="Open a different folder (replaces the primary)"
         onClick={onPickFolder}
         className="aside-header-btn"
       >
         <OpenFolderIcon />
+      </button>
+      <button
+        type="button"
+        aria-label="Add another folder"
+        title={
+          canAddMore
+            ? "Add another folder to the explorer"
+            : `Maximum ${MAX_OPEN_FOLDERS} folders — remove one first`
+        }
+        onClick={onAddFolder}
+        disabled={!canAddMore}
+        className="aside-header-btn"
+      >
+        <AddFolderIcon />
       </button>
       <button
         type="button"
@@ -57,7 +113,7 @@ export function FolderPanel({ folder, onPickFolder, onOpenFile, onClose }: Props
       </button>
       <button
         type="button"
-        aria-label="Reload folder"
+        aria-label="Reload folders"
         title="Reload folder contents from disk"
         onClick={() => setReloadSeq((n) => n + 1)}
         className="aside-header-btn"
@@ -112,22 +168,6 @@ export function FolderPanel({ folder, onPickFolder, onOpenFile, onClose }: Props
         </div>
       ) : (
         <>
-          {basename && (
-            <div
-              style={{
-                padding: "0 6px 6px",
-                fontSize: 12,
-                fontWeight: 500,
-                color: "var(--text)",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-              title={folder}
-            >
-              {basename}
-            </div>
-          )}
           {searchOpen && (
             <input
               ref={searchInputRef}
@@ -145,17 +185,127 @@ export function FolderPanel({ folder, onPickFolder, onOpenFile, onClose }: Props
               className="aside-filter-input"
             />
           )}
-          <FileTree
+          <FolderGroup
             root={folder}
-            onOpenFile={onOpenFile}
+            isCollapsed={collapsedFolders.has(folder)}
+            onToggleCollapsed={() => toggleFolderCollapsed(folder)}
+            onRemove={() => onCloseFolder(folder)}
             filter={searchOpen ? query : ""}
             expandAllSeq={expandSeq}
             collapseAllSeq={collapseSeq}
             reloadSeq={reloadSeq}
+            onOpenFile={onOpenFile}
           />
+          {extraFolders.map((p) => (
+            <FolderGroup
+              key={p}
+              root={p}
+              isCollapsed={collapsedFolders.has(p)}
+              onToggleCollapsed={() => toggleFolderCollapsed(p)}
+              onRemove={() => onCloseFolder(p)}
+              filter={searchOpen ? query : ""}
+              expandAllSeq={expandSeq}
+              collapseAllSeq={collapseSeq}
+              reloadSeq={reloadSeq}
+              onOpenFile={onOpenFile}
+            />
+          ))}
         </>
       )}
     </AsidePanel>
+  );
+}
+
+/**
+ * One folder root + its tree. Header shows a chevron (expand/collapse the
+ * whole group), the folder basename, and a close button for extras.
+ *
+ * When collapsed, the FileTree isn't mounted — no listeners, no cache,
+ * no IPC calls. That's the "performance lever" the user can pull when
+ * they have multiple folders open but only want one active at a time.
+ */
+function FolderGroup({
+  root,
+  isCollapsed,
+  onToggleCollapsed,
+  onRemove,
+  filter,
+  expandAllSeq,
+  collapseAllSeq,
+  reloadSeq,
+  onOpenFile,
+}: {
+  root: string;
+  isCollapsed: boolean;
+  onToggleCollapsed(): void;
+  /** null for the primary (which has no per-group close button). */
+  onRemove: null | (() => void);
+  filter: string;
+  expandAllSeq: number;
+  collapseAllSeq: number;
+  reloadSeq: number;
+  onOpenFile(path: string, opts?: { toSide: boolean }): void;
+}) {
+  const basename = root.split("/").pop() ?? root;
+  return (
+    <section aria-label={basename} style={{ marginBottom: 8 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          padding: "2px 4px 4px",
+          fontSize: 12,
+          fontWeight: 500,
+          color: "var(--text)",
+        }}
+      >
+        <button
+          type="button"
+          aria-label={isCollapsed ? "Expand folder" : "Collapse folder"}
+          aria-expanded={!isCollapsed}
+          title={isCollapsed ? "Expand folder" : "Collapse folder"}
+          onClick={onToggleCollapsed}
+          className="aside-header-btn"
+          style={{ padding: 2 }}
+        >
+          <ChevronIcon open={!isCollapsed} />
+        </button>
+        <span
+          style={{
+            flex: 1,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          title={root}
+        >
+          {basename}
+        </span>
+        {onRemove && (
+          <button
+            type="button"
+            aria-label="Close folder"
+            title="Close this folder"
+            onClick={onRemove}
+            className="aside-header-btn"
+            style={{ padding: 2 }}
+          >
+            <CloseIcon />
+          </button>
+        )}
+      </div>
+      {!isCollapsed && (
+        <FileTree
+          root={root}
+          onOpenFile={onOpenFile}
+          filter={filter}
+          expandAllSeq={expandAllSeq}
+          collapseAllSeq={collapseAllSeq}
+          reloadSeq={reloadSeq}
+        />
+      )}
+    </section>
   );
 }
 
@@ -205,6 +355,19 @@ function OpenFolderIcon() {
   );
 }
 
+function AddFolderIcon() {
+  // Folder silhouette with a plus sign centered on the body. Shares the
+  // same outer shape as OpenFolderIcon for visual rhyme, then overlays a
+  // short horizontal + vertical stroke on the body center.
+  return (
+    <svg {...HEADER_ICON}>
+      <path d="M 3 4 H 5.5 Q 7 4 7 5 H 11 Q 12 5 12 6 V 10 Q 12 11 11 11 H 3 Q 2 11 2 10 V 5 Q 2 4 3 4 Z" />
+      <line x1="7" y1="7" x2="7" y2="10" />
+      <line x1="5.5" y1="8.5" x2="8.5" y2="8.5" />
+    </svg>
+  );
+}
+
 function ExpandAllIcon() {
   // Bar on top + open chevron pointing DOWN. The chevron is two line
   // segments meeting at the bottom point — no base edge — so it reads as
@@ -223,6 +386,30 @@ function CollapseAllIcon() {
     <svg {...HEADER_ICON}>
       <line x1="2.5" y1="3" x2="11.5" y2="3" />
       <polyline points="3 11.5 7 6.5 11 11.5" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  // Caret that flips between "pointing right" (collapsed) and "pointing
+  // down" (expanded). Same shape as the per-directory chevron in FileTree
+  // so the UI reads consistently at both levels.
+  return (
+    <svg {...HEADER_ICON}>
+      {open ? (
+        <polyline points="3 5 7 9 11 5" />
+      ) : (
+        <polyline points="5 3 9 7 5 11" />
+      )}
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg {...HEADER_ICON}>
+      <line x1="3.5" y1="3.5" x2="10.5" y2="10.5" />
+      <line x1="10.5" y1="3.5" x2="3.5" y2="10.5" />
     </svg>
   );
 }

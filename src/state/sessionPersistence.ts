@@ -21,6 +21,8 @@ export interface PersistedSession {
   paths: string[];
   activePath: string | null;
   folder: string | null;
+  /** Additional folder roots shown below the primary in the explorer. */
+  extraFolders: string[];
   layout: PersistedLayout;
 }
 
@@ -58,6 +60,7 @@ function snapshot(): PersistedSession {
     paths,
     activePath: primary.activeTabPath,
     folder: docs.folder,
+    extraFolders: docs.extraFolders,
     layout: {
       primary,
       secondary,
@@ -96,12 +99,18 @@ export function loadPersistedSession(): PersistedSession | null {
     const paths = parsed.paths.filter((p: unknown): p is string => typeof p === "string");
     const activePath = typeof parsed.activePath === "string" ? parsed.activePath : null;
     const folder = typeof parsed.folder === "string" ? parsed.folder : null;
+    // `extraFolders` arrived with the multi-folder explorer; older payloads
+    // just don't have the field — treat missing as empty array.
+    const extraFolders: string[] = Array.isArray(parsed.extraFolders)
+      ? parsed.extraFolders.filter((p: unknown): p is string => typeof p === "string")
+      : [];
     // Migrate older payloads that have no `layout` field.
     if (!parsed.layout) {
       return {
         paths,
         activePath,
         folder,
+        extraFolders,
         layout: {
           primary: { tabPaths: paths, activeTabPath: activePath, viewMode: "wysiwyg" },
           secondary: null,
@@ -110,7 +119,13 @@ export function loadPersistedSession(): PersistedSession | null {
         },
       };
     }
-    return { paths, activePath, folder, layout: parsed.layout as PersistedLayout };
+    return {
+      paths,
+      activePath,
+      folder,
+      extraFolders,
+      layout: parsed.layout as PersistedLayout,
+    };
   } catch {
     return null;
   }

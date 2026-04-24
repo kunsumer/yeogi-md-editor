@@ -29,9 +29,24 @@ export interface Document {
   autosaveEnabled: boolean;
 }
 
+/**
+ * Maximum folders visible in the explorer at once (primary + extras).
+ * Extra folders each mount their own FileTree and watcher — letting this
+ * grow unbounded would impose real cost on startup + file-event handling.
+ * 5 is plenty for typical "notes + project + scratch + reference" layouts.
+ */
+export const MAX_OPEN_FOLDERS = 5;
+
 interface DocumentsState {
   documents: Document[];
   folder: string | null;
+  /**
+   * Additional folder roots shown below the primary folder in the explorer.
+   * Purely presentational — wiki-link resolution, backlinks, and session
+   * persistence still scope to the primary `folder`. Bounded by
+   * MAX_OPEN_FOLDERS - 1 (the primary counts for one slot).
+   */
+  extraFolders: string[];
   openDocument(input: {
     path: string | null;
     content: string;
@@ -41,6 +56,9 @@ interface DocumentsState {
   }): string;
   closeDocument(id: string): void;
   setFolder(path: string | null): void;
+  addExtraFolder(path: string): void;
+  removeExtraFolder(path: string): void;
+  setExtraFolders(paths: string[]): void;
   setContent(id: string, content: string): void;
   markSaveStarted(id: string): void;
   markSaved(id: string, input: { content: string; mtimeMs: number }): void;
@@ -58,6 +76,7 @@ const newId = () => `doc-${++seq}-${Date.now()}`;
 export const useDocuments = create<DocumentsState>((set, get) => ({
   documents: [],
   folder: null,
+  extraFolders: [],
 
   openDocument({ path, content, savedMtime, encoding, readOnly = false }) {
     const autosaveDefault = usePreferences.getState().autosaveEnabled;
@@ -105,6 +124,32 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
 
   setFolder(path) {
     set({ folder: path });
+  },
+
+  addExtraFolder(path) {
+    set((s) => {
+      if (s.folder === path || s.extraFolders.includes(path)) return s;
+      // -1 because the primary `folder` counts for a slot.
+      if (s.extraFolders.length >= MAX_OPEN_FOLDERS - 1) return s;
+      return { extraFolders: [...s.extraFolders, path] };
+    });
+  },
+
+  removeExtraFolder(path) {
+    set((s) => ({
+      extraFolders: s.extraFolders.filter((p) => p !== path),
+    }));
+  },
+
+  setExtraFolders(paths) {
+    // Clamp to MAX_OPEN_FOLDERS - 1 (primary takes one slot) and dedupe
+    // against the primary folder so persisted state that's drifted into
+    // an invalid shape self-heals on load.
+    set((s) => ({
+      extraFolders: Array.from(new Set(paths))
+        .filter((p) => p !== s.folder)
+        .slice(0, MAX_OPEN_FOLDERS - 1),
+    }));
   },
 
   setContent(id, content) {
