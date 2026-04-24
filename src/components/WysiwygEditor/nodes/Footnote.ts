@@ -34,7 +34,13 @@ export const FootnoteRef = Node.create({
   parseHTML() {
     return [
       {
+        // Priority 60 > default 50 so FootnoteRef (Node, atom) wins over
+        // Superscript (Mark, matches generic `sup`) and Link (Mark, matches
+        // the inner `<a>`). Without this bump, the footnote `<sup><a>1</a></sup>`
+        // gets parsed as a superscript-wrapped link and serializes back as
+        // the grotesque `[^1^](#fn-1)` form.
         tag: "sup[data-footnote-ref]",
+        priority: 60,
         getAttrs: (el) => ({
           id: (el as HTMLElement).getAttribute("data-footnote-ref") ?? "",
           label: (el as HTMLElement).textContent ?? "",
@@ -120,7 +126,11 @@ export const FootnoteSection = Node.create({
   content: "footnoteItem+",
 
   parseHTML() {
-    return [{ tag: "section[data-footnote-section]" }];
+    // Priority 60 > default 50 so FootnoteSection claims the wrapping
+    // `<section><ol>…</ol></section>` before StarterKit's OrderedList
+    // matches the inner `<ol>`. Without this, the footnote section
+    // collapses into a plain ordered list and the section wrapper is lost.
+    return [{ tag: "section[data-footnote-section]", priority: 60 }];
   },
 
   renderHTML({ HTMLAttributes }) {
@@ -162,7 +172,12 @@ export const FootnoteItem = Node.create({
   parseHTML() {
     return [
       {
+        // Priority 60 > default 50 so FootnoteItem beats StarterKit's
+        // ListItem (generic `li`). Without the bump, the footnote definition
+        // loses its `data-footnote-id` attr and serializes as a plain
+        // ordered-list item (`1. body` instead of `[^1]: body`).
         tag: "li[data-footnote-id]",
+        priority: 60,
         getAttrs: (el) => ({
           id: (el as HTMLElement).getAttribute("data-footnote-id") ?? "",
         }),
