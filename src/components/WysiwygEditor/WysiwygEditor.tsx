@@ -101,6 +101,7 @@ import { FocusCell } from "./nodes/FocusCell";
 import { SearchHighlight } from "./nodes/SearchHighlight";
 import { Subscript, Superscript, Highlight } from "./nodes/SubSup";
 import { WikiLink } from "./nodes/WikiLink";
+import { postProcessMarkdown } from "./postProcessMarkdown";
 import TextAlign from "@tiptap/extension-text-align";
 import "./wysiwyg.css";
 import "../PreviewPane/preview-content.css";
@@ -126,11 +127,7 @@ function getMarkdown(editor: Editor): string {
     { getMarkdown: () => string } | undefined
   >;
   const raw = storage.markdown?.getMarkdown() ?? "";
-  // The WikiLink mark always serializes as `[[<target>|<display>]]`. When
-  // target === display we don't want the pipe noise, so collapse the pair
-  // here. The negative character class [^\[\]|\n] keeps us away from nested
-  // brackets / newlines / second pipes — matching the parser's bail rules.
-  return raw.replace(/\[\[([^\[\]|\n]+)\|\1\]\]/g, "[[$1]]");
+  return postProcessMarkdown(raw);
 }
 
 interface Props {
