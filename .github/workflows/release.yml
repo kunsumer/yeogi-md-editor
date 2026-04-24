@@ -1,0 +1,187 @@
+name: release
+
+# Triggers on `v*` tag pushes (e.g. `v0.4.3`). Builds the universal
+# .app + .dmg + signed updater tarball, generates latest.json, and
+# publishes a GitHub Release with all four artifacts attached.
+#
+# Required repo secret:
+#   TAURI_SIGNING_PRIVATE_KEY  — contents of ~/.tauri/yeogi-update.key
+#                                 (the local file is fine — paste verbatim)
+#
+# Do NOT set TAURI_SIGNING_PRIVATE_KEY_PASSWORD — the key has no
+# passphrase, and setting that var to anything triggers a "Wrong password
+# for that key" failure (see docs/releasing.md troubleshooting).
+#
+# Apple code-signing identity ("Yeogi Dev Cert") is intentionally NOT
+# wired up in CI yet — release-build.sh falls back to ad-hoc signing
+# when the keychain doesn't have the dev cert. Auto-update + Gatekeeper
+# both work fine with ad-hoc; the only consequence is that updaters
+# don't share a stable code-sign identifier with prior versions, so
+# macOS may re-prompt for Files & Folders permission on the first
+# launch after upgrade. Local builds (`pnpm release:build`) still
+# pick up the dev cert if it's present.
+#
+# Security note: this workflow only consumes GITHUB_REF_NAME (the tag
+# the user pushed) as a shell variable via the runner's env, never via
+# ${{ github.event.* }} string-interpolation into a run: block. Tag
+# names allow only a constrained character set per git's ref naming
+# rules, so the standard "command injection via untrusted PR title"
+# class doesn't apply here.
+
+on:
+  push:
+    tags: [ "v*" ]
+
+permissions:
+  contents: write   # needed for `gh release create`
+
+jobs:
+  release:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+
+      - uses: pnpm/action-setup@v3
+        with: { version: 10 }
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache Cargo registry + git
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('src-tauri/Cargo.lock') }}
+
+      - name: Cache Cargo target dir
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/target
+          key: ${{ runner.os }}-cargo-target-${{ hashFiles('src-tauri/Cargo.lock') }}-${{ hashFiles('src-tauri/src/**', 'src-tauri/Cargo.toml', 'src-tauri/build.rs') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-target-${{ hashFiles('src-tauri/Cargo.lock') }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Verify version matches tag
+        # Tag is `vX.Y.Z`; bail out early if package.json / Cargo.toml /
+        # tauri.conf.json drifted from it. Catches a forgotten lockstep
+        # bump before we waste 8 min on a doomed build.
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          CARGO=$(grep '^version = ' src-tauri/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          CONF=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          echo "tag=$TAG  package.json=$PKG  Cargo.toml=$CARGO  tauri.conf.json=$CONF"
+          if [ "$TAG" != "$PKG" ] || [ "$TAG" != "$CARGO" ] || [ "$TAG" != "$CONF" ]; then
+            echo "::error::Version mismatch — tag $TAG must match all three of package.json, Cargo.toml, tauri.conf.json"
+            exit 1
+          fi
+
+      - name: Build signed universal bundle
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          # Intentionally NOT setting TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+          # (the key has no passphrase; see docs/releasing.md).
+        run: pnpm release:build
+
+      - name: Generate latest.json
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          BUNDLE="src-tauri/target/universal-apple-darwin/release/bundle"
+          SIG=$(cat "$BUNDLE/macos/Yeogi .MD Editor.app.tar.gz.sig")
+          PUBDATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          # GitHub normalizes spaces to dots in download URLs — the URL form
+          # is "Yeogi.MD.Editor.app.tar.gz" even though the on-disk file
+          # has spaces. The same universal artifact serves both target
+          # strings since we ship a fat binary.
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/Yeogi.MD.Editor.app.tar.gz"
+          # Pull the first bullet from the CHANGELOG section for this
+          # version as a one-line summary; falls back to a generic note
+          # if the section heading isn't found.
+          NOTES=$(awk -v v="$VERSION" '
+            $0 ~ "^## v"v {found=1; next}
+            found && /^## v/ {exit}
+            found && /^- \*\*/ {gsub(/\*\*/, ""); print; exit}
+          ' CHANGELOG.md)
+          NOTES="${NOTES:-Release v$VERSION. See CHANGELOG.md for details.}"
+          jq -n \
+            --arg version "$VERSION" \
+            --arg notes "$NOTES" \
+            --arg pubdate "$PUBDATE" \
+            --arg sig "$SIG" \
+            --arg url "$URL" \
+            '{
+              version: $version,
+              notes: $notes,
+              pub_date: $pubdate,
+              platforms: {
+                "darwin-aarch64": { signature: $sig, url: $url },
+                "darwin-x86_64":  { signature: $sig, url: $url }
+              }
+            }' > /tmp/latest.json
+          echo "--- latest.json ---"
+          cat /tmp/latest.json
+
+      - name: Extract release notes from CHANGELOG
+        # Pull the section between `## vX.Y.Z` and the next `## ` for the
+        # GitHub Release body. Falls back to a one-liner if no section is
+        # found (e.g. you tagged before updating CHANGELOG — possible but
+        # the version-mismatch step above usually catches that earlier).
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v v="$VERSION" '
+            $0 ~ "^## v"v {found=1; print; next}
+            found && /^## v/ {exit}
+            found {print}
+          ' CHANGELOG.md > /tmp/release-notes.md
+          if [ ! -s /tmp/release-notes.md ]; then
+            echo "## v${VERSION}" > /tmp/release-notes.md
+            echo "" >> /tmp/release-notes.md
+            echo "Release notes not found in CHANGELOG.md. See commit history for changes." >> /tmp/release-notes.md
+          fi
+          echo "--- release notes ---"
+          cat /tmp/release-notes.md
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BUNDLE="src-tauri/target/universal-apple-darwin/release/bundle"
+          VERSION="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "v${VERSION}" \
+            --notes-file /tmp/release-notes.md \
+            "$BUNDLE/dmg/Yeogi .MD Editor_${VERSION}_universal.dmg" \
+            "$BUNDLE/macos/Yeogi .MD Editor.app.tar.gz" \
+            "$BUNDLE/macos/Yeogi .MD Editor.app.tar.gz.sig" \
+            /tmp/latest.json
+
+      - name: Verify updater endpoint resolves to new version
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          # GitHub takes a moment to mark a release "latest" — poll briefly.
+          for i in 1 2 3 4 5; do
+            REMOTE=$(curl -sL "https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/latest.json" | jq -r .version)
+            if [ "$REMOTE" = "$VERSION" ]; then
+              echo "Updater endpoint resolves to $VERSION ✓"
+              exit 0
+            fi
+            echo "Attempt $i: endpoint reports $REMOTE, expected $VERSION — retrying in 10 s"
+            sleep 10
+          done
+          echo "::error::Updater endpoint never resolved to $VERSION"
+          exit 1
