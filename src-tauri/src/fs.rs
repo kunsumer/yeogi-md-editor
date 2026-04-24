@@ -78,7 +78,11 @@ pub fn list(path: &str) -> Result<Vec<DirEntry>, FsError> {
         let ep = entry.path();
         let is_dir = ep.is_dir();
         let name = ep.file_name().unwrap_or_default().to_string_lossy().to_string();
-        if name.starts_with('.') { continue; }
+        // Filter macOS metadata files — they're not user content and clutter
+        // every Mac folder. Other dot-files / dot-folders are shown so users
+        // who keep notes alongside config (e.g. `.obsidian/`, `.notes/`,
+        // dotfile-style sidecar metadata) can navigate to them.
+        if name == ".DS_Store" { continue; }
         if !is_dir {
             let ext = ep.extension().and_then(|s| s.to_str()).unwrap_or("");
             if ext != "md" && ext != "markdown" { continue; }

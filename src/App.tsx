@@ -141,6 +141,34 @@ export default function App() {
     return () => window.removeEventListener("pagehide", handler);
   }, []);
 
+  // Chrome-style tab navigation: ⌘1..⌘8 jump to the Nth tab of the focused
+  // pane, ⌘9 jumps to the LAST tab regardless of count (browsers, including
+  // Chrome and Safari, follow this convention so Cmd+9 always lands on the
+  // rightmost tab even when you have more than 9 tabs open). Capture phase
+  // so the editor's own ⌘-digit handlers (none today, but defends against
+  // future drift) don't preempt this.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      // Only fire on the modifier we want — left bare so users with custom
+      // keymaps (Cmd+Shift+1, etc.) aren't accidentally hijacked.
+      if (!e.metaKey || e.shiftKey || e.altKey || e.ctrlKey) return;
+      if (e.key < "1" || e.key > "9") return;
+      const layout = useLayout.getState();
+      const pane =
+        layout.focusedPaneId === "primary" ? layout.primary : layout.secondary;
+      if (!pane || pane.tabs.length === 0) return;
+      const tabs = pane.tabs;
+      const idx = e.key === "9" ? tabs.length - 1 : Math.min(parseInt(e.key, 10) - 1, tabs.length - 1);
+      const targetId = tabs[idx];
+      if (!targetId) return;
+      e.preventDefault();
+      e.stopPropagation();
+      layout.setActiveTab(layout.focusedPaneId, targetId);
+    }
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
+
   async function openFile(path: string, opts?: { toSide: boolean }) {
     const existing = useDocuments.getState().documents.find((d) => d.path === path);
     if (existing) {
