@@ -102,6 +102,7 @@ import { SearchHighlight } from "./nodes/SearchHighlight";
 import { Subscript, Superscript, Highlight } from "./nodes/SubSup";
 import { WikiLink } from "./nodes/WikiLink";
 import { HeadingWithSyntax } from "./nodes/HeadingWithSyntax";
+import { HardBreakTwoSpace } from "./nodes/HardBreakTwoSpace";
 import { postProcessMarkdown } from "./postProcessMarkdown";
 import TextAlign from "@tiptap/extension-text-align";
 import "./wysiwyg.css";
@@ -163,8 +164,14 @@ export function WysiwygEditor({
         // HeadingWithSyntax so `===` / `---` Setext underlines survive the
         // WYSIWYG round-trip instead of being normalized to ATX `#` / `##`.
         heading: false,
+        // Disable StarterKit's default HardBreak — substitute one whose
+        // serializer emits the canonical "  \n" two-trailing-spaces form
+        // instead of `\\\n`. Both render identically; canonical form is
+        // less surprising on save.
+        hardBreak: false,
       }),
       HeadingWithSyntax,
+      HardBreakTwoSpace,
       CodeBlockWithCopy.configure({
         lowlight,
         HTMLAttributes: { spellcheck: "false" },
