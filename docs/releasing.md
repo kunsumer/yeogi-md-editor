@@ -20,8 +20,18 @@ Each release build needs the private key exposed as an env var:
 export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/yeogi-update.key)"
 ```
 
-No password was set on the key, so `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` is
-not required. You can add the export to `~/.zshrc` if you prefer it sticky.
+> ⚠️ **Do NOT set `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.** The key has **no
+> passphrase**. Setting that variable to *anything* — even a plausible-looking
+> password — makes the signer try to decrypt a key that isn't encrypted, and
+> the build fails at the final step with:
+>
+> ```
+> incorrect updater private key password: Wrong password for that key
+> ```
+>
+> If you see that error, `unset TAURI_SIGNING_PRIVATE_KEY_PASSWORD` and
+> retry. You can add only the `TAURI_SIGNING_PRIVATE_KEY` export to
+> `~/.zshrc` if you prefer it sticky; leave the password var entirely out.
 
 ## Cutting a release
 
@@ -32,49 +42,65 @@ not required. You can add the export to `~/.zshrc` if you prefer it sticky.
 
 2. **Build the universal bundle:**
    ```bash
-   pnpm tauri build --target universal-apple-darwin
+   pnpm release:build
    ```
+   (Wraps `tauri build --target universal-apple-darwin` with the right env;
+   see `scripts/release-build.sh`.)
    Because `createUpdaterArtifacts: true` is set, the bundle step also writes:
    - `src-tauri/target/universal-apple-darwin/release/bundle/macos/Yeogi .MD Editor.app.tar.gz`
    - `src-tauri/target/universal-apple-darwin/release/bundle/macos/Yeogi .MD Editor.app.tar.gz.sig`
 
+   **If only the `.sig` step failed** (e.g. you had a stale
+   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` exported and the rest of the bundle
+   is otherwise good), you don't need to rebuild from scratch — re-sign
+   just the tarball:
+   ```bash
+   pnpm tauri signer sign \
+     "src-tauri/target/universal-apple-darwin/release/bundle/macos/Yeogi .MD Editor.app.tar.gz"
+   ```
+   That produces a fresh `.app.tar.gz.sig` in ~1 second and you can pick
+   the pipeline up from step 3.
+
 3. **Write `latest.json`** — the manifest the updater polls. Template (swap the version, tag, date, and `.sig` contents each release):
    ```json
    {
-     "version": "0.2.1",
-     "notes": "Bug fixes and polish. See CHANGELOG.md for details.",
-     "pub_date": "2026-04-23T12:00:00Z",
+     "version": "0.X.Y",
+     "notes": "One-line summary. See CHANGELOG.md for details.",
+     "pub_date": "2026-MM-DDTHH:MM:SSZ",
      "platforms": {
-       "darwin-x86_64": {
-         "signature": "<paste contents of Yeogi.MD.Editor_universal.app.tar.gz.sig>",
-         "url": "https://github.com/kunsumer/yeogi-md-editor/releases/download/v0.2.1/Yeogi.MD.Editor_universal.app.tar.gz"
-       },
        "darwin-aarch64": {
+         "signature": "<paste contents of Yeogi .MD Editor.app.tar.gz.sig>",
+         "url": "https://github.com/kunsumer/yeogi-md-editor/releases/download/v0.X.Y/Yeogi.MD.Editor.app.tar.gz"
+       },
+       "darwin-x86_64": {
          "signature": "<same .sig contents>",
-         "url": "https://github.com/kunsumer/yeogi-md-editor/releases/download/v0.2.1/Yeogi.MD.Editor_universal.app.tar.gz"
+         "url": "https://github.com/kunsumer/yeogi-md-editor/releases/download/v0.X.Y/Yeogi.MD.Editor.app.tar.gz"
        }
      }
    }
    ```
    The same universal artifact serves both platform keys — Tauri's updater matches on the target string.
 
-4. **Publish a GitHub Release** tagged `v0.2.1`. Rename the built `Yeogi .MD Editor.app.tar.gz` to `Yeogi.MD.Editor_universal.app.tar.gz` (spaces in a URL are misery). Upload:
-   - `Yeogi.MD.Editor_universal.app.tar.gz`
-   - `Yeogi.MD.Editor_universal.app.tar.gz.sig`
-   - `latest.json`
-   - `Yeogi .MD Editor_0.2.1_universal.dmg` (for fresh installs)
+   > **Filename quirk:** we upload the tarball as literally `Yeogi .MD Editor.app.tar.gz` (with spaces). GitHub normalizes spaces to dots on the download URL, so the URL in `latest.json` must use `Yeogi.MD.Editor.app.tar.gz` (dots, no `_universal`). On-disk filename ≠ URL filename — don't add `_universal` to the local filename to match; it breaks the URL mapping.
 
-   The `gh release create` one-liner:
+4. **Publish a GitHub Release** tagged `v0.X.Y`. Upload the three bundle artifacts + `latest.json` in one `gh release create` call — `gh` handles the dot-normalization of spaces automatically, so you can pass the on-disk paths verbatim:
    ```bash
-   gh release create v0.2.1 \
+   BUNDLE="src-tauri/target/universal-apple-darwin/release/bundle"
+   gh release create v0.X.Y \
      --repo kunsumer/yeogi-md-editor \
-     --title "v0.2.1" \
-     --notes-file <(sed -n '/^## v0.2.1/,/^## /p' CHANGELOG.md | sed '$d') \
-     "path/to/Yeogi.MD.Editor_universal.app.tar.gz" \
-     "path/to/Yeogi.MD.Editor_universal.app.tar.gz.sig" \
-     "path/to/latest.json" \
-     "path/to/Yeogi .MD Editor_0.2.1_universal.dmg"
+     --title "v0.X.Y" \
+     --notes-file <(sed -n '/^## v0.X.Y/,/^## /p' CHANGELOG.md | sed '$d') \
+     "$BUNDLE/dmg/Yeogi .MD Editor_0.X.Y_universal.dmg" \
+     "$BUNDLE/macos/Yeogi .MD Editor.app.tar.gz" \
+     "$BUNDLE/macos/Yeogi .MD Editor.app.tar.gz.sig" \
+     /tmp/latest.json
    ```
+
+   **Verify the updater endpoint** resolves to the new version before declaring the release done:
+   ```bash
+   curl -sL "https://github.com/kunsumer/yeogi-md-editor/releases/latest/download/latest.json" | jq .version
+   ```
+   Should echo `"0.X.Y"`. If it echoes a stale version, the release probably isn't marked latest yet — `gh release edit v0.X.Y --latest`.
 
 5. **Point users at the DMG for the first install** (one-time). Subsequent versions install automatically: the app checks `latest.json` on launch, shows a banner if the remote `version` beats the local one, and on Install + Restart verifies `.sig` against the baked-in pubkey before swapping the `.app` in place.
 
@@ -87,9 +113,11 @@ not required. You can add the export to `~/.zshrc` if you prefer it sticky.
 
 ## Troubleshooting
 
+- **Build fails with `incorrect updater private key password: Wrong password for that key`** → you have `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` exported in your shell. The key has no passphrase; `unset TAURI_SIGNING_PRIVATE_KEY_PASSWORD` and retry. (Tests in zsh: `echo "PASS=${TAURI_SIGNING_PRIVATE_KEY_PASSWORD-<unset>}"` — should print `PASS=<unset>`.)
 - **Banner never appears** → the private key wasn't set at build time (`TAURI_SIGNING_PRIVATE_KEY` env var), so the artifact has no `.sig` and the updater rejects the manifest. Or the pubkey in `tauri.conf.json` is still the `REPLACE_WITH_YOUR_PUBLIC_KEY` placeholder.
 - **"Failed to verify signature"** → the private key used to sign this release doesn't match the pubkey baked into installed apps. Never rotate the key unless you're willing to orphan all existing installs.
 - **"Update check failed" on macOS behind a proxy** → the updater uses the system proxy via reqwest; check `networksetup -getwebproxy`.
+- **Saving `src-tauri/resources/welcome.md` in the dev app looks like a crash** → it isn't. `commands.rs` does `include_str!("../resources/welcome.md")`, so Cargo tracks that file as a build dependency — saving it from the running dev app triggers a Rust recompile + restart. For edits to the seed content, edit it outside the running dev app (VS Code, etc.). To iterate on the *content* against the current build without re-seeding, open a copy elsewhere (e.g. `~/Documents/Yeogi .MD Editor/welcome-test.md`).
 
 ## Future work
 
