@@ -608,15 +608,15 @@ export default function App() {
   );
 
   // When the user toggles between WYSIWYG and Edit we remember which
-  // top-level block was at the top of the previous viewport so the target
+  // SOURCE LINE was at the top of the previous viewport so the target
   // view can scroll to the same spot. Kept in a ref (not state) so storing
   // it doesn't trigger a re-render between the snapshot and the view swap.
   //
   // Scoped to `docId` because the ref outlives a tab switch — without the
-  // scope, rapidly flipping tabs during the polling window could apply an
-  // index captured against doc A to doc B's viewport. The effect below
-  // bails out if the pending ref isn't for the currently active doc.
-  const pendingScrollBlockRef = useRef<{ docId: string; index: number } | null>(null);
+  // scope, rapidly flipping tabs during the polling window could apply a
+  // line number captured against doc A to doc B's viewport. The effect
+  // below bails out if the pending ref isn't for the currently active doc.
+  const pendingScrollLineRef = useRef<{ docId: string; line: number } | null>(null);
 
   // Direct top-level DOM children of the WYSIWYG content root that correspond
   // to renderable markdown blocks. We filter out hidden nodes (Frontmatter
@@ -647,10 +647,19 @@ export default function App() {
     return out;
   }
 
-  // Returns the index into `blocks` (mdast top-level blocks) that's
-  // currently at the top of the viewport for the given mode, or null if the
-  // viewport is above the first anchor.
-  function captureTopBlockIndex(mode: ViewMode): number | null {
+  // Returns the source line at the top of the viewport for the given mode,
+  // or null if the viewport is above the first anchor / the view isn't ready.
+  //
+  // For WYSIWYG: finds the top-visible top-level DOM block, then approximates
+  // a within-block line by the fractional viewport position inside that
+  // block. Mapping is exact for code blocks (1:1 line ↔ DOM row) and a
+  // reasonable approximation for paragraphs / tables / lists where source
+  // lines and rendered lines don't correspond 1:1. Block-start (fraction = 0)
+  // is what v0.4.2 returned; the fractional refinement is what makes the
+  // sync land mid-block instead of always at the top of it.
+  //
+  // For Edit: CodeMirror gives us the exact line directly via lineBlockAtHeight.
+  function captureTopSourceLine(mode: ViewMode): number | null {
     if (!active || blocks.length === 0) return null;
     if (mode === "wysiwyg") {
       const scroller = document.querySelector(".wysiwyg-scroll");
@@ -663,48 +672,51 @@ export default function App() {
         else break;
       }
       if (topIdx < 0) return null;
-      // If DOM and mdast counts drift, clamp so we don't index past the end.
-      return Math.min(topIdx, blocks.length - 1);
+      const blockIdx = Math.min(topIdx, blocks.length - 1);
+      const startLine = blocks[blockIdx].line;
+      // Block ends at the line before the next block starts (or at the end
+      // of the doc for the last block — leave that as a no-op span).
+      const endLine =
+        blockIdx + 1 < blocks.length ? blocks[blockIdx + 1].line - 1 : startLine;
+      if (endLine <= startLine) return startLine;
+      const block = els[blockIdx];
+      const blockRect = block.getBoundingClientRect();
+      if (blockRect.height <= 0) return startLine;
+      const fraction = Math.max(
+        0,
+        Math.min(1, (viewportTop - blockRect.top) / blockRect.height),
+      );
+      return startLine + Math.round(fraction * (endLine - startLine));
     }
     const view = viewRef.current;
     if (!view) return null;
     const topLineBlock = view.lineBlockAtHeight(view.scrollDOM.scrollTop);
-    const lineNum = view.state.doc.lineAt(topLineBlock.from).number;
-    let last = -1;
-    for (let i = 0; i < blocks.length; i++) {
-      if (blocks[i].line <= lineNum) last = i;
-      else break;
-    }
-    return last >= 0 ? last : null;
+    return view.state.doc.lineAt(topLineBlock.from).number;
   }
 
   function setViewMode(mode: ViewMode) {
     if (!active || !focusedPane) return;
     if (focusedPane.viewMode !== mode) {
-      const captured = captureTopBlockIndex(focusedPane.viewMode);
-      pendingScrollBlockRef.current =
-        captured != null ? { docId: active.id, index: captured } : null;
+      const captured = captureTopSourceLine(focusedPane.viewMode);
+      pendingScrollLineRef.current =
+        captured != null ? { docId: active.id, line: captured } : null;
     }
     useLayout.getState().setViewMode(focusedPaneId, mode);
   }
 
-  // After a view-mode flip, scroll the newly mounted editor to the block
-  // we snapshotted in setViewMode. The new editor mounts async (CodeMirror
-  // sets viewRef via onReady; the WYSIWYG DOM needs a paint), so poll
-  // briefly for readiness before giving up.
+  // After a view-mode flip, scroll the newly mounted editor to the source
+  // line we snapshotted in setViewMode. The new editor mounts async
+  // (CodeMirror sets viewRef via onReady; the WYSIWYG DOM needs a paint),
+  // so poll briefly for readiness before giving up.
   useEffect(() => {
     if (!active) return;
-    const pending = pendingScrollBlockRef.current;
+    const pending = pendingScrollLineRef.current;
     if (!pending) return;
     if (pending.docId !== active.id) {
-      pendingScrollBlockRef.current = null;
+      pendingScrollLineRef.current = null;
       return;
     }
-    const idx = pending.index;
-    if (idx < 0 || idx >= blocks.length) {
-      pendingScrollBlockRef.current = null;
-      return;
-    }
+    const line = pending.line;
     let cancelled = false;
     let tries = 0;
     const currentViewMode = focusedPane?.viewMode ?? "wysiwyg";
@@ -719,11 +731,11 @@ export default function App() {
           setTimeout(attempt, 30);
           return;
         }
-        pendingScrollBlockRef.current = null;
+        pendingScrollLineRef.current = null;
         return;
       }
-      pendingScrollBlockRef.current = null;
-      jumpToBlock(idx);
+      pendingScrollLineRef.current = null;
+      jumpToLine(line);
     }
     const handle = window.setTimeout(attempt, 16);
     return () => {
@@ -733,28 +745,46 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedPane?.viewMode, active?.id]);
 
-  // Scroll the current view to block[index]. WYSIWYG: target the i-th
-  // visible top-level DOM child. Edit: jump to the block's source line.
-  function jumpToBlock(index: number) {
-    if (!active) return;
-    const b = blocks[index];
-    if (!b) return;
+  // Scroll the current view so that source `line` appears at the top of
+  // the viewport. WYSIWYG mode: locate the block containing this line,
+  // then offset within the block by the same fraction the line occupies
+  // in its source range. Edit mode: CodeMirror's scrollIntoView handles it
+  // exactly.
+  function jumpToLine(line: number) {
+    if (!active || blocks.length === 0) return;
     if ((focusedPane?.viewMode ?? "wysiwyg") === "wysiwyg") {
       const scroller = document.querySelector<HTMLElement>(".wysiwyg-scroll");
       if (!scroller) return;
+      // Find the block whose source range contains `line`.
+      let blockIdx = 0;
+      for (let i = 0; i < blocks.length; i++) {
+        if (blocks[i].line <= line) blockIdx = i;
+        else break;
+      }
+      const startLine = blocks[blockIdx].line;
+      const endLine =
+        blockIdx + 1 < blocks.length ? blocks[blockIdx + 1].line - 1 : startLine;
+      const fraction =
+        endLine > startLine
+          ? Math.max(0, Math.min(1, (line - startLine) / (endLine - startLine)))
+          : 0;
       const els = wysiwygVisibleBlockEls();
-      const target = els[Math.min(index, els.length - 1)];
+      const target = els[Math.min(blockIdx, els.length - 1)];
       if (!target) return;
       const tRect = target.getBoundingClientRect();
       const sRect = scroller.getBoundingClientRect();
       const SAFETY_TOP = 12;
-      const targetTop = scroller.scrollTop + (tRect.top - sRect.top) - SAFETY_TOP;
+      const targetTop =
+        scroller.scrollTop +
+        (tRect.top - sRect.top) +
+        fraction * tRect.height -
+        SAFETY_TOP;
       scroller.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
       return;
     }
     const view = viewRef.current;
     if (!view) return;
-    const docLine = Math.min(Math.max(b.line, 1), view.state.doc.lines);
+    const docLine = Math.min(Math.max(line, 1), view.state.doc.lines);
     const pos = view.state.doc.line(docLine).from;
     view.dispatch({
       selection: EditorSelection.cursor(pos),
