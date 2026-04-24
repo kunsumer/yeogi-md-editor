@@ -14,7 +14,7 @@ import { Tutorial } from "./components/Tutorial";
 import { ensureWelcomeFile, fsList, fsRead, fsWrite, syncMenuState, watcherSubscribe } from "./lib/ipc/commands";
 import { renderMarkdown } from "./lib/markdown/pipeline";
 import { buildStandaloneHtml } from "./lib/exportHtml";
-import { extractHeadings, type Heading } from "./lib/toc";
+import { extractBlocks, extractHeadings, type Block, type Heading } from "./lib/toc";
 import { slugify } from "./lib/slug";
 import { useDocuments } from "./state/documents";
 import { useLayout, type ViewMode } from "./state/layout";
@@ -579,72 +579,81 @@ export default function App() {
     [active?.content, active?.id],
   );
 
+  // Top-level block anchors used for view-mode scroll sync. Wider than
+  // `headings` (includes paragraphs, lists, code, tables, etc.) so the
+  // WYSIWYG ↔ Edit swap lands closer to the actual viewport position
+  // rather than jumping up to the last heading above it.
+  const blocks = useMemo<Block[]>(
+    () => (active ? extractBlocks(active.content) : []),
+    [active?.content, active?.id],
+  );
+
   // When the user toggles between WYSIWYG and Edit we remember which
-  // heading was at the top of the previous viewport so the target view
-  // can scroll to the same spot. Kept in a ref (not state) so storing it
-  // doesn't trigger a re-render between the snapshot and the view swap.
+  // top-level block was at the top of the previous viewport so the target
+  // view can scroll to the same spot. Kept in a ref (not state) so storing
+  // it doesn't trigger a re-render between the snapshot and the view swap.
   //
   // Scoped to `docId` because the ref outlives a tab switch — without the
-  // scope, rapidly flipping tabs during the polling window could apply a
-  // heading index captured against doc A to doc B's viewport. The effect
-  // below bails out if the pending ref isn't for the currently active doc.
-  const pendingScrollHeadingRef = useRef<{ docId: string; index: number } | null>(null);
+  // scope, rapidly flipping tabs during the polling window could apply an
+  // index captured against doc A to doc B's viewport. The effect below
+  // bails out if the pending ref isn't for the currently active doc.
+  const pendingScrollBlockRef = useRef<{ docId: string; index: number } | null>(null);
 
-  // Returns the index INTO `headings` (the extract-headings result, not the
-  // DOM). The WYSIWYG DOM can hold extra `<h1..h6>` elements that aren't in
-  // our TOC list (Tiptap-rendered frontmatter, headings-inside-nodes, etc.),
-  // so we match the topmost visible DOM heading back to `headings` by slug +
-  // level before returning — otherwise the captured index would drift when
-  // the destination mode doesn't have the same extras.
-  function captureTopHeadingIndex(mode: ViewMode): number | null {
-    if (!active || headings.length === 0) return null;
+  // Direct top-level DOM children of the WYSIWYG content root that correspond
+  // to renderable markdown blocks. We filter out hidden nodes (Frontmatter
+  // renders as `display: none`) and Tiptap's trailing empty paragraph so the
+  // returned array stays aligned with `blocks` (the mdast-derived anchor list).
+  function wysiwygVisibleBlockEls(): HTMLElement[] {
+    const root = document.querySelector(".wysiwyg-content .ProseMirror");
+    if (!root) return [];
+    const out: HTMLElement[] = [];
+    const children = Array.from(root.children) as HTMLElement[];
+    for (let i = 0; i < children.length; i++) {
+      const el = children[i];
+      // Hidden (display:none / detached)
+      if (el.offsetParent === null && el.tagName !== "BODY") continue;
+      // Tiptap appends a bare empty <p></p> at the end as a caret-ready slot.
+      // Skip it when it's the last child and contains no rendered content.
+      const isLast = i === children.length - 1;
+      if (
+        isLast &&
+        el.tagName === "P" &&
+        el.children.length === 0 &&
+        (el.textContent ?? "").trim() === ""
+      ) {
+        continue;
+      }
+      out.push(el);
+    }
+    return out;
+  }
+
+  // Returns the index into `blocks` (mdast top-level blocks) that's
+  // currently at the top of the viewport for the given mode, or null if the
+  // viewport is above the first anchor.
+  function captureTopBlockIndex(mode: ViewMode): number | null {
+    if (!active || blocks.length === 0) return null;
     if (mode === "wysiwyg") {
       const scroller = document.querySelector(".wysiwyg-scroll");
       if (!scroller) return null;
       const viewportTop = scroller.getBoundingClientRect().top + 12;
-      const els = document.querySelectorAll<HTMLElement>(
-        ".wysiwyg-content .ProseMirror h1, .wysiwyg-content .ProseMirror h2, " +
-          ".wysiwyg-content .ProseMirror h3, .wysiwyg-content .ProseMirror h4, " +
-          ".wysiwyg-content .ProseMirror h5, .wysiwyg-content .ProseMirror h6",
-      );
-      let topEl: HTMLElement | null = null;
-      for (const el of Array.from(els)) {
-        if (el.getBoundingClientRect().top <= viewportTop) topEl = el;
+      const els = wysiwygVisibleBlockEls();
+      let topIdx = -1;
+      for (let i = 0; i < els.length; i++) {
+        if (els[i].getBoundingClientRect().top <= viewportTop) topIdx = i;
         else break;
       }
-      if (!topEl) return null;
-      const wantSlug = slugify(topEl.textContent ?? "");
-      const wantLevel = parseInt(topEl.tagName.slice(1), 10);
-      // Count prior DOM headings with the same slug+level so we pick the
-      // matching occurrence out of `headings` (not the first one, which
-      // could be a different paragraph entirely).
-      let occurrence = 0;
-      for (const el of Array.from(els)) {
-        if (el === topEl) break;
-        const lv = parseInt(el.tagName.slice(1), 10);
-        if (lv === wantLevel && slugify(el.textContent ?? "") === wantSlug) {
-          occurrence++;
-        }
-      }
-      let seen = 0;
-      for (let i = 0; i < headings.length; i++) {
-        if (
-          headings[i].level === wantLevel &&
-          slugify(headings[i].text) === wantSlug
-        ) {
-          if (seen === occurrence) return i;
-          seen++;
-        }
-      }
-      return null;
+      if (topIdx < 0) return null;
+      // If DOM and mdast counts drift, clamp so we don't index past the end.
+      return Math.min(topIdx, blocks.length - 1);
     }
     const view = viewRef.current;
     if (!view) return null;
-    const topBlock = view.lineBlockAtHeight(view.scrollDOM.scrollTop);
-    const lineNum = view.state.doc.lineAt(topBlock.from).number;
+    const topLineBlock = view.lineBlockAtHeight(view.scrollDOM.scrollTop);
+    const lineNum = view.state.doc.lineAt(topLineBlock.from).number;
     let last = -1;
-    for (let i = 0; i < headings.length; i++) {
-      if (headings[i].line <= lineNum) last = i;
+    for (let i = 0; i < blocks.length; i++) {
+      if (blocks[i].line <= lineNum) last = i;
       else break;
     }
     return last >= 0 ? last : null;
@@ -653,32 +662,28 @@ export default function App() {
   function setViewMode(mode: ViewMode) {
     if (!active || !focusedPane) return;
     if (focusedPane.viewMode !== mode) {
-      const captured = captureTopHeadingIndex(focusedPane.viewMode);
-      pendingScrollHeadingRef.current =
+      const captured = captureTopBlockIndex(focusedPane.viewMode);
+      pendingScrollBlockRef.current =
         captured != null ? { docId: active.id, index: captured } : null;
     }
     useLayout.getState().setViewMode(focusedPaneId, mode);
   }
 
-  // After a view-mode flip, scroll the newly mounted editor to the
-  // heading we snapshotted in setViewMode. The new editor mounts async
-  // (CodeMirror sets viewRef via onReady; the WYSIWYG DOM needs a paint),
-  // so we poll briefly for readiness before giving up.
+  // After a view-mode flip, scroll the newly mounted editor to the block
+  // we snapshotted in setViewMode. The new editor mounts async (CodeMirror
+  // sets viewRef via onReady; the WYSIWYG DOM needs a paint), so poll
+  // briefly for readiness before giving up.
   useEffect(() => {
     if (!active) return;
-    const pending = pendingScrollHeadingRef.current;
+    const pending = pendingScrollBlockRef.current;
     if (!pending) return;
     if (pending.docId !== active.id) {
-      // Captured against a different doc (user switched tabs during the
-      // poll window). Drop it so a heading index from doc A can't scroll
-      // doc B to a meaningless position.
-      pendingScrollHeadingRef.current = null;
+      pendingScrollBlockRef.current = null;
       return;
     }
     const idx = pending.index;
-    const h = headings[idx];
-    if (!h) {
-      pendingScrollHeadingRef.current = null;
+    if (idx < 0 || idx >= blocks.length) {
+      pendingScrollBlockRef.current = null;
       return;
     }
     let cancelled = false;
@@ -695,11 +700,11 @@ export default function App() {
           setTimeout(attempt, 30);
           return;
         }
-        pendingScrollHeadingRef.current = null;
+        pendingScrollBlockRef.current = null;
         return;
       }
-      pendingScrollHeadingRef.current = null;
-      jumpToHeading(h, idx);
+      pendingScrollBlockRef.current = null;
+      jumpToBlock(idx);
     }
     const handle = window.setTimeout(attempt, 16);
     return () => {
@@ -708,6 +713,36 @@ export default function App() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedPane?.viewMode, active?.id]);
+
+  // Scroll the current view to block[index]. WYSIWYG: target the i-th
+  // visible top-level DOM child. Edit: jump to the block's source line.
+  function jumpToBlock(index: number) {
+    if (!active) return;
+    const b = blocks[index];
+    if (!b) return;
+    if ((focusedPane?.viewMode ?? "wysiwyg") === "wysiwyg") {
+      const scroller = document.querySelector<HTMLElement>(".wysiwyg-scroll");
+      if (!scroller) return;
+      const els = wysiwygVisibleBlockEls();
+      const target = els[Math.min(index, els.length - 1)];
+      if (!target) return;
+      const tRect = target.getBoundingClientRect();
+      const sRect = scroller.getBoundingClientRect();
+      const SAFETY_TOP = 12;
+      const targetTop = scroller.scrollTop + (tRect.top - sRect.top) - SAFETY_TOP;
+      scroller.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+      return;
+    }
+    const view = viewRef.current;
+    if (!view) return;
+    const docLine = Math.min(Math.max(b.line, 1), view.state.doc.lines);
+    const pos = view.state.doc.line(docLine).from;
+    view.dispatch({
+      selection: EditorSelection.cursor(pos),
+      effects: EditorView.scrollIntoView(pos, { y: "start", yMargin: 16 }),
+    });
+    view.focus();
+  }
 
   function jumpToHeading(h: Heading, tocIndex: number) {
     if (!active) return;

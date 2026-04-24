@@ -2,6 +2,20 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.2 — 2026-04-24
+
+### Fixed
+
+- **Save-time crash on documents with tables.** The WYSIWYG table serializer held a dead `String(cellContent.attrs)` leftover that threw `TypeError: No default value` in WebKit for certain cell content shapes (inline math atoms in particular). That triggered a renderer crash on every keystroke in documents containing such tables. Dead path removed; cell rendering now guards `cellContent?.textContent ?? ""` safely.
+- **`<details>` / `<summary>` round-trip.** WYSIWYG previously dropped the `<details>` wrapper on save (the serializer only rendered inner children, so `<details><summary>X</summary>…</details>` degraded to bare content and the disclosure was lost). The serializer now emits a proper HTML block (`<details [open]>` + blank line + `<summary>` + body + `</details>`) so the wrapper survives every round trip, and the `open` attribute is preserved.
+- **"Click to expand" works inside the editor.** Native `<details>` disclosure doesn't fire in contenteditable — ProseMirror consumes pointerdown for caret placement. A NodeView on `Details` now routes summary clicks through a proper transaction (`setNodeAttribute(pos, "open", !current)`), so the toggle flips the attribute *and* the updated state round-trips to markdown on save.
+- **Tauri event names with dots.** Tauri 2 rejects event names containing `.`, which was raising `Unhandled Promise Rejection: invalid args \`event\` for command \`listen\`…` on every app launch. Renamed the four offenders on both Rust and TS sides: `file.changed` → `file:changed`, `watcher.lost` → `watcher:lost`, `preview.contentUpdate` → `preview:content-update`, `editor.closed` → `editor:closed`.
+
+### Changed
+
+- **Finer-grained scroll sync between WYSIWYG and Edit.** Toggling ⌘E used to anchor to the last heading above the viewport, which could be several screens up in a document with long sections. The anchor set is now all top-level blocks (paragraphs, lists, code fences, tables, blockquotes, thematic breaks, callouts, footnote sections) — the target view lands on or near the exact block you were looking at. Headings still appear in the outline; this only widens the mode-switch snapshot.
+- **Welcome / seed document refreshed.** `Welcome.md` now covers more markdown territory out of the box: nested emphasis, backslash line breaks, nested task lists, wiki-link aliases (`[[Note|display]]`) + section links (`[[Note#Heading]]`), table cells with `<br>` line breaks and rich inline content, Rust + diff code fences, richer LaTeX examples (`\boxed`, `\text`, vectors, chemistry arrows), five additional Mermaid diagram types (mindmap, timeline, journey, quadrant chart, git graph), and HTML comment / `<abbr>` / sized `<img>` demos. Existing installs aren't re-seeded — to see the new content, delete `~/Documents/Yeogi .MD Editor/Welcome.md` before next launch.
+
 ## v0.4.1 — 2026-04-23
 
 ### Changed

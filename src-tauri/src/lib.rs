@@ -56,8 +56,8 @@ pub fn run() {
             std::thread::spawn(move || {
                 while let Ok(evt) = rx.recv() {
                     let name = match &evt {
-                        WatcherEvent::Changed { .. } => "file.changed",
-                        WatcherEvent::Lost { .. } => "watcher.lost",
+                        WatcherEvent::Changed { .. } => "file:changed",
+                        WatcherEvent::Lost { .. } => "watcher:lost",
                     };
                     let _ = handle.emit(name, evt);
                 }

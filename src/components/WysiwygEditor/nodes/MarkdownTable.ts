@@ -127,17 +127,16 @@ export const MarkdownTable = BaseTable.extend({
             state.write("| ");
             row.forEach((col, _p2, j) => {
               if (j) state.write(" | ");
-              const cellContent = col.firstChild;
-              if (cellContent && String(cellContent.attrs).length !== 0) {
-                // attrs isn't the check — we just need to render inline if
-                // the paragraph has content. Guard with textContent presence
-                // like the upstream serializer does.
-              }
-              if (
-                cellContent &&
-                (cellContent as unknown as { textContent: string }).textContent
-                  .trim()
-              ) {
+              // Cell content is a single block child (paragraph, usually)
+              // when the table is GFM-serializable; render its inline
+              // children if any. Text nodes can appear directly when
+              // markdown-it parses a raw <td>text</td>, so fall through
+              // to rendering them too.
+              const cellContent = col.firstChild as
+                | (PMNodeLike & { textContent?: string })
+                | null;
+              const text = cellContent?.textContent ?? "";
+              if (cellContent && text.trim().length > 0) {
                 state.renderInline(cellContent);
               }
             });

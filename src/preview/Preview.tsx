@@ -15,7 +15,7 @@ export function Preview({ docId }: Props) {
 
   useEffect(() => {
     const unlisten = listen<{ id: string; content: string }>(
-      "preview.contentUpdate",
+      "preview:content-update",
       async (e) => {
         if (e.payload.id !== docId) return;
         const html = await renderMarkdown(e.payload.content);
@@ -24,7 +24,7 @@ export function Preview({ docId }: Props) {
         attachCopyButtons(hostRef.current);
       },
     );
-    const unorphan = listen("editor.closed", () => setOrphan(true));
+    const unorphan = listen("editor:closed", () => setOrphan(true));
     return () => {
       unlisten.then((fn) => fn());
       unorphan.then((fn) => fn());

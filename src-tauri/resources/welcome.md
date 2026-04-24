@@ -1,7 +1,7 @@
 ---
 title: Markdown Editor Test Document
-author: Test Suite
-date: 2026-04-21
+author: Yeogi
+date: 2026-04-24
 tags: [markdown, test, latex, mermaid]
 ---
 
@@ -20,7 +20,7 @@ This file exercises a wide range of Markdown features. If everything renders cor
 ##### H5
 ###### H6 — Smallest heading
 
-Alternate syntax:
+Alternate (Setext) syntax:
 
 Setext H1
 =========
@@ -38,10 +38,15 @@ Subscript: H~2~O &nbsp;&nbsp; Superscript: E = mc^2^
 
 ==Highlighted text== (supported in some flavors)
 
-A hard line break
-ends this line.
+A hard line break  
+ends this line. (two trailing spaces above)
+
+Backslash line break:\
+also ends a line.
 
 Escaped characters: \*not italic\*, \`not code\`, \\backslash, \# not a heading.
+
+Nested emphasis: **bold with *italic* inside**, *italic with **bold** inside*, and ***all three*** together.
 
 ---
 
@@ -52,6 +57,20 @@ Escaped characters: \*not italic\*, \`not code\`, \\backslash, \# not a heading.
 > > Nested blockquote — second level.
 > >
 > > > Third level, with **formatting** and `code`.
+
+Blockquote with multiple block types:
+
+> **Heading-like lead-in**
+>
+> A paragraph inside a quote.
+>
+> - A list
+> - inside a quote
+>
+> ```js
+> // even a code block
+> console.log("nested");
+> ```
 
 ---
 
@@ -82,6 +101,16 @@ Escaped characters: \*not italic\*, \`not code\`, \\backslash, \# not a heading.
 - [ ] Verify rendering in editor
 - [ ] Ship it
 
+### Nested task list
+
+- [ ] Release checklist
+  - [x] Bump version
+  - [x] Update CHANGELOG
+  - [ ] Tag release
+    - [ ] Sign build
+    - [ ] Upload artifacts
+  - [ ] Announce
+
 ### Definition list
 
 Markdown
@@ -94,19 +123,24 @@ LaTeX
 
 ## 5. Links and references
 
-Inline link: [Anthropic](https://www.anthropic.com)
+Inline link: [Yeogi](https://www.yeogi.com)
 
-Autolink: <https://example.com>
+Autolink: <https://yeogi.com>
 
 Reference link: [CommonMark spec][cm]
 
-Link with title: [hover me](https://example.com "Tooltip text")
+Link with title: [hover me](https://yeogi.com "Tooltip text")
 
-Email: <test@example.com>
+Email: <hello@yeogi.com>
 
 [cm]: https://spec.commonmark.org/ "CommonMark Specification"
 
-Wiki-style link (Obsidian/Logseq): [[Internal Note]]
+### Wiki-style links (Obsidian/Logseq)
+
+- Basic: [[Internal Note]]
+- With alias: [[Internal Note|display text]]
+- Section link: [[Internal Note#Heading]]
+- Section with alias: [[Internal Note#Heading|see this part]]
 
 Footnote reference[^1] and another[^longnote].
 
@@ -128,6 +162,10 @@ Reference-style:
 ![alt text][logo]
 
 [logo]: https://placehold.co/120x120/png "Logo"
+
+Sized via HTML:
+
+<img src="https://placehold.co/300x300/png" alt="Sized logo" width="160" height="160" />
 
 ---
 
@@ -158,6 +196,16 @@ interface User {
 const greet = (u: User): string => `Hello, ${u.name}!`;
 ```
 
+```rust
+fn main() {
+    let greeting = "Hello, Yeogi!";
+    for ch in greeting.chars() {
+        print!("{ch}");
+    }
+    println!();
+}
+```
+
 ```sql
 SELECT region, COUNT(*) AS bookings
 FROM reservations
@@ -171,6 +219,16 @@ ORDER BY bookings DESC;
 for f in *.md; do
   echo "Processing $f"
 done
+```
+
+```diff
+--- a/src/app.ts
++++ b/src/app.ts
+@@ -1,3 +1,4 @@
+-const hello = "world";
++const hello = "Yeogi";
++const version = "0.4.2";
+ export { hello };
 ```
 
 Indented code block (4 spaces):
@@ -209,6 +267,13 @@ Table with formatting:
 | $\LaTeX$     | `extension`   | Needs KaTeX/MathJax            |
 | Mermaid      | `extension`   | Needs Mermaid plugin           |
 
+Cells with line breaks (via `<br>`):
+
+| Item       | Notes                               |
+|------------|-------------------------------------|
+| Multi-line | First line<br>Second line           |
+| Rich       | **Bold**, *italic*, `code`, [link](https://yeogi.com) |
+
 ---
 
 ## 9. LaTeX / Math
@@ -218,6 +283,10 @@ Table with formatting:
 Euler's identity: $e^{i\pi} + 1 = 0$. The Pythagorean theorem is $a^2 + b^2 = c^2$.
 
 Greek letters: $\alpha, \beta, \gamma, \Delta, \Omega$.
+
+Text in math: $\text{speed} = \frac{\text{distance}}{\text{time}}$.
+
+Boxed: $\boxed{E = mc^2}$.
 
 ### Display math
 
@@ -260,6 +329,19 @@ f(x) =
 x^2       & \text{if } x \geq 0 \\
 -x        & \text{if } x < 0
 \end{cases}
+$$
+
+### Vectors and derivatives
+
+$$
+\vec{v} = \langle v_x, v_y, v_z \rangle \qquad
+\nabla f = \left(\frac{\partial f}{\partial x}, \frac{\partial f}{\partial y}, \frac{\partial f}{\partial z}\right)
+$$
+
+### Chemistry-ish (via \text)
+
+$$
+2\,\text{H}_2 + \text{O}_2 \;\longrightarrow\; 2\,\text{H}_2\text{O}
 $$
 
 ---
@@ -375,6 +457,84 @@ erDiagram
     }
 ```
 
+### Mindmap
+
+```mermaid
+mindmap
+  root((Markdown))
+    Text
+      Bold
+      Italic
+      Code
+    Blocks
+      Lists
+      Tables
+      Code fences
+    Extensions
+      Math
+      Mermaid
+      Wiki links
+```
+
+### Timeline
+
+```mermaid
+timeline
+    title Yeogi .MD Editor
+    2026 Q1 : Prototype
+            : Core editor
+    2026 Q2 : WYSIWYG
+            : Themes
+            : Side-by-side panes
+    2026 Q3 : Plugins
+```
+
+### User journey
+
+```mermaid
+journey
+    title Writing a doc
+    section Draft
+      Open editor:   5: Me
+      Type outline:  4: Me
+    section Polish
+      Format headings: 4: Me
+      Add diagrams:    3: Me, Editor
+    section Share
+      Export to PDF:   5: Me
+```
+
+### Quadrant chart
+
+```mermaid
+quadrantChart
+    title Effort vs. Impact
+    x-axis Low Effort --> High Effort
+    y-axis Low Impact --> High Impact
+    quadrant-1 Do first
+    quadrant-2 Plan
+    quadrant-3 Drop
+    quadrant-4 Delegate
+    Dark mode: [0.2, 0.8]
+    Plugin API: [0.8, 0.9]
+    Icon polish: [0.3, 0.2]
+    Rewrite parser: [0.9, 0.3]
+```
+
+### Git graph
+
+```mermaid
+gitGraph
+    commit id: "init"
+    branch feature
+    checkout feature
+    commit id: "add panes"
+    commit id: "keyboard shortcuts"
+    checkout main
+    merge feature tag: "v0.4.0"
+    commit id: "theme polish"
+```
+
 ---
 
 ## 11. Callouts / admonitions (GitHub + Obsidian style)
@@ -402,10 +562,11 @@ erDiagram
 - Link form: `[label](url)` → [label](https://example.com)
 - Reference: `[label][ref]` → [label][cm]
 - Wiki: `[[Page Name]]` → [[Page Name]]
+- Wiki with alias: `[[Page Name|alias]]` → [[Page Name|alias]]
 - Footnote: `[^id]` → [^1]
 - Task: `- [ ]` and `- [x]`
 - Callout header: `> [!NOTE]`
-- Shortcode/keyboard: <kbd>Ctrl</kbd> + <kbd>C</kbd>
+- Shortcode/keyboard: <kbd>Ctrl</kbd> + <kbd>C</kbd>, <kbd>⌘</kbd><kbd>S</kbd>
 
 ---
 
@@ -425,7 +586,7 @@ ___
 
 ---
 
-## 14. HTML embeds
+## 14. HTML embeds and raw HTML
 
 <details>
 <summary>Click to expand</summary>
@@ -444,12 +605,18 @@ console.log("surprise!");
 
 <mark>HTML mark tag</mark>
 
+HTML comments are invisible in rendered output:
+
+<!-- This comment will not appear in the preview, but stays in the source. -->
+
 Raw table via HTML:
 
 <table>
   <tr><th>Col A</th><th>Col B</th></tr>
   <tr><td>1</td><td>2</td></tr>
 </table>
+
+Abbreviation-style via `<abbr>`: The <abbr title="Hyper Text Markup Language">HTML</abbr> spec.
 
 ---
 
@@ -460,6 +627,8 @@ Shortcode style (GFM): :rocket: :tada: :+1: :warning: :heart:
 Unicode direct: 🚀 🎉 👍 ⚠️ ❤️ 한국어 日本語 中文 العربية
 
 Special characters: © ® ™ § ¶ † ‡ • … — – ≈ ≠ ≤ ≥ ± × ÷
+
+Arrows & math: ← → ↑ ↓ ⇐ ⇒ ∞ ∑ ∏ √ ∫ ∂ ∇
 
 ---
 
@@ -486,6 +655,10 @@ Special characters: © ® ™ § ¶ † ‡ • … — – ≈ ≠ ≤ ≥ ± �
   | A | B | C |
   |---|---|---|
   | 1 |   | 3 |
+
+- URL in a list: <https://yeogi.com>
+
+- Inline code containing backticks: `` `single` and ``double`` `` rendered via double-tick fences.
 
 ---
 
