@@ -987,6 +987,7 @@ export default function App() {
             <FolderPanel
               folder={folder}
               extraFolders={extraFolders}
+              activeDocPath={active?.path ?? null}
               onPickFolder={() => pickAndOpenFolder().catch(console.error)}
               onAddFolder={() => pickAndAddFolder().catch(console.error)}
               onCloseFolder={closeFolderFromExplorer}

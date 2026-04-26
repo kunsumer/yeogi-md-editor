@@ -23,9 +23,12 @@ const rowStyle: React.CSSProperties = {
   alignItems: "center",
   gap: 4,
   cursor: "pointer",
-  padding: "5px 6px",
+  padding: "4px 6px",
   borderRadius: 4,
-  fontSize: 13,
+  // Children read smaller than the FolderGroup header (13 / 600). Going
+  // smaller on the children rather than larger on the parent keeps the
+  // panel compact + makes the folder name read as a clear section heading.
+  fontSize: 12,
   color: "var(--text)",
   userSelect: "none",
 };

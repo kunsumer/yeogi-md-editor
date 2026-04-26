@@ -11,6 +11,7 @@ function baseProps(overrides: Partial<React.ComponentProps<typeof FolderPanel>> 
   return {
     folder: null,
     extraFolders: [],
+    activeDocPath: null,
     onPickFolder: () => {},
     onAddFolder: () => {},
     onCloseFolder: () => {},
@@ -67,5 +68,64 @@ describe("FolderPanel", () => {
     const btn = screen.getByRole("button", { name: /Add another folder/i });
     fireEvent.click(btn);
     expect(onAddFolder).toHaveBeenCalledTimes(1);
+  });
+
+  it("highlights the folder containing the active document", () => {
+    const { container, rerender } = render(
+      <FolderPanel
+        {...baseProps({
+          folder: "/Users/me/Primary",
+          extraFolders: ["/Users/me/Extra"],
+          activeDocPath: "/Users/me/Extra/sub/note.md",
+        })}
+      />,
+    );
+    // Only the Extra folder section should carry aria-current="true".
+    const sections = container.querySelectorAll("section[aria-label]");
+    const aria = Array.from(sections).map((s) => ({
+      label: s.getAttribute("aria-label"),
+      current: s.getAttribute("aria-current"),
+    }));
+    expect(aria).toContainEqual({ label: "Primary", current: null });
+    expect(aria).toContainEqual({ label: "Extra", current: "true" });
+
+    // Switching active doc to the primary folder swaps the highlight.
+    rerender(
+      <FolderPanel
+        {...baseProps({
+          folder: "/Users/me/Primary",
+          extraFolders: ["/Users/me/Extra"],
+          activeDocPath: "/Users/me/Primary/Welcome.md",
+        })}
+      />,
+    );
+    const sections2 = container.querySelectorAll("section[aria-label]");
+    const aria2 = Array.from(sections2).map((s) => ({
+      label: s.getAttribute("aria-label"),
+      current: s.getAttribute("aria-current"),
+    }));
+    expect(aria2).toContainEqual({ label: "Primary", current: "true" });
+    expect(aria2).toContainEqual({ label: "Extra", current: null });
+  });
+
+  it("picks the deepest matching root when folders are nested", () => {
+    const { container } = render(
+      <FolderPanel
+        {...baseProps({
+          folder: "/Users/me",
+          // /Users/me/repo is a subdirectory of /Users/me — both are open.
+          extraFolders: ["/Users/me/repo"],
+          activeDocPath: "/Users/me/repo/notes/draft.md",
+        })}
+      />,
+    );
+    // The deeper match (/Users/me/repo) wins; outer folder stays unmarked.
+    const sections = container.querySelectorAll("section[aria-label]");
+    const aria = Array.from(sections).map((s) => ({
+      label: s.getAttribute("aria-label"),
+      current: s.getAttribute("aria-current"),
+    }));
+    expect(aria).toContainEqual({ label: "me", current: null });
+    expect(aria).toContainEqual({ label: "repo", current: "true" });
   });
 });

@@ -11,6 +11,13 @@ interface Props {
    * its own collapsible header + FileTree. Bounded at MAX_OPEN_FOLDERS - 1.
    */
   extraFolders: string[];
+  /**
+   * Path of the currently-focused document, used to highlight the folder
+   * group that contains it ("you are here" indicator across multiple open
+   * folder roots). null when there's no active doc or the active doc lives
+   * outside every open folder root.
+   */
+  activeDocPath: string | null;
   /** Called when the user clicks "Open folder…" — App.tsx owns the dialog. */
   onPickFolder(): void;
   /**
@@ -30,15 +37,39 @@ interface Props {
   onClose?: () => void;
 }
 
+/**
+ * Returns the deepest open root that contains `docPath`, so when a folder
+ * tree is nested inside another open root we light up the more specific
+ * one. Returns null when the active doc lives outside every open folder.
+ */
+function findContainingRoot(
+  roots: string[],
+  docPath: string | null,
+): string | null {
+  if (!docPath) return null;
+  let best: string | null = null;
+  for (const root of roots) {
+    if (docPath === root || docPath.startsWith(root + "/")) {
+      if (best === null || root.length > best.length) best = root;
+    }
+  }
+  return best;
+}
+
 export function FolderPanel({
   folder,
   extraFolders,
+  activeDocPath,
   onPickFolder,
   onAddFolder,
   onCloseFolder,
   onOpenFile,
   onClose,
 }: Props) {
+  const allRoots = [folder, ...extraFolders].filter(
+    (p): p is string => p != null,
+  );
+  const activeRoot = findContainingRoot(allRoots, activeDocPath);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [expandSeq, setExpandSeq] = useState(0);
@@ -203,6 +234,7 @@ export function FolderPanel({
           )}
           <FolderGroup
             root={folder}
+            isActive={folder === activeRoot}
             isCollapsed={collapsedFolders.has(folder)}
             onToggleCollapsed={() => toggleFolderCollapsed(folder)}
             onRemove={() => onCloseFolder(folder)}
@@ -216,6 +248,7 @@ export function FolderPanel({
             <FolderGroup
               key={p}
               root={p}
+              isActive={p === activeRoot}
               isCollapsed={collapsedFolders.has(p)}
               onToggleCollapsed={() => toggleFolderCollapsed(p)}
               onRemove={() => onCloseFolder(p)}
@@ -242,6 +275,7 @@ export function FolderPanel({
  */
 function FolderGroup({
   root,
+  isActive,
   isCollapsed,
   onToggleCollapsed,
   onRemove,
@@ -252,6 +286,8 @@ function FolderGroup({
   onOpenFile,
 }: {
   root: string;
+  /** True when the focused document lives inside this root. */
+  isActive: boolean;
   isCollapsed: boolean;
   onToggleCollapsed(): void;
   /** null for the primary (which has no per-group close button). */
@@ -264,15 +300,29 @@ function FolderGroup({
 }) {
   const basename = root.split("/").pop() ?? root;
   return (
-    <section aria-label={basename} style={{ marginBottom: 8 }}>
+    <section
+      aria-label={basename}
+      aria-current={isActive ? "true" : undefined}
+      style={{
+        marginBottom: 8,
+        // Active root gets an accent left border + a faint background
+        // tint, so when several folders are stacked the user can see at
+        // a glance which one contains their currently-focused document.
+        borderLeft: `2px solid ${
+          isActive ? "var(--accent)" : "transparent"
+        }`,
+        background: isActive ? "var(--bg-hover)" : "transparent",
+        borderRadius: 4,
+      }}
+    >
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: 4,
           padding: "2px 4px 4px",
-          // Slightly larger + heavier than the FileTree rows (13 / 400)
-          // so the parent folder name reads as the section heading it is.
+          // Larger + heavier than the FileTree rows (12 / 400) so the
+          // parent folder name reads as the section heading it is.
           fontSize: 13,
           fontWeight: 600,
           color: "var(--text)",
@@ -374,15 +424,18 @@ function OpenFolderIcon() {
 }
 
 function AddFolderIcon() {
-  // Folder silhouette with a plus centered on the body. The plus arms
-  // span almost the full body height/width and the strokes break out of
-  // the folder rim slightly so the glyph reads at 13 × 13. (The original
-  // 3-unit cross was visually invisible at this size.)
+  // Folder full-size (same path as OpenFolderIcon — they should read at
+  // the same optical size in the toolbar) with a plus badge anchored at
+  // the bottom-right, partially overlapping the folder body and
+  // extending outside it. This is the "Add folder" pattern from VS Code
+  // / Finder where the plus is a discrete corner stamp rather than a
+  // texture inside the folder body — the latter made the icon read as
+  // smaller because the inner strokes broke up the folder's silhouette.
   return (
     <svg {...HEADER_ICON}>
       <path d="M 3 4 H 5.5 Q 7 4 7 5 H 11 Q 12 5 12 6 V 10 Q 12 11 11 11 H 3 Q 2 11 2 10 V 5 Q 2 4 3 4 Z" />
-      <line x1="7" y1="5.5" x2="7" y2="10.5" />
-      <line x1="4.5" y1="8" x2="9.5" y2="8" />
+      <line x1="11.5" y1="9" x2="11.5" y2="13" />
+      <line x1="9.5" y1="11" x2="13.5" y2="11" />
     </svg>
   );
 }
