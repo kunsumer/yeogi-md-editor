@@ -124,7 +124,13 @@ export function FolderPanel({
         type="button"
         aria-label="Expand all loaded folders"
         title="Expand all"
-        onClick={() => setExpandSeq((n) => n + 1)}
+        onClick={() => {
+          // Two-level expand: open every collapsed FolderGroup chevron,
+          // and also fire the per-FileTree recursive expand. So one click
+          // gives users "show me everything" across the whole explorer.
+          setCollapsedFolders(new Set());
+          setExpandSeq((n) => n + 1);
+        }}
         className="aside-header-btn"
       >
         <ExpandAllIcon />
@@ -133,7 +139,17 @@ export function FolderPanel({
         type="button"
         aria-label="Collapse all folders"
         title="Collapse all"
-        onClick={() => setCollapseSeq((n) => n + 1)}
+        onClick={() => {
+          // Two-level collapse: close every FolderGroup chevron + clear the
+          // per-FileTree expansion state. Closing the group unmounts the
+          // FileTree (zero cost while collapsed); the FileTree state reset
+          // ensures a later re-expand starts fresh at the root level.
+          const allRoots = [folder, ...extraFolders].filter(
+            (p): p is string => p != null,
+          );
+          setCollapsedFolders(new Set(allRoots));
+          setCollapseSeq((n) => n + 1);
+        }}
         className="aside-header-btn"
       >
         <CollapseAllIcon />
@@ -255,8 +271,10 @@ function FolderGroup({
           alignItems: "center",
           gap: 4,
           padding: "2px 4px 4px",
-          fontSize: 12,
-          fontWeight: 500,
+          // Slightly larger + heavier than the FileTree rows (13 / 400)
+          // so the parent folder name reads as the section heading it is.
+          fontSize: 13,
+          fontWeight: 600,
           color: "var(--text)",
         }}
       >
@@ -356,14 +374,15 @@ function OpenFolderIcon() {
 }
 
 function AddFolderIcon() {
-  // Folder silhouette with a plus sign centered on the body. Shares the
-  // same outer shape as OpenFolderIcon for visual rhyme, then overlays a
-  // short horizontal + vertical stroke on the body center.
+  // Folder silhouette with a plus centered on the body. The plus arms
+  // span almost the full body height/width and the strokes break out of
+  // the folder rim slightly so the glyph reads at 13 × 13. (The original
+  // 3-unit cross was visually invisible at this size.)
   return (
     <svg {...HEADER_ICON}>
       <path d="M 3 4 H 5.5 Q 7 4 7 5 H 11 Q 12 5 12 6 V 10 Q 12 11 11 11 H 3 Q 2 11 2 10 V 5 Q 2 4 3 4 Z" />
-      <line x1="7" y1="7" x2="7" y2="10" />
-      <line x1="5.5" y1="8.5" x2="8.5" y2="8.5" />
+      <line x1="7" y1="5.5" x2="7" y2="10.5" />
+      <line x1="4.5" y1="8" x2="9.5" y2="8" />
     </svg>
   );
 }

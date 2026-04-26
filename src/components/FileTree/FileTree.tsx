@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fsList, type DirEntry } from "../../lib/ipc/commands";
 
 interface Props {
@@ -177,12 +177,24 @@ export function FileTree({
     }
   }
 
+  // Each *-seq prop is "fire on change" semantics — the parent increments
+  // a counter to request the action. But because FileTree can unmount and
+  // remount (e.g. when the parent FolderGroup is collapsed/expanded), the
+  // useEffect on a non-zero seq would replay the LAST action on every
+  // remount. The lastSeqRef trio captures the seq value at mount time so
+  // the effect only fires on actual changes since then, not the historical
+  // value frozen into props.
+  const lastExpandSeqRef = useRef(expandAllSeq);
+  const lastCollapseSeqRef = useRef(collapseAllSeq);
+  const lastReloadSeqRef = useRef(reloadSeq);
+
   // Expand-all: BFS the entire tree, loading every subdirectory through
   // fsList, then expand every directory we discovered. Capped at 500 dirs
   // as a safety net — a typical markdown vault is far below that, and
   // anything bigger would hang the UI if we let it run free.
   useEffect(() => {
-    if (expandAllSeq === 0) return;
+    if (expandAllSeq === lastExpandSeqRef.current) return;
+    lastExpandSeqRef.current = expandAllSeq;
     let cancelled = false;
     (async () => {
       const localCache = new Map(cache);
@@ -221,9 +233,21 @@ export function FileTree({
   }, [expandAllSeq]);
 
   useEffect(() => {
-    if (collapseAllSeq === 0) return;
+    if (collapseAllSeq === lastCollapseSeqRef.current) return;
+    lastCollapseSeqRef.current = collapseAllSeq;
     setExpanded(new Set());
-  }, [collapseAllSeq]);
+    // Also drop the cache for everything except the root, so a follow-up
+    // expand of the root chevron only loads + shows the immediate children
+    // (the user complaint: "expanding the parent folder expands ALL folder
+    // levels" because their previously-expanded subdirs were still cached
+    // + listed as expanded).
+    setCache((prev) => {
+      const next = new Map<string, DirEntry[]>();
+      const r = prev.get(root);
+      if (r) next.set(root, r);
+      return next;
+    });
+  }, [collapseAllSeq, root]);
 
   // Reload: re-fetch the root and every currently-cached subdir so external
   // filesystem changes (new file, deleted file, rename) show up. Preserves
@@ -231,7 +255,8 @@ export function FileTree({
   // with fresh contents. A cached dir that no longer exists on disk
   // silently drops out of the cache (fsList error → skip).
   useEffect(() => {
-    if (reloadSeq === 0) return;
+    if (reloadSeq === lastReloadSeqRef.current) return;
+    lastReloadSeqRef.current = reloadSeq;
     let cancelled = false;
     (async () => {
       // Snapshot the cache keys so we know what to re-fetch even if the
