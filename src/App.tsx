@@ -933,7 +933,12 @@ export default function App() {
   const tocWidth = usePreferences((s) => s.tocWidth);
   const { setFolderWidth, setTocWidth } = usePreferences.getState();
 
-  const showFolder = folderVisible && folder != null;
+  // Panel visibility is purely a user preference — when it's on, render
+  // the FolderPanel even if no folder is currently picked. The panel knows
+  // how to draw its own "No folder open" empty state with a Choose folder…
+  // button, so closing the last folder no longer makes the explorer
+  // disappear out from under the user.
+  const showFolder = folderVisible;
   const showToc = tocVisible && active != null;
 
   const templateParts: string[] = [];
