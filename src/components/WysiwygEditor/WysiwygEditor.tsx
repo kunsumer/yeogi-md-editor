@@ -143,6 +143,8 @@ interface Props {
   readOnly?: boolean;
   searchOpen?: boolean;
   searchReplace?: boolean;
+  /** Bumped on every ⌘F so the search input re-focuses even when already open. */
+  searchFocusSeq?: number;
   onSearchClose?: () => void;
 }
 
@@ -152,6 +154,7 @@ export function WysiwygEditor({
   readOnly = false,
   searchOpen = false,
   searchReplace = false,
+  searchFocusSeq = 0,
   onSearchClose,
 }: Props) {
   // Track the last markdown we emitted so external prop changes that simply
@@ -360,6 +363,7 @@ export function WysiwygEditor({
         <WysiwygSearchBar
           editor={editor}
           withReplace={searchReplace}
+          focusSeq={searchFocusSeq}
           onClose={onSearchClose}
         />
       )}

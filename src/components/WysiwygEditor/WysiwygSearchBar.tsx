@@ -13,6 +13,14 @@ import {
 interface Props {
   editor: Editor;
   withReplace: boolean;
+  /**
+   * Monotonic counter — bumped each time the user fires ⌘F. The bar uses
+   * it as a useEffect dependency to re-focus + re-select the query input
+   * even when the bar was already open; otherwise a second ⌘F while the
+   * bar is up does nothing because the parent's `searchOpen` state stays
+   * `true` and the focus effect doesn't re-run.
+   */
+  focusSeq?: number;
   onClose: () => void;
 }
 
@@ -22,7 +30,12 @@ interface Props {
  * cursor. When `withReplace` is true, shows a second row with replacement
  * input + Replace / Replace All buttons.
  */
-export function WysiwygSearchBar({ editor, withReplace, onClose }: Props) {
+export function WysiwygSearchBar({
+  editor,
+  withReplace,
+  focusSeq = 0,
+  onClose,
+}: Props) {
   const [query, setQuery] = useState("");
   const [replacement, setReplacement] = useState("");
   const [state, setState] = useState<SearchState>({
@@ -39,6 +52,15 @@ export function WysiwygSearchBar({ editor, withReplace, onClose }: Props) {
       searchClear(editor);
     };
   }, [editor]);
+
+  // Re-focus + re-select when the parent fires another ⌘F. Separate from
+  // the mount effect above (which also clears search on unmount) so this
+  // one only handles the re-focus side and doesn't run searchClear.
+  useEffect(() => {
+    if (focusSeq === 0) return;
+    queryRef.current?.focus();
+    queryRef.current?.select();
+  }, [focusSeq]);
 
   // Re-run the search when the query input changes (debounced so typing
   // isn't hamstrung on giant docs).

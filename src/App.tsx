@@ -55,6 +55,11 @@ export default function App() {
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchReplace, setSearchReplace] = useState(false);
+  // Bumped every time ⌘F fires, regardless of whether the bar was already
+  // open. The search bar uses this as a useEffect dep to re-focus + re-
+  // select its query input — without it, a second ⌘F while the bar's
+  // already up does nothing because setSearchOpen(true) is a no-op.
+  const [searchFocusSeq, setSearchFocusSeq] = useState(0);
   // Pending close request blocked by unsaved changes. null = no prompt up.
   const [closeConfirm, setCloseConfirm] = useState<
     { id: string; paneId: "primary" | "secondary" } | null
@@ -381,6 +386,7 @@ export default function App() {
     } else {
       setSearchReplace(replace);
       setSearchOpen(true);
+      setSearchFocusSeq((n) => n + 1);
     }
   }
 
@@ -1037,6 +1043,7 @@ export default function App() {
           {...paneProps}
           searchOpen={searchOpen}
           searchReplace={searchReplace}
+          searchFocusSeq={searchFocusSeq}
           onSearchClose={() => setSearchOpen(false)}
           onEditorReady={(view) => {
             viewRef.current = view;

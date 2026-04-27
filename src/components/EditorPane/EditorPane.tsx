@@ -40,6 +40,8 @@ interface Props {
   // Primary-pane-only pass-throughs (safe to ignore on secondary):
   searchOpen?: boolean;
   searchReplace?: boolean;
+  /** Bumped on every ⌘F so the search input re-focuses even when already open. */
+  searchFocusSeq?: number;
   onSearchClose?: () => void;
   onEditorReady?: (view: EditorView) => void;
 
@@ -89,6 +91,7 @@ export function EditorPane({
   onSetAutosaveEnabled,
   searchOpen,
   searchReplace,
+  searchFocusSeq,
   onSearchClose,
   onEditorReady,
   updateStatus,
@@ -189,6 +192,7 @@ export function EditorPane({
               readOnly={!editable}
               searchOpen={searchOpen}
               searchReplace={searchReplace}
+              searchFocusSeq={searchFocusSeq}
               onSearchClose={onSearchClose}
             />
           ) : (
