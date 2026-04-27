@@ -351,11 +351,12 @@ function FolderGroup({
       }}
       style={{
         marginBottom: 8,
-        // Selected root gets an accent left border + faint bg tint so the
-        // user can see at a glance which tree expand-all / collapse-all
-        // will act on. Inactive groups stay neutral.
+        // Selected root gets the brand-red left border + faint bg tint —
+        // matches the active-tab indicator visually so "selected" reads
+        // consistently across the explorer + tab bar. Inactive groups
+        // stay neutral.
         borderLeft: `3px solid ${
-          isSelected ? "var(--accent)" : "transparent"
+          isSelected ? "var(--brand-red)" : "transparent"
         }`,
         background: isSelected ? "var(--bg-hover)" : "transparent",
         borderRadius: 4,
