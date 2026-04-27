@@ -126,13 +126,40 @@ export function TabBar({
 }: Props) {
   const [ctx, setCtx] = useState<{ docId: string; x: number; y: number } | null>(null);
   const [newMenu, setNewMenu] = useState<{ x: number; y: number } | null>(null);
-  // Drag-state: which tab is being dragged + which target tab + side the
-  // user is hovering. `dragOver` is what drives the insertion-line
-  // indicator (a left/right inset box-shadow on the target tab).
-  const [dragging, setDragging] = useState<string | null>(null);
-  const [dragOver, setDragOver] = useState<{ id: string; side: "before" | "after" } | null>(null);
+  // Live tab reorder state — Chrome-style. While the user drags a tab,
+  // we visually rearrange the rendered list so other tabs slide out of
+  // the way as the dragged one moves over them. On drop we commit the
+  // current preview order via onReorder.
+  //
+  //   draggingId: which doc id is being dragged (null when no drag).
+  //   previewBeforeId: the doc id that the dragged tab should appear
+  //                    BEFORE in the live preview. null means "at end."
+  //
+  // Dragover handlers update previewBeforeId based on which half of the
+  // hovered target tab the cursor sits in. The render below filters
+  // draggingId out of the tab list and re-inserts it at the previewed
+  // slot, so the user sees the new order before they release.
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [previewBeforeId, setPreviewBeforeId] = useState<string | null>(null);
   const showNewBtn = !!(onCreateBlank || onOpenFiles);
-  const tabs = pane.tabs.map((id) => {
+  // While dragging, render tabs in the preview order: filter out the
+  // dragged id and reinsert it at the slot before previewBeforeId
+  // (or at the end if previewBeforeId is null). When not dragging we
+  // just render pane.tabs as-is.
+  const orderedIds = (() => {
+    if (!draggingId || !pane.tabs.includes(draggingId)) return pane.tabs;
+    const without = pane.tabs.filter((id) => id !== draggingId);
+    if (previewBeforeId === null) return [...without, draggingId];
+    const insertAt = without.indexOf(previewBeforeId);
+    if (insertAt < 0) return [...without, draggingId];
+    return [
+      ...without.slice(0, insertAt),
+      draggingId,
+      ...without.slice(insertAt),
+    ];
+  })();
+
+  const tabs = orderedIds.map((id) => {
     const d = documents.find((doc) => doc.id === id);
     return {
       id,
@@ -147,46 +174,31 @@ export function TabBar({
       style={tablistStyle}
       onDragOver={(e) => {
         // Allow drops on the strip's empty trailing area (past the last
-        // tab). The per-tab handlers above already preventDefault for
-        // their own area; this catches the gap.
-        if (!onReorder) return;
+        // tab). Per-tab handlers stopPropagation so this only fires in
+        // the gap. While dragging through that gap, treat it as "land
+        // at end" and update the live preview accordingly.
+        if (!onReorder || !draggingId) return;
         if (!e.dataTransfer.types.includes(TAB_DND_TYPE)) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
+        if (previewBeforeId !== null) setPreviewBeforeId(null);
       }}
       onDrop={(e) => {
-        if (!onReorder) return;
+        if (!onReorder || !draggingId) return;
         const draggedId = e.dataTransfer.getData(TAB_DND_TYPE);
         if (!draggedId) return;
-        // If a per-tab handler already consumed the drop, default is
-        // prevented and the bubbling stops with that handler. Reaching
-        // here means the user dropped in the empty area → land at end.
+        // Reaching here means the user dropped in the empty area
+        // past the last tab → land at end.
         e.preventDefault();
-        setDragging(null);
-        setDragOver(null);
-        onReorder(draggedId, null);
+        const id = draggingId;
+        setDraggingId(null);
+        setPreviewBeforeId(null);
+        onReorder(id, null);
       }}
     >
       {tabs.map((d) => {
         const active = d.id === pane.activeTabId;
-        const isDragSource = dragging === d.id;
-        const isDropTarget = dragOver?.id === d.id;
-        // Compose multiple inset shadows: existing active-tab top stripe +
-        // drop indicator on the appropriate side. Both inset shadows are
-        // independent axes so they layer cleanly.
-        const shadows: string[] = [];
-        if (active) {
-          shadows.push(
-            `inset 0 2px 0 0 var(${isFocused ? "--brand-red" : "--border-strong"})`,
-          );
-        }
-        if (isDropTarget && dragging !== d.id) {
-          shadows.push(
-            dragOver.side === "before"
-              ? "inset 2px 0 0 0 var(--brand-red)"
-              : "inset -2px 0 0 0 var(--brand-red)",
-          );
-        }
+        const isDragSource = draggingId === d.id;
         const tabBaseStyle = tabStyle(active, isFocused);
         return (
           <div
@@ -199,55 +211,53 @@ export function TabBar({
               if (!onReorder) return;
               e.dataTransfer.effectAllowed = "move";
               e.dataTransfer.setData(TAB_DND_TYPE, d.id);
-              setDragging(d.id);
+              setDraggingId(d.id);
+              // Initialize the preview anchor at this tab's current
+              // position so the first dragover doesn't briefly show
+              // a different placement.
+              const idx = pane.tabs.indexOf(d.id);
+              setPreviewBeforeId(pane.tabs[idx + 1] ?? null);
             }}
             onDragOver={(e) => {
-              if (!onReorder) return;
+              if (!onReorder || !draggingId) return;
               // preventDefault: enable drop on this target.
-              // stopPropagation: keep the strip-level onDragOver from
-              // also handling — otherwise both fire and the indicator
-              // flickers between "this tab" and "end of strip".
+              // stopPropagation: keep the strip-level handler from
+              // also processing this dragover.
               e.preventDefault();
               e.stopPropagation();
               e.dataTransfer.dropEffect = "move";
+              if (d.id === draggingId) return;
               const rect = e.currentTarget.getBoundingClientRect();
-              const side =
-                e.clientX < rect.left + rect.width / 2 ? "before" : "after";
-              if (dragOver?.id !== d.id || dragOver.side !== side) {
-                setDragOver({ id: d.id, side });
-              }
+              const before =
+                e.clientX < rect.left + rect.width / 2;
+              // Resolve to the BEFORE-id from the original list
+              // ordering (pane.tabs), not the preview-rendered order:
+              // pane.tabs is the source of truth that onReorder will
+              // apply against on drop.
+              const targetIdx = pane.tabs.indexOf(d.id);
+              const next = before
+                ? d.id
+                : pane.tabs[targetIdx + 1] ?? null;
+              if (next !== previewBeforeId) setPreviewBeforeId(next);
             }}
             onDrop={(e) => {
-              if (!onReorder) return;
-              // stopPropagation matters here: without it, the drop
-              // bubbles to the strip-level onDrop which calls
-              // onReorder(draggedId, null) → append to end. The result
-              // is that EVERY drop on a tab silently degrades to
-              // "moved to the end of the strip", which presents to the
-              // user as "drag doesn't reorder."
+              if (!onReorder || !draggingId) return;
+              // Without stopPropagation the drop bubbles to the
+              // strip-level handler which calls
+              // onReorder(draggedId, null) → "append to end" — and
+              // every per-tab drop silently degrades to that.
               e.preventDefault();
               e.stopPropagation();
-              const draggedId = e.dataTransfer.getData(TAB_DND_TYPE);
-              setDragging(null);
-              setDragOver(null);
-              if (!draggedId || draggedId === d.id) return;
-              // Resolve "before this id" from the live event coords,
-              // not the cached dragOver state — the latter can be a
-              // tick stale and produces wrong placements.
-              const rect = e.currentTarget.getBoundingClientRect();
-              const side =
-                e.clientX < rect.left + rect.width / 2 ? "before" : "after";
-              const targetIdx = pane.tabs.indexOf(d.id);
-              if (targetIdx < 0) return;
-              const beforeId =
-                side === "before"
-                  ? d.id
-                  : pane.tabs[targetIdx + 1] ?? null;
-              onReorder(draggedId, beforeId);
+              const beforeId = previewBeforeId;
+              const id = draggingId;
+              setDraggingId(null);
+              setPreviewBeforeId(null);
+              if (id === d.id) return;
+              onReorder(id, beforeId);
             }}
             onDragEnd={() => {
-              setDragging(null);
-              setDragOver(null);
+              setDraggingId(null);
+              setPreviewBeforeId(null);
             }}
             onMouseDown={(e) => {
               if (e.button === 1) {
@@ -274,7 +284,6 @@ export function TabBar({
             }}
             style={{
               ...tabBaseStyle,
-              boxShadow: shadows.length ? shadows.join(", ") : "none",
               opacity: isDragSource ? 0.5 : 1,
             }}
           >

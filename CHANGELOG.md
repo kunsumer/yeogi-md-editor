@@ -17,7 +17,7 @@ A focused release on the **Folder Explorer**.
 
 - **Folder Explorer panel no longer disappears when no folder is open.** Closing the last folder used to hide the entire panel even though the user's preference said "show it" — and re-toggling Folder Explorer from the View menu had no effect. The panel now stays visible with a "No folder open" empty state and a Choose folder… button.
 - **Expand-all → Collapse-all → re-expand** cycle no longer leaves all subdirectory levels expanded. The collapse-all path now drops the cached subdir contents (root preserved) so a follow-up expand only shows the immediate children, matching CommonMark file-explorer expectations.
-- **Stale expand/collapse signals on FileTree remount** are no longer replayed. Collapsing then re-expanding a folder group used to incorrectly re-trigger the last expand-all action because the FileTree's effect re-fired on mount with the still-non-zero seq prop. Each *Seq prop now stores its mount-time value in a ref and only fires on real changes since then.
+- **Stale expand/collapse signals on FileTree remount** are no longer replayed. Collapsing then re-expanding a folder group used to incorrectly re-trigger the last expand-all action because the FileTree's effect re-fired on mount with the still-non-zero seq prop. Each \*Seq prop now stores its mount-time value in a ref and only fires on real changes since then.
 
 ## v0.4.4 — 2026-04-24
 
@@ -31,7 +31,7 @@ A focused release on the **Folder Explorer**.
 
 ### New
 
-- **Instant link tooltips.** Hovering a link in the WYSIWYG editor or Preview pane now shows the link's title + href immediately instead of waiting for the OS's ~1 s native-tooltip delay. Custom floating tooltip with title on top, href below in monospace; native browser tooltip is suppressed by moving the `title` attribute to a data attribute on first hover.
+- **Instant link tooltips.** Hovering a link in the WYSIWYG editor or Preview pane now shows the link's title + href immediately instead of waiting for the OS's \~1 s native-tooltip delay. Custom floating tooltip with title on top, href below in monospace; native browser tooltip is suppressed by moving the `title` attribute to a data attribute on first hover.
 - **More dark themes.** `View → Appearance → Dark` group adds **One Dark Pro**, **Nord**, **GitHub Dark** (canonical `#0d1117` palette, distinct from the default Dark theme), and **Tokyo Night**. Each pairs a Shiki code-block theme that matches its palette.
 - **"Help → Reset Welcome.md to Default"** menu item — overwrites your `~/Documents/Yeogi .MD Editor/Welcome.md` with the bundled seed (the source ships an updated demo doc on every release; this lets you pick up the latest without manually deleting the file). Destructive confirmation prompt warns before replacing local edits.
 
@@ -39,10 +39,10 @@ A focused release on the **Folder Explorer**.
 
 - **Save-time crash on documents containing tables.** The WYSIWYG table cell serializer's textContent guard threw `TypeError: No default value` in WebKit on cells containing inline math atoms (`$\LaTeX$`), crashing the editor on every keystroke. Replaced the dead leftover with a `cellContent.childCount > 0` check so atom cells round-trip safely.
 - **Inline math, wiki-links, and other atom-shaped inline content in table cells** no longer disappear on save. The same fix as above; a cell with `$x^2$` or `[[Note]]` now round-trips with content intact.
-- **`<details>` / `<summary>` round-trip.** Previously the WYSIWYG serializer dropped the `<details>` wrapper on save, collapsing the disclosure widget to bare content. Now emits a proper HTML block with `[open]` attribute preserved. Click-to-expand inside the editor works via a NodeView that routes summary clicks through a ProseMirror transaction.
-- **Footnote `[^id]` round-trip.** Footnote references were being serialized as the grotesque `[^1^](#fn-1)` form because the `<sup data-footnote-ref>` HTML matched both Tiptap's footnote-ref node and the Superscript mark + Link mark at the same parse priority. Bumped FootnoteRef / FootnoteSection / FootnoteItem parseHTML priorities so the specialized rules win.
-- **Email autolinks `<x@y>`** stay as `<x@y>` on save instead of being converted to `[x@y](mailto:x@y)`. URL autolinks already round-tripped correctly; this completes the symmetry.
-- **Setext headings `===` / `---`** survive WYSIWYG round-trips instead of being silently rewritten to ATX `#` / `##`. New `HeadingWithSyntax` extension carries a `syntax` attr through parse/serialize.
+- `<details>` **/** `<summary>` **round-trip.** Previously the WYSIWYG serializer dropped the `<details>` wrapper on save, collapsing the disclosure widget to bare content. Now emits a proper HTML block with `[open]` attribute preserved. Click-to-expand inside the editor works via a NodeView that routes summary clicks through a ProseMirror transaction.
+- **Footnote** `[^id]` **round-trip.** Footnote references were being serialized as the grotesque `[^1^](#fn-1)` form because the `<sup data-footnote-ref>` HTML matched both Tiptap's footnote-ref node and the Superscript mark + Link mark at the same parse priority. Bumped FootnoteRef / FootnoteSection / FootnoteItem parseHTML priorities so the specialized rules win.
+- **Email autolinks** `<x@y>` stay as `<x@y>` on save instead of being converted to `<x@y>`. URL autolinks already round-tripped correctly; this completes the symmetry.
+- **Setext headings** `===` **/** `---` survive WYSIWYG round-trips instead of being silently rewritten to ATX `#` / `##`. New `HeadingWithSyntax` extension carries a `syntax` attr through parse/serialize.
 - **Hard line breaks** canonicalized to the conventional two-trailing-spaces form on save (was `\\\n`). Both render identically; two-space is the canonical CommonMark form.
 - **Definition lists** (`term\n: defn` Pandoc form) round-trip without flattening to inline `term : defn`. New schema nodes for `<dl>` / `<dt>` / `<dd>` plus `markdown-it-deflist` parser. CSS treatment in the WYSIWYG matches the Preview rendering.
 - **Tauri event names with dots** (`file.changed`, `watcher.lost`, `preview.contentUpdate`, `editor.closed`) were rejected by Tauri 2's event-name validator, raising "Unhandled Promise Rejection" on every app launch. Renamed all four to `:` separators on both Rust and TS sides.
@@ -56,16 +56,16 @@ A focused release on the **Folder Explorer**.
 ### Developer / release infrastructure
 
 - **GitHub Actions release workflow.** Pushing a `v*` tag now builds the universal bundle on CI, generates `latest.json`, publishes the GitHub Release, and verifies the updater endpoint — replacing the manual `pnpm release:build` + `gh release create` ceremony. Manual flow still works as fallback (`docs/releasing.md`).
-- **`scripts/api-push.py`** (the firewall-bypass squash-push) now defaults its commit-message ref to HEAD instead of requiring a hand-edited SHA before each release.
+- `scripts/api-push.py` (the firewall-bypass squash-push) now defaults its commit-message ref to HEAD instead of requiring a hand-edited SHA before each release.
 
 ## v0.4.2 — 2026-04-24
 
 ### Fixed
 
 - **Save-time crash on documents with tables.** The WYSIWYG table serializer held a dead `String(cellContent.attrs)` leftover that threw `TypeError: No default value` in WebKit for certain cell content shapes (inline math atoms in particular). That triggered a renderer crash on every keystroke in documents containing such tables. Dead path removed; cell rendering now guards `cellContent?.textContent ?? ""` safely.
-- **`<details>` / `<summary>` round-trip.** WYSIWYG previously dropped the `<details>` wrapper on save (the serializer only rendered inner children, so `<details><summary>X</summary>…</details>` degraded to bare content and the disclosure was lost). The serializer now emits a proper HTML block (`<details [open]>` + blank line + `<summary>` + body + `</details>`) so the wrapper survives every round trip, and the `open` attribute is preserved.
+- `<details>` **/** `<summary>` **round-trip.** WYSIWYG previously dropped the `<details>` wrapper on save (the serializer only rendered inner children, so `<details><summary>X</summary>…</details>` degraded to bare content and the disclosure was lost). The serializer now emits a proper HTML block (`<details [open]>` + blank line + `<summary>` + body + `</details>`) so the wrapper survives every round trip, and the `open` attribute is preserved.
 - **"Click to expand" works inside the editor.** Native `<details>` disclosure doesn't fire in contenteditable — ProseMirror consumes pointerdown for caret placement. A NodeView on `Details` now routes summary clicks through a proper transaction (`setNodeAttribute(pos, "open", !current)`), so the toggle flips the attribute *and* the updated state round-trips to markdown on save.
-- **Tauri event names with dots.** Tauri 2 rejects event names containing `.`, which was raising `Unhandled Promise Rejection: invalid args \`event\` for command \`listen\`…` on every app launch. Renamed the four offenders on both Rust and TS sides: `file.changed` → `file:changed`, `watcher.lost` → `watcher:lost`, `preview.contentUpdate` → `preview:content-update`, `editor.closed` → `editor:closed`.
+- **Tauri event names with dots.** Tauri 2 rejects event names containing `.`, which was raising `Unhandled Promise Rejection: invalid args \`event\` for command \`listen\`…`on every app launch. Renamed the four offenders on both Rust and TS sides:`file.changed`→`file:changed`, `watcher.lost`→`watcher:lost`, `preview.contentUpdate`→`preview:content-update`, `editor.closed`→`editor:closed\`.
 
 ### Changed
 
@@ -81,8 +81,7 @@ A focused release on the **Folder Explorer**.
   - **Atom One Light** — warm-tinted, slightly blue-purple accent
   - **Solarized Light** — warm beige `#fdf6e3`, teal accent — Ethan Schoonover's canonical palette
   - **Ayu Light** — soft warm whites, bright orange accent
-  - **Alabaster** — minimalist off-white, pure black text, muted blue accent
-  Dark group unchanged (Dark, Dracula).
+  - **Alabaster** — minimalist off-white, pure black text, muted blue accent Dark group unchanged (Dark, Dracula).
 
 ## v0.4.0 — 2026-04-23
 
@@ -90,8 +89,7 @@ A focused release on the **Folder Explorer**.
 
 - **Named themes.** `View → Appearance` now offers a starter set of four curated palettes in addition to **Follow System**:
   - **Light group:** Light, GitHub Light
-  - **Dark group:** Dark, Dracula
-  Follow System (default) picks Light or Dark based on `prefers-color-scheme` and flips live when the OS appearance changes. Picking any named theme switches the full palette (sidebars, tab bar, editor, preview, Shiki code-block syntax highlighting, and Mermaid diagrams) and persists across relaunch. The shape supports arbitrary additions — adding more themes in a future release is a mechanical data change.
+  - **Dark group:** Dark, Dracula Follow System (default) picks Light or Dark based on `prefers-color-scheme` and flips live when the OS appearance changes. Picking any named theme switches the full palette (sidebars, tab bar, editor, preview, Shiki code-block syntax highlighting, and Mermaid diagrams) and persists across relaunch. The shape supports arbitrary additions — adding more themes in a future release is a mechanical data change.
 - **Tutorial refresh.** The first-run tour catches up with v0.3.x features: side-by-side panes (⌘-click folder, right-click tab Open-to-the-Side), Save / Save As (⌘S / ⇧⌘S), Open Recent, Appearance menu, wiki-link pipe form + auto-create + backlinks, and fixes the stale "⌘E = inline code" entry (⌘E now toggles WYSIWYG ↔ Edit).
 
 ### Fixed
@@ -105,7 +103,7 @@ A focused release on the **Folder Explorer**.
 - **Dark-mode legibility.** The v0.3.4 dark theme left several surfaces unreadable:
   - **WYSIWYG / Edit segmented control** — active segment rendered as white-on-white in dark mode. Now inverts with the theme (dark pill in light mode, light pill in dark mode) via a `var(--bg)` foreground instead of hardcoded `#fff`.
   - **Tables** — header and striped-row backgrounds were hardcoded light gray (`#eceef1`, `#f6f7f9`). Now use `var(--bg-sidebar)` for headers and a `rgba(125,125,125,0.06)` relative tint for stripes, which reads correctly in both modes.
-  - **Inline code pills** (``\`code\```) — background and foreground were hardcoded light values. Now `var(--bg-hover)` + `var(--text)`.
+  - **Inline code pills** (\`\`\`code\`\`\`) — background and foreground were hardcoded light values. Now `var(--bg-hover)` + `var(--text)`.
   - **Mermaid card background** — previously forced `#ffffff`, masking the light-on-light text in dark mode. Now `var(--bg)`.
 - **Mermaid diagrams follow the app theme.** The preview pipeline and the WYSIWYG mermaid node both re-read the resolved theme from `html[data-theme]` at render time and initialize mermaid with its built-in `dark` theme when appropriate. PreviewPane and the mermaid node both re-render when the theme preference flips so existing diagrams pick up the new theme without an edit.
 
