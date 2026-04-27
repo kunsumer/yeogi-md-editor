@@ -424,18 +424,20 @@ function OpenFolderIcon() {
 }
 
 function AddFolderIcon() {
-  // Folder full-size (same path as OpenFolderIcon — they should read at
-  // the same optical size in the toolbar) with a plus badge anchored at
-  // the bottom-right, partially overlapping the folder body and
-  // extending outside it. This is the "Add folder" pattern from VS Code
-  // / Finder where the plus is a discrete corner stamp rather than a
-  // texture inside the folder body — the latter made the icon read as
-  // smaller because the inner strokes broke up the folder's silhouette.
+  // Folder full-size (same path as OpenFolderIcon — the two icons should
+  // sit at the same optical weight in the toolbar) plus a bottom-right
+  // badge for "add". The badge is a small filled disc tinted with the
+  // toolbar background, so it cuts cleanly through the folder rim where
+  // the two overlap, and the + arms inside ride on top of that disc with
+  // a heavier stroke than the folder. Both moves are needed: previous
+  // attempts kept the plus on plain stroke at the same weight as the
+  // folder and the glyph just disappeared at 13 × 13.
   return (
     <svg {...HEADER_ICON}>
       <path d="M 3 4 H 5.5 Q 7 4 7 5 H 11 Q 12 5 12 6 V 10 Q 12 11 11 11 H 3 Q 2 11 2 10 V 5 Q 2 4 3 4 Z" />
-      <line x1="11.5" y1="9" x2="11.5" y2="13" />
-      <line x1="9.5" y1="11" x2="13.5" y2="11" />
+      <circle cx="11" cy="11" r="3" fill="var(--bg-topbar)" stroke="none" />
+      <line x1="11" y1="8.5" x2="11" y2="13.5" strokeWidth="2" />
+      <line x1="8.5" y1="11" x2="13.5" y2="11" strokeWidth="2" />
     </svg>
   );
 }
