@@ -71,10 +71,34 @@ export function FolderPanel({
   const activeRoot = findContainingRoot(allRoots, activeDocPath);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [expandSeq, setExpandSeq] = useState(0);
-  const [collapseSeq, setCollapseSeq] = useState(0);
   const [reloadSeq, setReloadSeq] = useState(0);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Per-tree expand/collapse counters. Maps from folder root → seq number.
+  // Bumping a single root's counter only re-runs the expand/collapse effect
+  // inside that root's FileTree, leaving the other trees untouched. That's
+  // what gives the toolbar's expand-all / collapse-all their per-selection
+  // semantics: they bump only the selectedFolder's counter, never broadcast.
+  const [expandByPath, setExpandByPath] = useState<Map<string, number>>(
+    new Map(),
+  );
+  const [collapseByPath, setCollapseByPath] = useState<Map<string, number>>(
+    new Map(),
+  );
+
+  // Manual override for which tree is "selected" (target of expand/collapse-
+  // all + the visual highlight). When null, falls back to the folder
+  // containing the active document, then to the first open folder. The
+  // user clicking a folder header sets it explicitly; later doc switches
+  // don't disturb that choice.
+  const [manualSelectedFolder, setManualSelectedFolder] = useState<string | null>(null);
+  const selectedFolder =
+    (manualSelectedFolder && allRoots.includes(manualSelectedFolder)
+      ? manualSelectedFolder
+      : null) ??
+    activeRoot ??
+    allRoots[0] ??
+    null;
 
   // Per-folder expand/collapse of the whole FolderGroup (affects the
   // FileTree visibility underneath). Tracked as a set of collapsed paths
@@ -143,14 +167,28 @@ export function FolderPanel({
       </button>
       <button
         type="button"
-        aria-label="Expand all loaded folders"
-        title="Expand all"
+        aria-label={`Expand all in ${selectedFolder ? selectedFolder.split("/").pop() : "the selected folder"}`}
+        title={
+          selectedFolder
+            ? `Expand all (in ${selectedFolder.split("/").pop()})`
+            : "Expand all"
+        }
+        disabled={!selectedFolder}
         onClick={() => {
-          // Two-level expand: open every collapsed FolderGroup chevron,
-          // and also fire the per-FileTree recursive expand. So one click
-          // gives users "show me everything" across the whole explorer.
-          setCollapsedFolders(new Set());
-          setExpandSeq((n) => n + 1);
+          if (!selectedFolder) return;
+          // Selected-tree-only: open the FolderGroup chevron if collapsed,
+          // and bump only that root's expand counter so its FileTree
+          // recursively expands. Other trees are untouched.
+          setCollapsedFolders((prev) => {
+            const next = new Set(prev);
+            next.delete(selectedFolder);
+            return next;
+          });
+          setExpandByPath((prev) => {
+            const next = new Map(prev);
+            next.set(selectedFolder, (next.get(selectedFolder) ?? 0) + 1);
+            return next;
+          });
         }}
         className="aside-header-btn"
       >
@@ -158,18 +196,29 @@ export function FolderPanel({
       </button>
       <button
         type="button"
-        aria-label="Collapse all folders"
-        title="Collapse all"
+        aria-label={`Collapse all in ${selectedFolder ? selectedFolder.split("/").pop() : "the selected folder"}`}
+        title={
+          selectedFolder
+            ? `Collapse all (in ${selectedFolder.split("/").pop()})`
+            : "Collapse all"
+        }
+        disabled={!selectedFolder}
         onClick={() => {
-          // Two-level collapse: close every FolderGroup chevron + clear the
-          // per-FileTree expansion state. Closing the group unmounts the
-          // FileTree (zero cost while collapsed); the FileTree state reset
-          // ensures a later re-expand starts fresh at the root level.
-          const allRoots = [folder, ...extraFolders].filter(
-            (p): p is string => p != null,
-          );
-          setCollapsedFolders(new Set(allRoots));
-          setCollapseSeq((n) => n + 1);
+          if (!selectedFolder) return;
+          // Selected-tree-only: close that one FolderGroup + bump its
+          // collapse counter (clears its FileTree's expanded set + drops
+          // cached subdir contents so the next re-expand only shows the
+          // root level). Other trees are untouched.
+          setCollapsedFolders((prev) => {
+            const next = new Set(prev);
+            next.add(selectedFolder);
+            return next;
+          });
+          setCollapseByPath((prev) => {
+            const next = new Map(prev);
+            next.set(selectedFolder, (next.get(selectedFolder) ?? 0) + 1);
+            return next;
+          });
         }}
         className="aside-header-btn"
       >
@@ -222,33 +271,24 @@ export function FolderPanel({
               className="aside-filter-input"
             />
           )}
-          <FolderGroup
-            root={folder}
-            isActive={folder === activeRoot}
-            isCollapsed={collapsedFolders.has(folder)}
-            onToggleCollapsed={() => toggleFolderCollapsed(folder)}
-            onRemove={() => onCloseFolder(folder)}
-            filter={searchOpen ? query : ""}
-            expandAllSeq={expandSeq}
-            collapseAllSeq={collapseSeq}
-            reloadSeq={reloadSeq}
-            onOpenFile={onOpenFile}
-          />
-          {extraFolders.map((p) => (
-            <FolderGroup
-              key={p}
-              root={p}
-              isActive={p === activeRoot}
-              isCollapsed={collapsedFolders.has(p)}
-              onToggleCollapsed={() => toggleFolderCollapsed(p)}
-              onRemove={() => onCloseFolder(p)}
-              filter={searchOpen ? query : ""}
-              expandAllSeq={expandSeq}
-              collapseAllSeq={collapseSeq}
-              reloadSeq={reloadSeq}
-              onOpenFile={onOpenFile}
-            />
-          ))}
+          {[folder, ...extraFolders]
+            .filter((p): p is string => p != null)
+            .map((p) => (
+              <FolderGroup
+                key={p}
+                root={p}
+                isSelected={p === selectedFolder}
+                onSelect={() => setManualSelectedFolder(p)}
+                isCollapsed={collapsedFolders.has(p)}
+                onToggleCollapsed={() => toggleFolderCollapsed(p)}
+                onRemove={() => onCloseFolder(p)}
+                filter={searchOpen ? query : ""}
+                expandAllSeq={expandByPath.get(p) ?? 0}
+                collapseAllSeq={collapseByPath.get(p) ?? 0}
+                reloadSeq={reloadSeq}
+                onOpenFile={onOpenFile}
+              />
+            ))}
         </>
       )}
     </AsidePanel>
@@ -265,7 +305,8 @@ export function FolderPanel({
  */
 function FolderGroup({
   root,
-  isActive,
+  isSelected,
+  onSelect,
   isCollapsed,
   onToggleCollapsed,
   onRemove,
@@ -276,8 +317,13 @@ function FolderGroup({
   onOpenFile,
 }: {
   root: string;
-  /** True when the focused document lives inside this root. */
-  isActive: boolean;
+  /**
+   * True when this is the toolbar-action target (expand-all / collapse-all
+   * apply here). The visual highlight follows it.
+   */
+  isSelected: boolean;
+  /** Click on the header (or anywhere in the strip) selects this group. */
+  onSelect(): void;
   isCollapsed: boolean;
   onToggleCollapsed(): void;
   /** null for the primary (which has no per-group close button). */
@@ -292,16 +338,26 @@ function FolderGroup({
   return (
     <section
       aria-label={basename}
-      aria-current={isActive ? "true" : undefined}
+      aria-current={isSelected ? "true" : undefined}
+      onMouseDownCapture={(e) => {
+        // Selecting is a passive intent — clicking inside the FileTree
+        // (e.g. opening a file) should ALSO mark this group as selected,
+        // since that's where the user's attention is. Capture-phase so
+        // we run before any per-row handlers; we don't preventDefault, so
+        // file-open / chevron-toggle / close-X all still fire.
+        if (!isSelected) onSelect();
+        // Suppress unused-var warning on `e`.
+        void e;
+      }}
       style={{
         marginBottom: 8,
-        // Active root gets an accent left border + a faint background
-        // tint, so when several folders are stacked the user can see at
-        // a glance which one contains their currently-focused document.
-        borderLeft: `2px solid ${
-          isActive ? "var(--accent)" : "transparent"
+        // Selected root gets an accent left border + faint bg tint so the
+        // user can see at a glance which tree expand-all / collapse-all
+        // will act on. Inactive groups stay neutral.
+        borderLeft: `3px solid ${
+          isSelected ? "var(--accent)" : "transparent"
         }`,
-        background: isActive ? "var(--bg-hover)" : "transparent",
+        background: isSelected ? "var(--bg-hover)" : "transparent",
         borderRadius: 4,
       }}
     >

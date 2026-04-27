@@ -72,8 +72,8 @@ describe("FolderPanel", () => {
     expect(onPickFolder).toHaveBeenCalledTimes(1);
   });
 
-  it("highlights the folder containing the active document", () => {
-    const { container, rerender } = render(
+  it("defaults selection to the folder containing the active document", () => {
+    const { container } = render(
       <FolderPanel
         {...baseProps({
           folder: "/Users/me/Primary",
@@ -90,9 +90,10 @@ describe("FolderPanel", () => {
     }));
     expect(aria).toContainEqual({ label: "Primary", current: null });
     expect(aria).toContainEqual({ label: "Extra", current: "true" });
+  });
 
-    // Switching active doc to the primary folder swaps the highlight.
-    rerender(
+  it("clicking a folder header makes it the selected (highlighted) tree", () => {
+    const { container } = render(
       <FolderPanel
         {...baseProps({
           folder: "/Users/me/Primary",
@@ -101,16 +102,29 @@ describe("FolderPanel", () => {
         })}
       />,
     );
-    const sections2 = container.querySelectorAll("section[aria-label]");
-    const aria2 = Array.from(sections2).map((s) => ({
-      label: s.getAttribute("aria-label"),
-      current: s.getAttribute("aria-current"),
-    }));
-    expect(aria2).toContainEqual({ label: "Primary", current: "true" });
-    expect(aria2).toContainEqual({ label: "Extra", current: null });
+    // Default selection follows the active doc → Primary is selected.
+    const primarySection = container.querySelector(
+      'section[aria-label="Primary"]',
+    );
+    const extraSection = container.querySelector('section[aria-label="Extra"]');
+    expect(primarySection?.getAttribute("aria-current")).toBe("true");
+    expect(extraSection?.getAttribute("aria-current")).toBeNull();
+
+    // Click on Extra's header strip → manual override; selection moves.
+    fireEvent.mouseDown(extraSection!);
+    expect(
+      container
+        .querySelector('section[aria-label="Extra"]')
+        ?.getAttribute("aria-current"),
+    ).toBe("true");
+    expect(
+      container
+        .querySelector('section[aria-label="Primary"]')
+        ?.getAttribute("aria-current"),
+    ).toBeNull();
   });
 
-  it("picks the deepest matching root when folders are nested", () => {
+  it("picks the deepest matching root when folders are nested (default selection)", () => {
     const { container } = render(
       <FolderPanel
         {...baseProps({
