@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Pane, PaneId } from "../../state/layout";
 import type { Document } from "../../state/documents";
 import { TabContextMenu } from "./TabContextMenu";
@@ -109,9 +109,9 @@ const newTabBtnStyle: React.CSSProperties = {
   alignSelf: "center",
 };
 
-// MIME-ish key for the drag payload. Custom prefix so it doesn't collide
-// with file drops or text drags that happen to share dataTransfer.
-const TAB_DND_TYPE = "application/x-yeogi-tab-id";
+// Distance the pointer must travel before a click promotes to a drag.
+// Below this threshold a mouseup fires onActivate as before.
+const DRAG_THRESHOLD_PX = 4;
 
 export function TabBar({
   pane,
@@ -126,21 +126,61 @@ export function TabBar({
 }: Props) {
   const [ctx, setCtx] = useState<{ docId: string; x: number; y: number } | null>(null);
   const [newMenu, setNewMenu] = useState<{ x: number; y: number } | null>(null);
-  // Live tab reorder state — Chrome-style. While the user drags a tab,
-  // we visually rearrange the rendered list so other tabs slide out of
-  // the way as the dragged one moves over them. On drop we commit the
-  // current preview order via onReorder.
+  // Pointer-events-based tab reorder. HTML5 drag-and-drop in WKWebView
+  // (Tauri's macOS engine) has a history of subtle issues — drag images
+  // not appearing, dragover failing to fire, etc. Pointer events give
+  // us full control: we hit-test against tab DOM rects on each move,
+  // flip the rendered order live, and commit on pointerup.
   //
-  //   draggingId: which doc id is being dragged (null when no drag).
-  //   previewBeforeId: the doc id that the dragged tab should appear
-  //                    BEFORE in the live preview. null means "at end."
+  //   draggingId: which doc id is currently being dragged (state, drives
+  //               render). null when no drag is in progress.
+  //   previewBeforeId: the id the dragged tab appears BEFORE in the
+  //                    live preview ordering. null means "at end."
   //
-  // Dragover handlers update previewBeforeId based on which half of the
-  // hovered target tab the cursor sits in. The render below filters
-  // draggingId out of the tab list and re-inserts it at the previewed
-  // slot, so the user sees the new order before they release.
+  // Refs mirror these so the window-level pointermove/up listeners
+  // attached on first pointerdown can read the freshest values without
+  // re-attaching when state changes.
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [previewBeforeId, setPreviewBeforeId] = useState<string | null>(null);
+  const draggingIdRef = useRef<string | null>(null);
+  const previewBeforeIdRef = useRef<string | null>(null);
+  const dragCandidateRef = useRef<
+    { id: string; startX: number; startY: number; pointerId: number } | null
+  >(null);
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const onReorderRef = useRef(onReorder);
+  const paneTabsRef = useRef(pane.tabs);
+
+  // Keep refs in sync with the latest props/state every render. This is
+  // the standard pattern for "read the latest from inside long-lived
+  // event listeners."
+  useEffect(() => {
+    onReorderRef.current = onReorder;
+  }, [onReorder]);
+  useEffect(() => {
+    paneTabsRef.current = pane.tabs;
+  }, [pane.tabs]);
+  useEffect(() => {
+    draggingIdRef.current = draggingId;
+  }, [draggingId]);
+  useEffect(() => {
+    previewBeforeIdRef.current = previewBeforeId;
+  }, [previewBeforeId]);
+
+  // Unmount safety: if the strip unmounts mid-drag (e.g. tab closed
+  // by the dragged-tab being cleaned up), drop the global listeners
+  // so they don't fire against a torn-down ref.
+  useEffect(() => {
+    return () => {
+      window.removeEventListener("pointermove", onWindowPointerMove);
+      window.removeEventListener("pointerup", onWindowPointerUp);
+      window.removeEventListener("pointercancel", onWindowPointerUp);
+    };
+    // The handlers are stable (refs read from inside) so we can list
+    // an empty dep array — they don't need to re-bind when state
+    // changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const showNewBtn = !!(onCreateBlank || onOpenFiles);
   // While dragging, render tabs in the preview order: filter out the
   // dragged id and reinsert it at the slot before previewBeforeId
@@ -159,6 +199,109 @@ export function TabBar({
     ];
   })();
 
+  // Window-level pointer listeners — attached once on first drag start,
+  // detached on pointerup or pointercancel. Read state via refs so we
+  // never re-attach mid-drag.
+  function onWindowPointerMove(e: PointerEvent) {
+    const candidate = dragCandidateRef.current;
+    if (!candidate) return;
+    if (e.pointerId !== candidate.pointerId) return;
+
+    // Promote candidate → active drag once the user has moved past the
+    // threshold. Below it, we're still inside "click" territory and
+    // bailing out preserves the click → onActivate behavior.
+    if (draggingIdRef.current === null) {
+      const dx = e.clientX - candidate.startX;
+      const dy = e.clientY - candidate.startY;
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+      draggingIdRef.current = candidate.id;
+      setDraggingId(candidate.id);
+      // Initialize preview anchor at the dragged tab's current spot
+      // so the first move doesn't cause a visual jump.
+      const tabs = paneTabsRef.current;
+      const idx = tabs.indexOf(candidate.id);
+      const initialBefore = tabs[idx + 1] ?? null;
+      previewBeforeIdRef.current = initialBefore;
+      setPreviewBeforeId(initialBefore);
+    }
+
+    // Hit-test against the rendered tabs. Each tab carries data-tab-id
+    // attribute; cursor's left/right half of a tab's rect determines
+    // before/after.
+    const strip = stripRef.current;
+    if (!strip) return;
+    const draggedId = draggingIdRef.current;
+    const tabs = paneTabsRef.current;
+    let resolved: string | null | undefined = undefined;
+    const tabEls = strip.querySelectorAll<HTMLElement>("[data-tab-id]");
+    for (const el of Array.from(tabEls)) {
+      const id = el.getAttribute("data-tab-id");
+      if (!id || id === draggedId) continue;
+      const rect = el.getBoundingClientRect();
+      if (e.clientX < rect.right) {
+        const before = e.clientX < rect.left + rect.width / 2;
+        const targetIdx = tabs.indexOf(id);
+        resolved = before ? id : tabs[targetIdx + 1] ?? null;
+        break;
+      }
+    }
+    // If the cursor is past the last tab (or the strip has no other
+    // tabs), park the dragged tab at the end.
+    if (resolved === undefined) resolved = null;
+    if (resolved !== previewBeforeIdRef.current) {
+      previewBeforeIdRef.current = resolved;
+      setPreviewBeforeId(resolved);
+    }
+  }
+
+  function onWindowPointerUp(e: PointerEvent) {
+    const candidate = dragCandidateRef.current;
+    if (!candidate) return;
+    if (e.pointerId !== candidate.pointerId) return;
+
+    const wasDragging = draggingIdRef.current !== null;
+    const draggedId = draggingIdRef.current;
+    const beforeId = previewBeforeIdRef.current;
+
+    // Always tear down listeners + state, regardless of click vs drag.
+    window.removeEventListener("pointermove", onWindowPointerMove);
+    window.removeEventListener("pointerup", onWindowPointerUp);
+    window.removeEventListener("pointercancel", onWindowPointerUp);
+    dragCandidateRef.current = null;
+    draggingIdRef.current = null;
+    previewBeforeIdRef.current = null;
+
+    if (wasDragging) {
+      setDraggingId(null);
+      setPreviewBeforeId(null);
+      if (draggedId && onReorderRef.current) {
+        onReorderRef.current(draggedId, beforeId);
+      }
+    }
+    // If !wasDragging, the user just clicked — onActivate already fired
+    // from the tab's onClick before the pointer moved past threshold.
+  }
+
+  function onTabPointerDown(e: React.PointerEvent, id: string) {
+    if (!onReorder) return;
+    if (e.button !== 0) return;
+    if (e.target instanceof Element) {
+      // Skip drags initiated on interactive children (close button)
+      // so clicking the X doesn't accidentally start a drag.
+      const closest = e.target.closest("button");
+      if (closest && closest !== e.currentTarget) return;
+    }
+    dragCandidateRef.current = {
+      id,
+      startX: e.clientX,
+      startY: e.clientY,
+      pointerId: e.pointerId,
+    };
+    window.addEventListener("pointermove", onWindowPointerMove);
+    window.addEventListener("pointerup", onWindowPointerUp);
+    window.addEventListener("pointercancel", onWindowPointerUp);
+  }
+
   const tabs = orderedIds.map((id) => {
     const d = documents.find((doc) => doc.id === id);
     return {
@@ -169,32 +312,10 @@ export function TabBar({
   });
   return (
     <div
+      ref={stripRef}
       role="tablist"
       className="app-tabbar"
       style={tablistStyle}
-      onDragOver={(e) => {
-        // Allow drops on the strip's empty trailing area (past the last
-        // tab). Per-tab handlers stopPropagation so this only fires in
-        // the gap. While dragging through that gap, treat it as "land
-        // at end" and update the live preview accordingly.
-        if (!onReorder || !draggingId) return;
-        if (!e.dataTransfer.types.includes(TAB_DND_TYPE)) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-        if (previewBeforeId !== null) setPreviewBeforeId(null);
-      }}
-      onDrop={(e) => {
-        if (!onReorder || !draggingId) return;
-        const draggedId = e.dataTransfer.getData(TAB_DND_TYPE);
-        if (!draggedId) return;
-        // Reaching here means the user dropped in the empty area
-        // past the last tab → land at end.
-        e.preventDefault();
-        const id = draggingId;
-        setDraggingId(null);
-        setPreviewBeforeId(null);
-        onReorder(id, null);
-      }}
     >
       {tabs.map((d) => {
         const active = d.id === pane.activeTabId;
@@ -206,59 +327,8 @@ export function TabBar({
             role="tab"
             aria-selected={active}
             data-dirty={d.isDirty ? "true" : "false"}
-            draggable={!!onReorder}
-            onDragStart={(e) => {
-              if (!onReorder) return;
-              e.dataTransfer.effectAllowed = "move";
-              e.dataTransfer.setData(TAB_DND_TYPE, d.id);
-              setDraggingId(d.id);
-              // Initialize the preview anchor at this tab's current
-              // position so the first dragover doesn't briefly show
-              // a different placement.
-              const idx = pane.tabs.indexOf(d.id);
-              setPreviewBeforeId(pane.tabs[idx + 1] ?? null);
-            }}
-            onDragOver={(e) => {
-              if (!onReorder || !draggingId) return;
-              // preventDefault: enable drop on this target.
-              // stopPropagation: keep the strip-level handler from
-              // also processing this dragover.
-              e.preventDefault();
-              e.stopPropagation();
-              e.dataTransfer.dropEffect = "move";
-              if (d.id === draggingId) return;
-              const rect = e.currentTarget.getBoundingClientRect();
-              const before =
-                e.clientX < rect.left + rect.width / 2;
-              // Resolve to the BEFORE-id from the original list
-              // ordering (pane.tabs), not the preview-rendered order:
-              // pane.tabs is the source of truth that onReorder will
-              // apply against on drop.
-              const targetIdx = pane.tabs.indexOf(d.id);
-              const next = before
-                ? d.id
-                : pane.tabs[targetIdx + 1] ?? null;
-              if (next !== previewBeforeId) setPreviewBeforeId(next);
-            }}
-            onDrop={(e) => {
-              if (!onReorder || !draggingId) return;
-              // Without stopPropagation the drop bubbles to the
-              // strip-level handler which calls
-              // onReorder(draggedId, null) → "append to end" — and
-              // every per-tab drop silently degrades to that.
-              e.preventDefault();
-              e.stopPropagation();
-              const beforeId = previewBeforeId;
-              const id = draggingId;
-              setDraggingId(null);
-              setPreviewBeforeId(null);
-              if (id === d.id) return;
-              onReorder(id, beforeId);
-            }}
-            onDragEnd={() => {
-              setDraggingId(null);
-              setPreviewBeforeId(null);
-            }}
+            data-tab-id={d.id}
+            onPointerDown={(e) => onTabPointerDown(e, d.id)}
             onMouseDown={(e) => {
               if (e.button === 1) {
                 e.preventDefault();
