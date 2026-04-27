@@ -2,6 +2,24 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.6 — 2026-04-28
+
+A focused release on **explorer file management** + **tab ergonomics**.
+
+### New
+
+- **Right-click a file or folder in the explorer.** A context menu appears with **Open in Finder**, **Open in Terminal**, **Rename…**, **Duplicate** (files only — copies as `name (N).ext`), and **Delete**. Same menu on the folder-group header (minus Duplicate, which is files-only). Rename uses the same lightweight `PromptDialog` as new-file/new-folder; Open in Terminal opens Terminal.app at the path's directory.
+- **Delete with confirmation.** The new Delete action shows a destructive confirmation dialog with the target's name. For folders, it pre-counts every descendant and surfaces the number ("This will permanently delete `notes` and the 27 items inside it. This cannot be undone."). On confirm, any open tabs whose path is at or under the deleted path are closed in both panes — no stale buffers pointing at vanished files. Folder-root deletes also drop the folder from the explorer.
+- **Drag-reorder tabs Chrome-style.** Press and drag a tab to reorder it within its tab strip. The dragged tab follows the cursor with a subtle lift (shadow + slight transparency); the other tabs slide to make room with a smooth 160 ms transform. Implemented with pointer-events instead of HTML5 drag-and-drop because WKWebView's HTML5 DnD is unreliable on macOS — a 4 px movement threshold separates click-to-activate from drag.
+
+### Fixed
+
+- **⌘F always re-focuses the search input,** even when the bar is already open. Previously a second `⌘F` was a no-op because the toggle had nothing to do; now the search bar bumps a focus-sequence counter on every press so the input is always re-focused and re-selected.
+
+### Visual / accessibility
+
+- **`.btn-danger` style.** Destructive primary actions in `ConfirmDialog` (`tone="danger"`) now render with a proper red filled button. Previously the class was referenced but unstyled, so the existing **Help → Reset Welcome.md to Default** dialog showed an unstyled fallback button — that's now fixed too.
+
 ## v0.4.5 — 2026-04-27
 
 A focused release on the **Folder Explorer**.
