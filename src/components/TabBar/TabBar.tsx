@@ -142,6 +142,10 @@ export function TabBar({
   // re-attaching when state changes.
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [previewBeforeId, setPreviewBeforeId] = useState<string | null>(null);
+  // While dragging, this is the dragged tab's translateX offset from
+  // its resting position (so it visibly follows the cursor instead of
+  // jumping between slots). Updated on every pointermove.
+  const [cursorOffsetX, setCursorOffsetX] = useState(0);
   const draggingIdRef = useRef<string | null>(null);
   const previewBeforeIdRef = useRef<string | null>(null);
   const dragCandidateRef = useRef<
@@ -150,6 +154,10 @@ export function TabBar({
   const stripRef = useRef<HTMLDivElement | null>(null);
   const onReorderRef = useRef(onReorder);
   const paneTabsRef = useRef(pane.tabs);
+  // Captured at drag-start: width of each tab in pane.tabs order. Used to
+  // compute slot shifts for non-dragged tabs (translateX = newLeft -
+  // oldLeft) so they slide smoothly aside as the dragged tab passes.
+  const tabWidthsRef = useRef<number[]>([]);
 
   // Keep refs in sync with the latest props/state every render. This is
   // the standard pattern for "read the latest from inside long-lived
@@ -182,21 +190,61 @@ export function TabBar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const showNewBtn = !!(onCreateBlank || onOpenFiles);
-  // While dragging, render tabs in the preview order: filter out the
-  // dragged id and reinsert it at the slot before previewBeforeId
-  // (or at the end if previewBeforeId is null). When not dragging we
-  // just render pane.tabs as-is.
-  const orderedIds = (() => {
-    if (!draggingId || !pane.tabs.includes(draggingId)) return pane.tabs;
+
+  // Compute per-tab visual offsets for the live drag. We always render
+  // tabs in the original pane.tabs order so each tab keeps its DOM
+  // identity + listeners; the drag effect is purely a transform.
+  //
+  //   - The dragged tab translates by `cursorOffsetX` (the cursor's
+  //     delta from where the drag started). It visibly follows the
+  //     cursor and has no transition.
+  //   - All other tabs translate by their "slot shift": the difference
+  //     between their original left-edge and where they sit in the
+  //     preview ordering. Those have a transition so they slide smoothly.
+  //
+  // `slotOffsets` is keyed by doc id. Non-dragging tabs that don't
+  // shift have an offset of 0; we still include them so the .get() in
+  // the render is safe.
+  const slotOffsets = (() => {
+    const offsets = new Map<string, number>();
+    if (!draggingId || !pane.tabs.includes(draggingId)) return offsets;
+    const widths = tabWidthsRef.current;
+    if (widths.length !== pane.tabs.length) return offsets;
+    // Original left-edge of every tab.
+    const origLeft = new Map<string, number>();
+    let acc = 0;
+    for (let i = 0; i < pane.tabs.length; i++) {
+      origLeft.set(pane.tabs[i], acc);
+      acc += widths[i];
+    }
+    // Preview order = pane.tabs with dragged removed and reinserted
+    // before previewBeforeId (or at end when null).
     const without = pane.tabs.filter((id) => id !== draggingId);
-    if (previewBeforeId === null) return [...without, draggingId];
-    const insertAt = without.indexOf(previewBeforeId);
-    if (insertAt < 0) return [...without, draggingId];
-    return [
-      ...without.slice(0, insertAt),
-      draggingId,
-      ...without.slice(insertAt),
-    ];
+    let preview: string[];
+    if (previewBeforeId === null) {
+      preview = [...without, draggingId];
+    } else {
+      const at = without.indexOf(previewBeforeId);
+      preview =
+        at < 0
+          ? [...without, draggingId]
+          : [...without.slice(0, at), draggingId, ...without.slice(at)];
+    }
+    // New left-edge per tab in the preview.
+    const widthOf = new Map<string, number>();
+    for (let i = 0; i < pane.tabs.length; i++) {
+      widthOf.set(pane.tabs[i], widths[i]);
+    }
+    const newLeft = new Map<string, number>();
+    acc = 0;
+    for (const id of preview) {
+      newLeft.set(id, acc);
+      acc += widthOf.get(id) ?? 0;
+    }
+    for (const id of pane.tabs) {
+      offsets.set(id, (newLeft.get(id) ?? 0) - (origLeft.get(id) ?? 0));
+    }
+    return offsets;
   })();
 
   // Window-level pointer listeners — attached once on first drag start,
@@ -216,6 +264,15 @@ export function TabBar({
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
       draggingIdRef.current = candidate.id;
       setDraggingId(candidate.id);
+      // Capture each tab's width once at drag-start so slot shifts
+      // are computed against a stable layout (the live render flips
+      // transforms on the tabs, which would skew offsetWidth if read
+      // mid-drag).
+      const strip = stripRef.current;
+      if (strip) {
+        const els = strip.querySelectorAll<HTMLElement>("[data-tab-id]");
+        tabWidthsRef.current = Array.from(els).map((el) => el.offsetWidth);
+      }
       // Initialize preview anchor at the dragged tab's current spot
       // so the first move doesn't cause a visual jump.
       const tabs = paneTabsRef.current;
@@ -223,7 +280,11 @@ export function TabBar({
       const initialBefore = tabs[idx + 1] ?? null;
       previewBeforeIdRef.current = initialBefore;
       setPreviewBeforeId(initialBefore);
+      setCursorOffsetX(0);
     }
+
+    // Update cursor offset so the dragged tab follows the cursor.
+    setCursorOffsetX(e.clientX - candidate.startX);
 
     // Hit-test against the rendered tabs. Each tab carries data-tab-id
     // attribute; cursor's left/right half of a tab's rect determines
@@ -274,6 +335,8 @@ export function TabBar({
     if (wasDragging) {
       setDraggingId(null);
       setPreviewBeforeId(null);
+      setCursorOffsetX(0);
+      tabWidthsRef.current = [];
       if (draggedId && onReorderRef.current) {
         onReorderRef.current(draggedId, beforeId);
       }
@@ -302,7 +365,10 @@ export function TabBar({
     window.addEventListener("pointercancel", onWindowPointerUp);
   }
 
-  const tabs = orderedIds.map((id) => {
+  // Render in the original pane.tabs order. Drag visual is purely a
+  // transform on each tab — the DOM doesn't actually reorder until the
+  // user drops and onReorder updates state.
+  const tabs = pane.tabs.map((id) => {
     const d = documents.find((doc) => doc.id === id);
     return {
       id,
@@ -354,7 +420,23 @@ export function TabBar({
             }}
             style={{
               ...tabBaseStyle,
-              opacity: isDragSource ? 0.5 : 1,
+              // Visual drag effect:
+              //  - dragged tab: translateX = cursor offset (no transition,
+              //    follows the cursor in real time). Lifted z-index +
+              //    a subtle drop shadow so it reads as "picked up".
+              //  - other tabs: translateX = slot shift, with a smooth
+              //    transition so they slide aside as the dragged passes.
+              transform: isDragSource
+                ? `translateX(${cursorOffsetX}px)`
+                : `translateX(${slotOffsets.get(d.id) ?? 0}px)`,
+              transition: isDragSource
+                ? "none"
+                : "transform 160ms ease",
+              zIndex: isDragSource ? 5 : 0,
+              boxShadow: isDragSource
+                ? "0 4px 10px rgba(0,0,0,0.18)"
+                : tabBaseStyle.boxShadow,
+              opacity: isDragSource ? 0.92 : 1,
             }}
           >
             {d.isDirty && <span aria-hidden="true" style={dotStyle} />}
