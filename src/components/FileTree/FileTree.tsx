@@ -25,10 +25,10 @@ const rowStyle: React.CSSProperties = {
   cursor: "pointer",
   padding: "4px 6px",
   borderRadius: 4,
-  // Same font size as the FolderGroup header (13). Hierarchy is conveyed
-  // by indentation + the header's heavier weight (600 vs 400 here),
-  // not by shrinking the children.
-  fontSize: 13,
+  // Smaller than the FolderGroup header (13 / 600) to read as nested
+  // detail under the section heading. Hierarchy is conveyed by size
+  // + indentation + weight, all reinforcing each other.
+  fontSize: 12,
   color: "var(--text)",
   userSelect: "none",
 };
