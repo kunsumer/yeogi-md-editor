@@ -50,14 +50,18 @@ const nameStyle: React.CSSProperties = {
 };
 
 function ChevronIcon({ open }: { open: boolean }) {
+  // Matches the FolderGroup header chevron (13 × 13, stroke 1.5) so the
+  // parent + child chevrons read at the same optical size — the
+  // hierarchy comes from indentation + the parent's heavier text weight,
+  // not from one icon being chunkier than the other.
   return (
     <svg
-      width="14"
-      height="14"
+      width="13"
+      height="13"
       viewBox="0 0 14 14"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       style={{
