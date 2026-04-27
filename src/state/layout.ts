@@ -25,6 +25,13 @@ interface LayoutState {
   setFocusedPane(paneId: PaneId): void;
   setViewMode(paneId: PaneId, mode: ViewMode): void;
   closeTab(paneId: PaneId, docId: string): void;
+  /**
+   * Move `docId` to the slot just before `beforeId` in the given pane,
+   * or to the end if `beforeId` is null. Used by tab drag-and-drop.
+   * No-op if either id isn't in the pane's tabs (defensive against
+   * stale events from cross-pane drags).
+   */
+  reorderTabs(paneId: PaneId, docId: string, beforeId: string | null): void;
   setPaneSplit(fraction: number): void;
 }
 
@@ -142,6 +149,31 @@ export const useLayout = create<LayoutState>((set, get) => ({
   setPaneSplit(fraction) {
     const clamped = Math.max(0.2, Math.min(0.8, fraction));
     set({ paneSplit: clamped });
+  },
+
+  reorderTabs(paneId, docId, beforeId) {
+    const pane = paneId === "primary" ? get().primary : get().secondary;
+    if (!pane) return;
+    if (!pane.tabs.includes(docId)) return;
+    if (beforeId !== null && !pane.tabs.includes(beforeId)) return;
+    if (docId === beforeId) return;
+    const without = pane.tabs.filter((id) => id !== docId);
+    let nextTabs: string[];
+    if (beforeId === null) {
+      nextTabs = [...without, docId];
+    } else {
+      const insertAt = without.indexOf(beforeId);
+      nextTabs =
+        insertAt === -1
+          ? [...without, docId]
+          : [...without.slice(0, insertAt), docId, ...without.slice(insertAt)];
+    }
+    if (nextTabs.length === pane.tabs.length &&
+        nextTabs.every((id, i) => id === pane.tabs[i])) {
+      // No-op: the target position is the same as the source position.
+      return;
+    }
+    setPane(set, paneId, { ...pane, tabs: nextTabs });
   },
 
   closeTab(paneId, docId) {

@@ -976,6 +976,11 @@ export default function App() {
       requestClosePaneTab(paneId, id),
     onActivateTab: (paneId: "primary" | "secondary", id: string) =>
       useLayout.getState().setActiveTab(paneId, id),
+    onReorderTabs: (
+      paneId: "primary" | "secondary",
+      id: string,
+      beforeId: string | null,
+    ) => useLayout.getState().reorderTabs(paneId, id, beforeId),
     onOpenToSide: (id: string, sourcePaneId: "primary" | "secondary") =>
       useLayout.getState().openInOtherPane(sourcePaneId, id),
     onSetViewMode: (paneId: "primary" | "secondary", mode: ViewMode) => {

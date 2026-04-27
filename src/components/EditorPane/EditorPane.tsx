@@ -31,6 +31,7 @@ interface Props {
   onCreateBlank(): void;
   onCloseTab(paneId: PaneId, docId: string): void;
   onActivateTab(paneId: PaneId, docId: string): void;
+  onReorderTabs(paneId: PaneId, docId: string, beforeId: string | null): void;
   onOpenToSide(docId: string, sourcePaneId: PaneId): void;
   onSetViewMode(paneId: PaneId, mode: ViewMode): void;
   onFocusPane(paneId: PaneId): void;
@@ -84,6 +85,7 @@ export function EditorPane({
   onCreateBlank,
   onCloseTab,
   onActivateTab,
+  onReorderTabs,
   onOpenToSide,
   onSetViewMode,
   onFocusPane,
@@ -135,6 +137,7 @@ export function EditorPane({
         documents={documents}
         onActivate={(id) => onActivateTab(pane.id, id)}
         onClose={(id) => onCloseTab(pane.id, id)}
+        onReorder={(docId, beforeId) => onReorderTabs(pane.id, docId, beforeId)}
         onOpenToSide={(id, source) => onOpenToSide(id, source)}
         onCreateBlank={onCreateBlank}
         onOpenFiles={onOpenFiles}

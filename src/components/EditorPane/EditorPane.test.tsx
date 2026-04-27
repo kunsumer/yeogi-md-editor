@@ -10,6 +10,7 @@ const noopHandlers = {
   onCreateBlank: vi.fn(),
   onCloseTab: vi.fn(),
   onActivateTab: vi.fn(),
+  onReorderTabs: vi.fn(),
   onOpenToSide: vi.fn(),
   onSetViewMode: vi.fn(),
   onFocusPane: vi.fn(),

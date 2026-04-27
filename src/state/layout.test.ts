@@ -29,6 +29,52 @@ describe("useLayout (primary only)", () => {
     expect(s.primary.activeTabId).toBe("doc-1");
   });
 
+  describe("reorderTabs", () => {
+    beforeEach(() => {
+      reset();
+      useLayout.getState().openInFocusedPane("a");
+      useLayout.getState().openInFocusedPane("b");
+      useLayout.getState().openInFocusedPane("c");
+      useLayout.getState().openInFocusedPane("d");
+      // Tabs: [a, b, c, d]
+    });
+
+    it("moves a tab earlier in the list (drag c before a)", () => {
+      useLayout.getState().reorderTabs("primary", "c", "a");
+      expect(useLayout.getState().primary.tabs).toEqual(["c", "a", "b", "d"]);
+    });
+
+    it("moves a tab later in the list (drag a before d)", () => {
+      useLayout.getState().reorderTabs("primary", "a", "d");
+      expect(useLayout.getState().primary.tabs).toEqual(["b", "c", "a", "d"]);
+    });
+
+    it("appends to the end when beforeId is null", () => {
+      useLayout.getState().reorderTabs("primary", "a", null);
+      expect(useLayout.getState().primary.tabs).toEqual(["b", "c", "d", "a"]);
+    });
+
+    it("is a no-op when target position equals current position", () => {
+      // Dragging "a" "before a" is a self-drop.
+      useLayout.getState().reorderTabs("primary", "a", "a");
+      expect(useLayout.getState().primary.tabs).toEqual(["a", "b", "c", "d"]);
+    });
+
+    it("ignores reorders for unknown tabs (stale events)", () => {
+      useLayout.getState().reorderTabs("primary", "ghost", "a");
+      useLayout.getState().reorderTabs("primary", "a", "ghost");
+      expect(useLayout.getState().primary.tabs).toEqual(["a", "b", "c", "d"]);
+    });
+
+    it("does not change activeTabId on reorder", () => {
+      useLayout.getState().setActiveTab("primary", "b");
+      useLayout.getState().reorderTabs("primary", "b", null);
+      const s = useLayout.getState();
+      expect(s.primary.tabs).toEqual(["a", "c", "d", "b"]);
+      expect(s.primary.activeTabId).toBe("b");
+    });
+  });
+
   it("setActiveTab changes the pane's active tab", () => {
     useLayout.getState().openInFocusedPane("doc-1");
     useLayout.getState().openInFocusedPane("doc-2");
