@@ -2,6 +2,23 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.5 — 2026-04-27
+
+A focused release on the **Folder Explorer**.
+
+### New
+
+- **Multiple folders open at once.** Click the Open Folder icon to add another folder to the explorer (up to 5 total). Each folder gets its own collapsible header, file tree, and close button. Wiki-link resolution + backlinks still scope to the primary folder; the rest are presentation-only conveniences for working across "notes + project + scratch + reference" layouts. Persisted across launches.
+- **Per-folder collapse.** Each folder's chevron toggles its tree on/off. While collapsed, the folder's FileTree is fully unmounted — zero listeners, zero IPC, zero memory cost. Useful for keeping several folders queued up without paying for them all continuously.
+- **Selected-tree highlight + scoped expand/collapse.** One folder is "selected" at a time; the toolbar's Expand-all and Collapse-all buttons act only on it. Selection defaults to the folder containing the active document and follows it across tab switches; clicking any folder header sets a manual override. The selected tree gets a brand-red left-border accent + faint background tint, matching the active-tab indicator.
+- **Reload button** in the explorer header. Re-fetches every cached folder + subdir from disk so changes made outside the app (another editor, shell `mv`, scaffolding tools) show up without re-picking the folder. Preserves expansion state.
+
+### Fixed
+
+- **Folder Explorer panel no longer disappears when no folder is open.** Closing the last folder used to hide the entire panel even though the user's preference said "show it" — and re-toggling Folder Explorer from the View menu had no effect. The panel now stays visible with a "No folder open" empty state and a Choose folder… button.
+- **Expand-all → Collapse-all → re-expand** cycle no longer leaves all subdirectory levels expanded. The collapse-all path now drops the cached subdir contents (root preserved) so a follow-up expand only shows the immediate children, matching CommonMark file-explorer expectations.
+- **Stale expand/collapse signals on FileTree remount** are no longer replayed. Collapsing then re-expanding a folder group used to incorrectly re-trigger the last expand-all action because the FileTree's effect re-fired on mount with the still-non-zero seq prop. Each *Seq prop now stores its mount-time value in a ref and only fires on real changes since then.
+
 ## v0.4.4 — 2026-04-24
 
 ### New
