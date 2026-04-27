@@ -203,8 +203,12 @@ export function TabBar({
             }}
             onDragOver={(e) => {
               if (!onReorder) return;
-              // Must preventDefault to allow a drop on this element.
+              // preventDefault: enable drop on this target.
+              // stopPropagation: keep the strip-level onDragOver from
+              // also handling — otherwise both fire and the indicator
+              // flickers between "this tab" and "end of strip".
               e.preventDefault();
+              e.stopPropagation();
               e.dataTransfer.dropEffect = "move";
               const rect = e.currentTarget.getBoundingClientRect();
               const side =
@@ -215,17 +219,26 @@ export function TabBar({
             }}
             onDrop={(e) => {
               if (!onReorder) return;
+              // stopPropagation matters here: without it, the drop
+              // bubbles to the strip-level onDrop which calls
+              // onReorder(draggedId, null) → append to end. The result
+              // is that EVERY drop on a tab silently degrades to
+              // "moved to the end of the strip", which presents to the
+              // user as "drag doesn't reorder."
               e.preventDefault();
+              e.stopPropagation();
               const draggedId = e.dataTransfer.getData(TAB_DND_TYPE);
               setDragging(null);
               setDragOver(null);
               if (!draggedId || draggedId === d.id) return;
-              // Resolve the "before this id" anchor based on which side
-              // of the target the user dropped on.
+              // Resolve "before this id" from the live event coords,
+              // not the cached dragOver state — the latter can be a
+              // tick stale and produces wrong placements.
+              const rect = e.currentTarget.getBoundingClientRect();
+              const side =
+                e.clientX < rect.left + rect.width / 2 ? "before" : "after";
               const targetIdx = pane.tabs.indexOf(d.id);
               if (targetIdx < 0) return;
-              const side =
-                dragOver?.id === d.id ? dragOver.side : "after";
               const beforeId =
                 side === "before"
                   ? d.id

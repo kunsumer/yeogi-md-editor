@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { FileTree } from "../FileTree";
+import { FileTreeContextMenu } from "../FileTree/FileTreeContextMenu";
+import { PromptDialog } from "../WysiwygEditor/PromptDialog";
 import { AsidePanel } from "./AsidePanel";
 import { MAX_OPEN_FOLDERS } from "../../state/documents";
+import {
+  fsRename,
+  shellOpenInTerminal,
+  shellRevealInFinder,
+} from "../../lib/ipc/commands";
 
 interface Props {
   /** Primary folder root. null means no folder has been picked yet. */
@@ -31,6 +38,12 @@ interface Props {
    * primary closes by promoting extras[0] to primary, extras just drop out.
    */
   onCloseFolder(path: string): void;
+  /**
+   * Called after a folder root has been renamed on disk. The old path no
+   * longer exists; App.tsx should update its `folder` / `extraFolders`
+   * state to swap the old root for the new one (preserving order).
+   */
+  onRenameFolder?(oldPath: string, newPath: string): void;
   /** Forwarded to each FileTree — opens the clicked file as a tab. */
   onOpenFile(path: string, opts?: { toSide: boolean }): void;
   /** Dismisses the panel (equivalent to the View menu / ⌥⌘1 toggle). */
@@ -62,6 +75,7 @@ export function FolderPanel({
   activeDocPath,
   onPickFolder,
   onCloseFolder,
+  onRenameFolder,
   onOpenFile,
   onClose,
 }: Props) {
@@ -92,6 +106,16 @@ export function FolderPanel({
   // user clicking a folder header sets it explicitly; later doc switches
   // don't disturb that choice.
   const [manualSelectedFolder, setManualSelectedFolder] = useState<string | null>(null);
+
+  // Right-click menu for folder-group headers (parent nodes). Mirrors the
+  // FileTree row context menu: Open in Finder / Open in Terminal / Rename.
+  // Duplicate is omitted because recursive directory copy isn't supported
+  // in the file-only fs_copy IPC.
+  const [folderCtx, setFolderCtx] = useState<
+    { root: string; x: number; y: number } | null
+  >(null);
+  const [folderRenameTarget, setFolderRenameTarget] = useState<string | null>(null);
+
   const selectedFolder =
     (manualSelectedFolder && allRoots.includes(manualSelectedFolder)
       ? manualSelectedFolder
@@ -282,6 +306,7 @@ export function FolderPanel({
                 isCollapsed={collapsedFolders.has(p)}
                 onToggleCollapsed={() => toggleFolderCollapsed(p)}
                 onRemove={() => onCloseFolder(p)}
+                onHeaderContextMenu={(x, y) => setFolderCtx({ root: p, x, y })}
                 filter={searchOpen ? query : ""}
                 expandAllSeq={expandByPath.get(p) ?? 0}
                 collapseAllSeq={collapseByPath.get(p) ?? 0}
@@ -290,6 +315,59 @@ export function FolderPanel({
               />
             ))}
         </>
+      )}
+      {folderCtx && (
+        <FileTreeContextMenu
+          x={folderCtx.x}
+          y={folderCtx.y}
+          actions={[
+            {
+              label: "Open in Finder",
+              onSelect: () => {
+                shellRevealInFinder(folderCtx.root).catch(console.error);
+              },
+            },
+            {
+              label: "Open in Terminal",
+              onSelect: () => {
+                shellOpenInTerminal(folderCtx.root).catch(console.error);
+              },
+            },
+            {
+              label: "Rename…",
+              separatorAbove: true,
+              onSelect: () => {
+                setFolderRenameTarget(folderCtx.root);
+              },
+            },
+          ]}
+          onClose={() => setFolderCtx(null)}
+        />
+      )}
+      {folderRenameTarget && (
+        <PromptDialog
+          title="Rename folder"
+          initialValue={folderRenameTarget.split("/").pop() ?? ""}
+          submitLabel="Rename"
+          onCancel={() => setFolderRenameTarget(null)}
+          onSubmit={async (newName) => {
+            const oldPath = folderRenameTarget;
+            setFolderRenameTarget(null);
+            const trimmed = newName.trim();
+            if (!trimmed) return;
+            const oldBase = oldPath.split("/").pop() ?? "";
+            if (trimmed === oldBase) return;
+            const slash = oldPath.lastIndexOf("/");
+            const parent = slash >= 0 ? oldPath.slice(0, slash) : "";
+            const newPath = parent ? `${parent}/${trimmed}` : trimmed;
+            try {
+              await fsRename(oldPath, newPath);
+              onRenameFolder?.(oldPath, newPath);
+            } catch (err) {
+              console.error("rename folder failed:", err);
+            }
+          }}
+        />
       )}
     </AsidePanel>
   );
@@ -310,6 +388,7 @@ function FolderGroup({
   isCollapsed,
   onToggleCollapsed,
   onRemove,
+  onHeaderContextMenu,
   filter,
   expandAllSeq,
   collapseAllSeq,
@@ -328,6 +407,8 @@ function FolderGroup({
   onToggleCollapsed(): void;
   /** null for the primary (which has no per-group close button). */
   onRemove: null | (() => void);
+  /** Right-click on the header strip; coords are page-relative. */
+  onHeaderContextMenu?(x: number, y: number): void;
   filter: string;
   expandAllSeq: number;
   collapseAllSeq: number;
@@ -363,6 +444,12 @@ function FolderGroup({
       }}
     >
       <div
+        onContextMenu={(e) => {
+          if (!onHeaderContextMenu) return;
+          e.preventDefault();
+          e.stopPropagation();
+          onHeaderContextMenu(e.clientX, e.clientY);
+        }}
         style={{
           display: "flex",
           alignItems: "center",

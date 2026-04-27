@@ -1005,6 +1005,20 @@ export default function App() {
               activeDocPath={active?.path ?? null}
               onPickFolder={() => pickAndOpenFolder().catch(console.error)}
               onCloseFolder={closeFolderFromExplorer}
+              onRenameFolder={(oldPath, newPath) => {
+                // Swap the renamed path in whichever slot held it. State is
+                // additive: setFolder for the primary, setExtraFolders for
+                // an extra slot, preserving order so the user sees the
+                // tree stay in place after rename.
+                const docs = useDocuments.getState();
+                if (docs.folder === oldPath) {
+                  docs.setFolder(newPath);
+                } else if (docs.extraFolders.includes(oldPath)) {
+                  docs.setExtraFolders(
+                    docs.extraFolders.map((p) => (p === oldPath ? newPath : p)),
+                  );
+                }
+              }}
               onOpenFile={(p, opts) => openFile(p, opts).catch(console.error)}
               onClose={() => {
                 usePreferences.getState().setFolderVisible(false);
