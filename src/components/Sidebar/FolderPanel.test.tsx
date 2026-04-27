@@ -13,7 +13,6 @@ function baseProps(overrides: Partial<React.ComponentProps<typeof FolderPanel>> 
     extraFolders: [],
     activeDocPath: null,
     onPickFolder: () => {},
-    onAddFolder: () => {},
     onCloseFolder: () => {},
     onOpenFile: () => {},
     ...overrides,
@@ -60,14 +59,17 @@ describe("FolderPanel", () => {
     expect(onClose).toHaveBeenCalledWith("/Users/me/Extra1");
   });
 
-  it("fires onAddFolder when the Add-folder button is clicked", () => {
-    const onAddFolder = vi.fn();
+  it("fires onPickFolder when the Open-folder button in the toolbar is clicked", () => {
+    const onPickFolder = vi.fn();
     render(
-      <FolderPanel {...baseProps({ folder: "/Users/me/Notes", onAddFolder })} />,
+      <FolderPanel {...baseProps({ folder: "/Users/me/Notes", onPickFolder })} />,
     );
-    const btn = screen.getByRole("button", { name: /Add another folder/i });
+    // The toolbar Open-folder button is the one labelled "Open folder";
+    // the empty-state "Choose folder…" button doesn't appear once a folder
+    // is set, so this is unambiguous.
+    const btn = screen.getByRole("button", { name: /Open folder/i });
     fireEvent.click(btn);
-    expect(onAddFolder).toHaveBeenCalledTimes(1);
+    expect(onPickFolder).toHaveBeenCalledTimes(1);
   });
 
   it("highlights the folder containing the active document", () => {

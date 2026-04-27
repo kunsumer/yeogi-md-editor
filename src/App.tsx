@@ -234,25 +234,24 @@ export default function App() {
     });
   }
 
+  /**
+   * Unified "open folder" handler. Picks a directory and adds it to the
+   * explorer:
+   *   - If no primary folder is set yet, the picked path becomes primary.
+   *   - Otherwise, it appends as an extra (subject to MAX_OPEN_FOLDERS).
+   *
+   * Either way the panel auto-reveals, since the user's intent in clicking
+   * Open Folder is unambiguously "show me this in the explorer".
+   */
   async function pickAndOpenFolder() {
     const picked = await open({ directory: true, multiple: false });
-    if (typeof picked === "string") {
-      useDocuments.getState().setFolder(picked);
-      // Auto-reveal the Folder Explorer panel. If the user had hidden it
-      // (⌥⌘1 or the X close button), picking a new folder should show the
-      // tree they just chose rather than silently stashing the selection.
-      if (!usePreferences.getState().folderVisible) {
-        usePreferences.getState().setFolderVisible(true);
-        preHideStateRef.current = null;
-      }
-    }
-  }
-
-  async function pickAndAddFolder() {
-    const picked = await open({ directory: true, multiple: false });
     if (typeof picked !== "string") return;
-    useDocuments.getState().addExtraFolder(picked);
-    // Auto-reveal the Folder Explorer panel for the same reason as above.
+    const docs = useDocuments.getState();
+    if (docs.folder == null) {
+      docs.setFolder(picked);
+    } else {
+      docs.addExtraFolder(picked);
+    }
     if (!usePreferences.getState().folderVisible) {
       usePreferences.getState().setFolderVisible(true);
       preHideStateRef.current = null;
@@ -989,7 +988,6 @@ export default function App() {
               extraFolders={extraFolders}
               activeDocPath={active?.path ?? null}
               onPickFolder={() => pickAndOpenFolder().catch(console.error)}
-              onAddFolder={() => pickAndAddFolder().catch(console.error)}
               onCloseFolder={closeFolderFromExplorer}
               onOpenFile={(p, opts) => openFile(p, opts).catch(console.error)}
               onClose={() => {

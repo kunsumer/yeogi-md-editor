@@ -18,13 +18,13 @@ interface Props {
    * outside every open folder root.
    */
   activeDocPath: string | null;
-  /** Called when the user clicks "Open folder…" — App.tsx owns the dialog. */
-  onPickFolder(): void;
   /**
-   * Called when the user clicks "Add folder…". App.tsx owns the dialog and
-   * appends the picked path to extraFolders (subject to MAX_OPEN_FOLDERS).
+   * Called when the user clicks the Open-folder icon (or the empty-state
+   * "Choose folder…" button). App.tsx owns the dialog and decides whether
+   * the picked path becomes the primary (when no folder is open yet) or
+   * appends as an extra (when at least one folder is already open).
    */
-  onAddFolder(): void;
+  onPickFolder(): void;
   /**
    * Close a folder group. Called from the X on any folder's header — both
    * the primary and extras. The App-level handler decides what happens:
@@ -61,7 +61,6 @@ export function FolderPanel({
   extraFolders,
   activeDocPath,
   onPickFolder,
-  onAddFolder,
   onCloseFolder,
   onOpenFile,
   onClose,
@@ -112,25 +111,16 @@ export function FolderPanel({
       <button
         type="button"
         aria-label="Open folder"
-        title="Open a different folder (replaces the primary)"
-        onClick={onPickFolder}
-        className="aside-header-btn"
-      >
-        <OpenFolderIcon />
-      </button>
-      <button
-        type="button"
-        aria-label="Add another folder"
         title={
           canAddMore
-            ? "Add another folder to the explorer"
-            : `Maximum ${MAX_OPEN_FOLDERS} folders — remove one first`
+            ? "Open another folder (adds it to the explorer)"
+            : `Maximum ${MAX_OPEN_FOLDERS} folders — close one first`
         }
-        onClick={onAddFolder}
+        onClick={onPickFolder}
         disabled={!canAddMore}
         className="aside-header-btn"
       >
-        <AddFolderIcon />
+        <OpenFolderIcon />
       </button>
       <button
         type="button"
@@ -419,25 +409,6 @@ function OpenFolderIcon() {
   return (
     <svg {...HEADER_ICON}>
       <path d="M 3 4 H 5.5 Q 7 4 7 5 H 11 Q 12 5 12 6 V 10 Q 12 11 11 11 H 3 Q 2 11 2 10 V 5 Q 2 4 3 4 Z" />
-    </svg>
-  );
-}
-
-function AddFolderIcon() {
-  // Folder full-size (same path as OpenFolderIcon — the two icons should
-  // sit at the same optical weight in the toolbar) plus a bottom-right
-  // badge for "add". The badge is a small filled disc tinted with the
-  // toolbar background, so it cuts cleanly through the folder rim where
-  // the two overlap, and the + arms inside ride on top of that disc with
-  // a heavier stroke than the folder. Both moves are needed: previous
-  // attempts kept the plus on plain stroke at the same weight as the
-  // folder and the glyph just disappeared at 13 × 13.
-  return (
-    <svg {...HEADER_ICON}>
-      <path d="M 3 4 H 5.5 Q 7 4 7 5 H 11 Q 12 5 12 6 V 10 Q 12 11 11 11 H 3 Q 2 11 2 10 V 5 Q 2 4 3 4 Z" />
-      <circle cx="11" cy="11" r="3" fill="var(--bg-topbar)" stroke="none" />
-      <line x1="11" y1="8.5" x2="11" y2="13.5" strokeWidth="2" />
-      <line x1="8.5" y1="11" x2="13.5" y2="11" strokeWidth="2" />
     </svg>
   );
 }
