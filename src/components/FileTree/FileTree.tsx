@@ -25,10 +25,10 @@ const rowStyle: React.CSSProperties = {
   cursor: "pointer",
   padding: "4px 6px",
   borderRadius: 4,
-  // Children read smaller than the FolderGroup header (13 / 600). Going
-  // smaller on the children rather than larger on the parent keeps the
-  // panel compact + makes the folder name read as a clear section heading.
-  fontSize: 12,
+  // Same font size as the FolderGroup header (13). Hierarchy is conveyed
+  // by indentation + the header's heavier weight (600 vs 400 here),
+  // not by shrinking the children.
+  fontSize: 13,
   color: "var(--text)",
   userSelect: "none",
 };

@@ -411,14 +411,21 @@ function FolderGroup({
         )}
       </div>
       {!isCollapsed && (
-        <FileTree
-          root={root}
-          onOpenFile={onOpenFile}
-          filter={filter}
-          expandAllSeq={expandAllSeq}
-          collapseAllSeq={collapseAllSeq}
-          reloadSeq={reloadSeq}
-        />
+        // Indent the entire FileTree so first-level children sit visibly
+        // nested under the FolderGroup header. The header chevron sits at
+        // x = 4 (section padding 4); 16 px of left padding here puts the
+        // child chevrons at x = 20, mirroring the per-level indent the
+        // FileTree applies for deeper subdirs (also 16 px).
+        <div style={{ paddingLeft: 16 }}>
+          <FileTree
+            root={root}
+            onOpenFile={onOpenFile}
+            filter={filter}
+            expandAllSeq={expandAllSeq}
+            collapseAllSeq={collapseAllSeq}
+            reloadSeq={reloadSeq}
+          />
+        </div>
       )}
     </section>
   );
