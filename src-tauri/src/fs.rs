@@ -70,6 +70,24 @@ pub fn rename(from: &str, to: &str) -> Result<(), FsError> {
     stdfs::rename(from, to).map_err(|e| FsError::Io(e.to_string()))
 }
 
+/// File-only copy. Refuses to overwrite an existing target so the caller
+/// must compute a unique destination (Duplicate's `name (N).md` suffix
+/// loop in the frontend handles this). Refuses to copy directories — for
+/// v1 the file-tree's Duplicate action is files-only.
+pub fn copy(from: &str, to: &str) -> Result<(), FsError> {
+    let src = Path::new(from);
+    let dst = Path::new(to);
+    if dst.exists() {
+        return Err(FsError::Io(format!("path exists: {to}")));
+    }
+    let meta = stdfs::metadata(src).map_err(|e| FsError::Io(e.to_string()))?;
+    if meta.is_dir() {
+        return Err(FsError::Io(format!("cannot duplicate directories: {from}")));
+    }
+    stdfs::copy(src, dst).map_err(|e| FsError::Io(e.to_string()))?;
+    Ok(())
+}
+
 pub fn list(path: &str) -> Result<Vec<DirEntry>, FsError> {
     let p = Path::new(path);
     let read = stdfs::read_dir(p).map_err(|e| FsError::Io(e.to_string()))?;

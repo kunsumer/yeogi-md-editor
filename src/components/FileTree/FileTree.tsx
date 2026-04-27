@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { fsList, type DirEntry } from "../../lib/ipc/commands";
+import {
+  fsCopy,
+  fsList,
+  fsRename,
+  shellOpenInTerminal,
+  shellRevealInFinder,
+  type DirEntry,
+} from "../../lib/ipc/commands";
+import { PromptDialog } from "../WysiwygEditor/PromptDialog";
+import { FileTreeContextMenu } from "./FileTreeContextMenu";
 
 interface Props {
   root: string;
@@ -98,15 +107,18 @@ function Row({
   entry,
   isDirExpanded,
   onActivate,
+  onContextMenu,
 }: {
   entry: DirEntry;
   isDirExpanded: boolean;
   onActivate: (e: React.MouseEvent) => void;
+  onContextMenu: (e: React.MouseEvent) => void;
 }) {
   const [hover, setHover] = useState(false);
   return (
     <div
       onClick={onActivate}
+      onContextMenu={onContextMenu}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{ ...rowStyle, background: hover ? "rgba(0,0,0,0.04)" : "transparent" }}
@@ -127,6 +139,16 @@ export function FileTree({
   collapseAllSeq = 0,
   reloadSeq = 0,
 }: Props) {
+  // Right-click menu state — null when no menu is open. The entry is
+  // captured at click time so the actions don't need to re-resolve it
+  // from the DOM later.
+  const [ctx, setCtx] = useState<
+    { entry: DirEntry; x: number; y: number } | null
+  >(null);
+  // Rename dialog state — null when not renaming. Carries the entry so
+  // the dialog's submit handler can call fsRename with old + new path.
+  const [renameTarget, setRenameTarget] = useState<DirEntry | null>(null);
+
   // Flat cache so filter / expand-all / collapse-all can operate across the
   // whole loaded tree in a single pass. Each Node is now presentational —
   // all state lives here.
@@ -325,6 +347,12 @@ export function FileTree({
     return false;
   }
 
+  function onRowContextMenu(entry: DirEntry, ev: React.MouseEvent) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    setCtx({ entry, x: ev.clientX, y: ev.clientY });
+  }
+
   function renderEntries(entries: DirEntry[], ancestorNameMatched: boolean): React.ReactNode[] {
     const out: React.ReactNode[] = [];
     for (const e of entries) {
@@ -338,7 +366,12 @@ export function FileTree({
         const children = cache.get(e.path);
         out.push(
           <div key={e.path}>
-            <Row entry={e} isDirExpanded={isExpanded} onActivate={(ev) => handleActivate(e, ev)} />
+            <Row
+              entry={e}
+              isDirExpanded={isExpanded}
+              onActivate={(ev) => handleActivate(e, ev)}
+              onContextMenu={(ev) => onRowContextMenu(e, ev)}
+            />
             {isExpanded && children && (
               <div style={{ paddingLeft: 16 }}>
                 {renderEntries(children, ancestorNameMatched || nameMatches)}
@@ -354,6 +387,7 @@ export function FileTree({
             entry={e}
             isDirExpanded={false}
             onActivate={(ev) => handleActivate(e, ev)}
+            onContextMenu={(ev) => onRowContextMenu(e, ev)}
           />,
         );
       }
@@ -361,21 +395,156 @@ export function FileTree({
     return out;
   }
 
-  if (rootLoading)
-    return <div style={{ padding: 6, color: "var(--text-faint)", fontSize: 12 }}>Loading…</div>;
-  const rootEntries = cache.get(root);
-  if (!rootEntries || rootEntries.length === 0)
-    return (
+  // Compute the body once so context-menu / rename-dialog overlays can
+  // sit alongside whichever empty/loaded shape we render.
+  let body: React.ReactNode;
+  if (rootLoading) {
+    body = (
       <div style={{ padding: 6, color: "var(--text-faint)", fontSize: 12 }}>
-        Empty folder.
+        Loading…
       </div>
     );
-  const rendered = renderEntries(rootEntries, false);
-  if (filterActive && rendered.length === 0)
-    return (
-      <div style={{ padding: 6, color: "var(--text-faint)", fontSize: 12 }}>
-        No matches in loaded tree.
-      </div>
-    );
-  return <div>{rendered}</div>;
+  } else {
+    const rootEntries = cache.get(root);
+    if (!rootEntries || rootEntries.length === 0) {
+      body = (
+        <div style={{ padding: 6, color: "var(--text-faint)", fontSize: 12 }}>
+          Empty folder.
+        </div>
+      );
+    } else {
+      const rendered = renderEntries(rootEntries, false);
+      if (filterActive && rendered.length === 0) {
+        body = (
+          <div style={{ padding: 6, color: "var(--text-faint)", fontSize: 12 }}>
+            No matches in loaded tree.
+          </div>
+        );
+      } else {
+        body = <div>{rendered}</div>;
+      }
+    }
+  }
+
+  // Context-menu actions reload the affected directory after they mutate
+  // disk so the tree updates without the user manually pressing Reload.
+  // We touch only the parent of the affected entry, not the whole tree —
+  // cheaper and preserves expansion state of unrelated branches.
+  async function reloadParent(entryPath: string) {
+    const dir = entryPath.includes("/")
+      ? entryPath.slice(0, entryPath.lastIndexOf("/"))
+      : root;
+    try {
+      const entries = await fsList(dir);
+      setCache((prev) => {
+        const next = new Map(prev);
+        next.set(dir, entries);
+        return next;
+      });
+    } catch (err) {
+      console.warn("reload after fs op failed:", dir, err);
+    }
+  }
+
+  // Compute a unique target path for Duplicate by appending " (N)" before
+  // the extension, incrementing N until the slot is free. Reads from the
+  // already-loaded sibling entries, so duplicate is fast and offline-safe.
+  function uniqueDuplicatePath(entry: DirEntry): string {
+    const slash = entry.path.lastIndexOf("/");
+    const dir = slash >= 0 ? entry.path.slice(0, slash) : "";
+    const dot = entry.name.lastIndexOf(".");
+    const stem = dot > 0 ? entry.name.slice(0, dot) : entry.name;
+    const ext = dot > 0 ? entry.name.slice(dot) : "";
+    const siblings = cache.get(dir) ?? [];
+    const existing = new Set(siblings.map((s) => s.name));
+    for (let i = 1; i < 1000; i++) {
+      const candidate = `${stem} (${i})${ext}`;
+      if (!existing.has(candidate)) {
+        return dir ? `${dir}/${candidate}` : candidate;
+      }
+    }
+    // Fallback if 999 duplicates exist: timestamp-suffix.
+    return dir
+      ? `${dir}/${stem} (${Date.now()})${ext}`
+      : `${stem} (${Date.now()})${ext}`;
+  }
+
+  function buildCtxActions(entry: DirEntry) {
+    return [
+      {
+        label: "Open in Finder",
+        onSelect: () => {
+          shellRevealInFinder(entry.path).catch(console.error);
+        },
+      },
+      {
+        label: "Open in Terminal",
+        onSelect: () => {
+          shellOpenInTerminal(entry.path).catch(console.error);
+        },
+      },
+      {
+        label: "Rename…",
+        separatorAbove: true,
+        onSelect: () => {
+          setRenameTarget(entry);
+        },
+      },
+      // Duplicate is files-only — copying a directory recursively is a
+      // bigger feature (UI feedback for large trees, atomicity, etc.).
+      ...(entry.is_dir
+        ? []
+        : [
+            {
+              label: "Duplicate",
+              onSelect: async () => {
+                const dst = uniqueDuplicatePath(entry);
+                try {
+                  await fsCopy(entry.path, dst);
+                  await reloadParent(entry.path);
+                } catch (err) {
+                  console.error("duplicate failed:", err);
+                }
+              },
+            },
+          ]),
+    ];
+  }
+
+  return (
+    <div>
+      {body}
+      {ctx && (
+        <FileTreeContextMenu
+          x={ctx.x}
+          y={ctx.y}
+          actions={buildCtxActions(ctx.entry)}
+          onClose={() => setCtx(null)}
+        />
+      )}
+      {renameTarget && (
+        <PromptDialog
+          title={`Rename ${renameTarget.is_dir ? "folder" : "file"}`}
+          initialValue={renameTarget.name}
+          submitLabel="Rename"
+          onCancel={() => setRenameTarget(null)}
+          onSubmit={async (newName) => {
+            const target = renameTarget;
+            setRenameTarget(null);
+            const trimmed = newName.trim();
+            if (!trimmed || trimmed === target.name) return;
+            const slash = target.path.lastIndexOf("/");
+            const dir = slash >= 0 ? target.path.slice(0, slash) : "";
+            const dst = dir ? `${dir}/${trimmed}` : trimmed;
+            try {
+              await fsRename(target.path, dst);
+              await reloadParent(target.path);
+            } catch (err) {
+              console.error("rename failed:", err);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
 }

@@ -77,6 +77,9 @@ pub fn run() {
             commands::ensure_welcome_file,
             commands::reseed_welcome_file,
             commands::sync_menu_state,
+            commands::fs_copy,
+            commands::shell_reveal_in_finder,
+            commands::shell_open_in_terminal,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

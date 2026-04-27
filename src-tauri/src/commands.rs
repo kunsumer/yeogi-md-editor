@@ -25,8 +25,43 @@ pub fn fs_rename(from: String, to: String) -> Result<(), FsError> {
 }
 
 #[tauri::command]
+pub fn fs_copy(from: String, to: String) -> Result<(), FsError> {
+    fs::copy(&from, &to)
+}
+
+#[tauri::command]
 pub fn fs_list(path: String) -> Result<Vec<DirEntry>, FsError> {
     fs::list(&path)
+}
+
+/// Reveal a file or folder in Finder (highlights it inside its parent
+/// directory). macOS-only. Equivalent to right-click → Show in Finder.
+#[tauri::command]
+pub fn shell_reveal_in_finder(path: String) -> Result<(), FsError> {
+    std::process::Command::new("open")
+        .args(["-R", &path])
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| FsError::Io(format!("reveal failed: {e}")))
+}
+
+/// Open Terminal.app at the given directory (or the parent directory if
+/// `path` points at a file). macOS-only.
+#[tauri::command]
+pub fn shell_open_in_terminal(path: String) -> Result<(), FsError> {
+    let p = std::path::Path::new(&path);
+    let dir = if p.is_dir() {
+        p.to_path_buf()
+    } else {
+        p.parent()
+            .map(|x| x.to_path_buf())
+            .unwrap_or_else(|| p.to_path_buf())
+    };
+    std::process::Command::new("open")
+        .args(["-a", "Terminal", &dir.to_string_lossy()])
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| FsError::Io(format!("open terminal failed: {e}")))
 }
 
 #[tauri::command]

@@ -30,8 +30,30 @@ export async function fsRename(from: string, to: string): Promise<void> {
   return invoke("fs_rename", { from, to });
 }
 
+/**
+ * File-only copy. Refuses to overwrite an existing target — callers must
+ * compute a unique destination path. Used by the file-tree Duplicate
+ * action.
+ */
+export async function fsCopy(from: string, to: string): Promise<void> {
+  return invoke("fs_copy", { from, to });
+}
+
 export async function fsList(path: string): Promise<DirEntry[]> {
   return invoke("fs_list", { path });
+}
+
+/** Reveal a file/folder in Finder (highlights inside its parent dir). */
+export async function shellRevealInFinder(path: string): Promise<void> {
+  return invoke("shell_reveal_in_finder", { path });
+}
+
+/**
+ * Open Terminal.app at `path`. If `path` is a file, opens at the file's
+ * parent directory.
+ */
+export async function shellOpenInTerminal(path: string): Promise<void> {
+  return invoke("shell_open_in_terminal", { path });
 }
 
 export async function watcherSubscribe(path: string): Promise<void> {
