@@ -34,6 +34,16 @@ pub fn fs_list(path: String) -> Result<Vec<DirEntry>, FsError> {
     fs::list(&path)
 }
 
+#[tauri::command]
+pub fn fs_delete(path: String) -> Result<(), FsError> {
+    fs::delete(&path)
+}
+
+#[tauri::command]
+pub fn fs_count_recursive(path: String) -> Result<u64, FsError> {
+    fs::count_recursive(&path)
+}
+
 /// Reveal a file or folder in Finder (highlights it inside its parent
 /// directory). macOS-only. Equivalent to right-click → Show in Finder.
 #[tauri::command]

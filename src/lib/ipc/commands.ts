@@ -43,6 +43,24 @@ export async function fsList(path: string): Promise<DirEntry[]> {
   return invoke("fs_list", { path });
 }
 
+/**
+ * Permanently remove a file or folder. For folders, recursively removes
+ * every descendant. The caller MUST gate this behind a destructive-
+ * confirmation modal — the Rust command does no extra prompting.
+ */
+export async function fsDelete(path: string): Promise<void> {
+  return invoke("fs_delete", { path });
+}
+
+/**
+ * Count every descendant of `path` (files + directories combined),
+ * excluding `path` itself. Returns 0 for a file. Used by the delete
+ * confirmation dialog to surface item-count.
+ */
+export async function fsCountRecursive(path: string): Promise<number> {
+  return invoke("fs_count_recursive", { path });
+}
+
 /** Reveal a file/folder in Finder (highlights inside its parent dir). */
 export async function shellRevealInFinder(path: string): Promise<void> {
   return invoke("shell_reveal_in_finder", { path });

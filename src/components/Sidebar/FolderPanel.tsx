@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { FileTree } from "../FileTree";
 import { FileTreeContextMenu } from "../FileTree/FileTreeContextMenu";
+import { ConfirmDialog } from "../ConfirmDialog";
 import { PromptDialog } from "../WysiwygEditor/PromptDialog";
 import { AsidePanel } from "./AsidePanel";
 import { MAX_OPEN_FOLDERS } from "../../state/documents";
 import {
+  fsCountRecursive,
+  fsDelete,
   fsRename,
   shellOpenInTerminal,
   shellRevealInFinder,
 } from "../../lib/ipc/commands";
+import { closeDocsUnderPath } from "../../lib/closeDocsUnderPath";
 
 interface Props {
   /** Primary folder root. null means no folder has been picked yet. */
@@ -115,6 +119,12 @@ export function FolderPanel({
     { root: string; x: number; y: number } | null
   >(null);
   const [folderRenameTarget, setFolderRenameTarget] = useState<string | null>(null);
+  // Delete confirmation for a folder root opened from the explorer header
+  // right-click menu. descendantCount is used to render "delete folder X
+  // and N items inside" copy.
+  const [folderDeleteTarget, setFolderDeleteTarget] = useState<
+    { root: string; descendantCount: number } | null
+  >(null);
 
   const selectedFolder =
     (manualSelectedFolder && allRoots.includes(manualSelectedFolder)
@@ -340,6 +350,24 @@ export function FolderPanel({
                 setFolderRenameTarget(folderCtx.root);
               },
             },
+            {
+              label: "Delete",
+              separatorAbove: true,
+              destructive: true,
+              onSelect: async () => {
+                const root = folderCtx.root;
+                try {
+                  const count = await fsCountRecursive(root);
+                  setFolderDeleteTarget({ root, descendantCount: count });
+                } catch (err) {
+                  console.warn(
+                    "count_recursive failed, prompting without count:",
+                    err,
+                  );
+                  setFolderDeleteTarget({ root, descendantCount: 0 });
+                }
+              },
+            },
           ]}
           onClose={() => setFolderCtx(null)}
         />
@@ -369,6 +397,46 @@ export function FolderPanel({
           }}
         />
       )}
+      {folderDeleteTarget && (() => {
+        const basename =
+          folderDeleteTarget.root.split("/").pop() ?? folderDeleteTarget.root;
+        return (
+          <ConfirmDialog
+            title="Delete folder?"
+            message={
+              folderDeleteTarget.descendantCount > 0 ? (
+                <>
+                  This will permanently delete <strong>{basename}</strong> and
+                  the {folderDeleteTarget.descendantCount}{" "}
+                  {folderDeleteTarget.descendantCount === 1 ? "item" : "items"}{" "}
+                  inside it. This cannot be undone.
+                </>
+              ) : (
+                <>
+                  This will permanently delete <strong>{basename}</strong>. This
+                  cannot be undone.
+                </>
+              )
+            }
+            confirmLabel="Delete"
+            cancelLabel="Cancel"
+            tone="danger"
+            onConfirm={async () => {
+              const root = folderDeleteTarget.root;
+              setFolderDeleteTarget(null);
+              try {
+                await fsDelete(root);
+                closeDocsUnderPath(root);
+                // Drop the now-vanished folder from the explorer's roots.
+                onCloseFolder(root);
+              } catch (err) {
+                console.error("delete folder failed:", err);
+              }
+            }}
+            onCancel={() => setFolderDeleteTarget(null)}
+          />
+        );
+      })()}
     </AsidePanel>
   );
 }

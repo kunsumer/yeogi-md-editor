@@ -78,6 +78,8 @@ pub fn run() {
             commands::reseed_welcome_file,
             commands::sync_menu_state,
             commands::fs_copy,
+            commands::fs_delete,
+            commands::fs_count_recursive,
             commands::shell_reveal_in_finder,
             commands::shell_open_in_terminal,
         ])

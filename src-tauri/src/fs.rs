@@ -88,6 +88,56 @@ pub fn copy(from: &str, to: &str) -> Result<(), FsError> {
     Ok(())
 }
 
+/// Permanently remove a file or directory. For directories, recursively
+/// removes every descendant. The frontend gates this behind a destructive-
+/// confirmation modal so this command itself trusts its caller.
+pub fn delete(path: &str) -> Result<(), FsError> {
+    let p = Path::new(path);
+    let meta = stdfs::metadata(p).map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => FsError::NotFound(path.into()),
+        std::io::ErrorKind::PermissionDenied => FsError::PermissionDenied(path.into()),
+        _ => FsError::Io(e.to_string()),
+    })?;
+    if meta.is_dir() {
+        stdfs::remove_dir_all(p).map_err(|e| FsError::Io(e.to_string()))
+    } else {
+        stdfs::remove_file(p).map_err(|e| FsError::Io(e.to_string()))
+    }
+}
+
+/// Count every descendant of `path` (files + directories combined),
+/// excluding `path` itself. Returns 0 for a file. Used by the delete
+/// confirmation dialog to surface "this will delete N items inside" so the
+/// user knows how much they're about to lose. Unreadable subdirs are
+/// skipped silently — the count is best-effort, not authoritative.
+pub fn count_recursive(path: &str) -> Result<u64, FsError> {
+    let p = Path::new(path);
+    let meta = stdfs::metadata(p).map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => FsError::NotFound(path.into()),
+        std::io::ErrorKind::PermissionDenied => FsError::PermissionDenied(path.into()),
+        _ => FsError::Io(e.to_string()),
+    })?;
+    if !meta.is_dir() {
+        return Ok(0);
+    }
+    let mut total: u64 = 0;
+    let mut stack: Vec<std::path::PathBuf> = vec![p.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let read = match stdfs::read_dir(&dir) {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+        for entry in read.flatten() {
+            total = total.saturating_add(1);
+            let ep = entry.path();
+            if ep.is_dir() {
+                stack.push(ep);
+            }
+        }
+    }
+    Ok(total)
+}
+
 pub fn list(path: &str) -> Result<Vec<DirEntry>, FsError> {
     let p = Path::new(path);
     let read = stdfs::read_dir(p).map_err(|e| FsError::Io(e.to_string()))?;

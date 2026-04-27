@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import {
   fsCopy,
+  fsCountRecursive,
+  fsDelete,
   fsList,
   fsRename,
   shellOpenInTerminal,
   shellRevealInFinder,
   type DirEntry,
 } from "../../lib/ipc/commands";
+import { closeDocsUnderPath } from "../../lib/closeDocsUnderPath";
+import { ConfirmDialog } from "../ConfirmDialog";
 import { PromptDialog } from "../WysiwygEditor/PromptDialog";
 import { FileTreeContextMenu } from "./FileTreeContextMenu";
 
@@ -148,6 +152,13 @@ export function FileTree({
   // Rename dialog state — null when not renaming. Carries the entry so
   // the dialog's submit handler can call fsRename with old + new path.
   const [renameTarget, setRenameTarget] = useState<DirEntry | null>(null);
+  // Delete confirmation state — null when no delete prompt is up. The
+  // descendantCount is the result of fsCountRecursive, used to render
+  // "delete folder X and N items inside" copy. 0 means "just this entry"
+  // (a single file or an empty folder).
+  const [deleteTarget, setDeleteTarget] = useState<
+    { entry: DirEntry; descendantCount: number } | null
+  >(null);
 
   // Flat cache so filter / expand-all / collapse-all can operate across the
   // whole loaded tree in a single pass. Each Node is now presentational —
@@ -508,6 +519,28 @@ export function FileTree({
               },
             },
           ]),
+      {
+        label: "Delete",
+        separatorAbove: true,
+        destructive: true,
+        onSelect: async () => {
+          if (entry.is_dir) {
+            // Pre-flight count so the confirmation copy can mention how
+            // many items will be lost. If counting fails (permissions,
+            // path vanished), fall back to "just this folder" copy rather
+            // than blocking — the user can still proceed.
+            try {
+              const count = await fsCountRecursive(entry.path);
+              setDeleteTarget({ entry, descendantCount: count });
+            } catch (err) {
+              console.warn("count_recursive failed, prompting without count:", err);
+              setDeleteTarget({ entry, descendantCount: 0 });
+            }
+          } else {
+            setDeleteTarget({ entry, descendantCount: 0 });
+          }
+        },
+      },
     ];
   }
 
@@ -543,6 +576,43 @@ export function FileTree({
               console.error("rename failed:", err);
             }
           }}
+        />
+      )}
+      {deleteTarget && (
+        <ConfirmDialog
+          title={`Delete ${deleteTarget.entry.is_dir ? "folder" : "file"}?`}
+          message={
+            deleteTarget.entry.is_dir && deleteTarget.descendantCount > 0 ? (
+              <>
+                This will permanently delete{" "}
+                <strong>{deleteTarget.entry.name}</strong> and the{" "}
+                {deleteTarget.descendantCount}{" "}
+                {deleteTarget.descendantCount === 1 ? "item" : "items"} inside
+                it. This cannot be undone.
+              </>
+            ) : (
+              <>
+                This will permanently delete{" "}
+                <strong>{deleteTarget.entry.name}</strong>. This cannot be
+                undone.
+              </>
+            )
+          }
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          tone="danger"
+          onConfirm={async () => {
+            const target = deleteTarget.entry;
+            setDeleteTarget(null);
+            try {
+              await fsDelete(target.path);
+              closeDocsUnderPath(target.path);
+              await reloadParent(target.path);
+            } catch (err) {
+              console.error("delete failed:", err);
+            }
+          }}
+          onCancel={() => setDeleteTarget(null)}
         />
       )}
     </div>

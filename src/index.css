@@ -127,6 +127,31 @@ a:focus-visible {
   border-color: var(--brand-red-hover);
 }
 
+/* Destructive primary — used by ConfirmDialog with tone="danger" for irreversible
+   actions (delete, reset to default). Same shape as .btn-primary but in --danger
+   so the red flag reads independent of the brand accent. */
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  background: var(--danger);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 120ms,
+    border-color 120ms,
+    filter 120ms;
+}
+.btn-danger:hover {
+  filter: brightness(0.92);
+}
+
 .btn-ghost {
   display: inline-flex;
   align-items: center;
