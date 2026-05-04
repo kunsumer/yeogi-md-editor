@@ -4,9 +4,13 @@ All notable changes to Yeogi .MD Editor are documented here. Version numbers fol
 
 ## v0.4.8 — 2026-05-04
 
+### New
+
+- **Right-click a tab → "Reload from disk"** for a per-document reload. Replaces the implicit (and far too destructive) full-webview reload that macOS Tahoe's native right-click menu used to expose. Targets only the right-clicked tab; other open documents are untouched. Hidden for Untitled buffers (no path to reload from). Drops the doc's unsaved changes without a confirmation prompt — the explicit click *is* the confirmation.
+
 ### Fixed
 
-- **Right-click → Reload no longer wipes your open documents.** macOS Tahoe redesigned WKWebView's native right-click menu as a floating chip-style panel that includes a "Reload" action. Clicking it used to reload the entire webview frame — which unmounted the editor, dropped all in-memory state, and re-read every open tab from disk through session restore. From the user's perspective: "I right-clicked one document, hit Reload, and all my open documents reloaded." The native context menu is now suppressed globally so this can't happen by accident. Cut/Copy/Paste from right-click in editor regions is no longer available — ⌘C / ⌘V / ⌘X still work, and the WYSIWYG toolbar covers the formatting actions.
+- **Right-click → Reload no longer wipes your open documents.** macOS Tahoe redesigned WKWebView's native right-click menu as a floating chip-style panel that included a "Reload" action. Clicking it used to reload the entire webview frame — which unmounted the editor, dropped all in-memory state, and re-read every open tab from disk through session restore. From the user's perspective: "I right-clicked one document, hit Reload, and all my open documents reloaded." The native context menu is now suppressed globally so this can't happen by accident; the new per-tab "Reload from disk" above is the safe replacement. Cut/Copy/Paste from right-click in editor regions is no longer available — ⌘C / ⌘V / ⌘X still work, and the WYSIWYG toolbar covers the formatting actions.
 
 ### Code-signing
 
