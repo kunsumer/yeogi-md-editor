@@ -97,15 +97,30 @@ jobs:
         # Battle-tested community action that handles the full
         # keychain dance: temp keychain creation, .p12 decode + import,
         # set-key-partition-list with the correct partitions, default
-        # keychain swap, search-list registration. Replaces a
-        # hand-rolled `security` script that worked in local smoke
-        # tests but produced "0 valid identities found" on the runner —
-        # likely a `-t agg` vs `-t cert -f pkcs12` mismatch the action
-        # gets right.
+        # keychain swap, search-list registration.
         uses: apple-actions/import-codesign-certs@v3
         with:
           p12-file-base64: ${{ secrets.APPLE_SIGNING_CERT_P12_BASE64 }}
           p12-password: ${{ secrets.APPLE_SIGNING_CERT_PASSWORD }}
+
+      - name: Debug — show what codesign sees
+        # Diagnostic only. Earlier runs reported "0 valid identities
+        # found" from release-build.sh's `find-identity -v` even though
+        # the import action printed "1 identity imported" — so the
+        # identity exists somewhere but isn't on the search list the
+        # later step queries. This dumps the full state so we can see
+        # exactly what's where.
+        run: |
+          set -euxo pipefail
+          echo "--- user search list ---"
+          security list-keychains -d user
+          echo "--- find-identity -v (default search list) ---"
+          security find-identity -v
+          echo "--- find-identity -v signing_temp.keychain-db ---"
+          security find-identity -v ~/Library/Keychains/signing_temp.keychain-db || true
+          echo "--- find-certificate in signing_temp ---"
+          security find-certificate -a -c "Yeogi Dev Cert" \
+            ~/Library/Keychains/signing_temp.keychain-db | head -20 || true
 
       - name: Build signed universal bundle
         env:
