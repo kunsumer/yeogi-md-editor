@@ -9,34 +9,27 @@
 set -euo pipefail
 
 DEFAULT_IDENTITY="Yeogi Dev Cert"
-# When the caller explicitly passed APPLE_SIGNING_IDENTITY (CI does this
-# after importing the cert into a fresh keychain), missing it must be
-# fatal — silently falling back to ad-hoc would regress the TCC-grant
-# stability the import-keychain dance just paid for. When the env var
-# was unset, defaulting to "Yeogi Dev Cert" with a soft fallback to
-# ad-hoc is the right shape for a developer's local build.
 EXPLICIT_IDENTITY=${APPLE_SIGNING_IDENTITY+1}
 APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-$DEFAULT_IDENTITY}"
 
-# Identity-presence check uses `find-identity -v` WITHOUT the
-# `-p codesigning` policy filter. Self-signed certs that aren't yet
-# explicitly trusted for code signing won't pass the policy filter
-# (find-identity returns 0 valid), but `codesign` itself signs
-# successfully against them as long as the cert + private key are in
-# the keychain. CI imports the cert into a fresh keychain and skips
-# the trust step (see .github/workflows/release.yml — add-trusted-cert
-# hangs on the runner waiting for a UI confirmation that never comes),
-# so this check has to be policy-agnostic to work in that environment.
-if security find-identity -v 2>/dev/null \
+if [ -n "${EXPLICIT_IDENTITY:-}" ]; then
+  # Caller explicitly set the identity (CI). Trust them — `codesign`
+  # is the source of truth for whether the identity is usable, and
+  # it produces an actionable error message on failure. We deliberately
+  # don't `find-identity` here because its results are inconsistent
+  # across macOS versions for self-signed identities (the GitHub
+  # runner's macOS 15 reports 0 valid identities for an imported .p12
+  # that find-certificate clearly sees in the same keychain — a
+  # cert/key pairing visibility quirk we can't fix from this side).
+  export APPLE_SIGNING_IDENTITY
+  echo "Signing with explicitly-requested identity: $APPLE_SIGNING_IDENTITY"
+elif security find-identity -p codesigning -v 2>/dev/null \
     | grep -q -F "$APPLE_SIGNING_IDENTITY"; then
+  # Local developer build with the cert installed via
+  # pnpm release:apple-keygen — keychain has full trust + linkage so
+  # find-identity is reliable here.
   export APPLE_SIGNING_IDENTITY
   echo "Signing with identity: $APPLE_SIGNING_IDENTITY"
-elif [ -n "${EXPLICIT_IDENTITY:-}" ]; then
-  echo "ERROR: APPLE_SIGNING_IDENTITY='$APPLE_SIGNING_IDENTITY' was set" >&2
-  echo "       but the identity isn't in any visible keychain. Refusing" >&2
-  echo "       to silently fall back to ad-hoc when an explicit identity" >&2
-  echo "       was requested." >&2
-  exit 1
 else
   echo "WARN: '$APPLE_SIGNING_IDENTITY' not in keychain — falling back to ad-hoc."
   echo "      Run 'pnpm release:apple-keygen' to create the stable dev cert."
