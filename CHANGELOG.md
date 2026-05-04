@@ -2,6 +2,16 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.8 — 2026-05-04
+
+### Fixed
+
+- **Right-click → Reload no longer wipes your open documents.** macOS Tahoe redesigned WKWebView's native right-click menu as a floating chip-style panel that includes a "Reload" action. Clicking it used to reload the entire webview frame — which unmounted the editor, dropped all in-memory state, and re-read every open tab from disk through session restore. From the user's perspective: "I right-clicked one document, hit Reload, and all my open documents reloaded." The native context menu is now suppressed globally so this can't happen by accident. Cut/Copy/Paste from right-click in editor regions is no longer available — ⌘C / ⌘V / ⌘X still work, and the WYSIWYG toolbar covers the formatting actions.
+
+### Code-signing
+
+- **Releases are now signed with a stable identity in CI.** Previously, every release was ad-hoc-signed by the GitHub Actions runner, which gave each version a fresh hash-derived signing identifier. macOS TCC keyed the "Yeogi can access your Documents folder" grant by that identifier, so every release was treated as a *different app* — your Documents permission had to be re-granted on first launch of every version. Releases now import a stable self-signed identity into a temporary keychain on the runner, so the bundle's signing identifier is the same across all future releases. The first signed release (this one) will trigger one final permission prompt as the identifier flips from the old `yeogi_md_editor-<hash>` to the stable `com.yeogi.mdeditor`. After that, the grant persists.
+
 ## v0.4.7 — 2026-05-04
 
 A small release focused on **creating new files** from inside the app + clearer error reporting.
