@@ -2,6 +2,27 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.7 — 2026-05-04
+
+A small release focused on **creating new files** from inside the app + clearer error reporting.
+
+### New
+
+- **File → New (⌘N).** Creates an in-memory Untitled buffer in the focused pane. The first ⌘S falls through to Save As so you can pick a destination.
+- **Right-click → New File… / New Folder…** in the file-tree row menu and the folder-header menu. The new entry lands in the right place automatically:
+  - Right-click on a **folder row** → creates inside that folder (auto-expands if collapsed).
+  - Right-click on a **file row** → creates as a sibling in the file's parent directory.
+  - Right-click on a **folder-group header** → creates inside that folder root.
+  - **New File…** auto-appends `.md` when you don't include an extension and opens the new file in the editor automatically. Files with explicit extensions (e.g. `notes.txt`) are honored as-is.
+
+### Fixed
+
+- **Export to HTML and Print / Export to PDF now show a real error message** when something goes wrong, instead of silently doing nothing. Triggering them with no document open now also shows a clear "Open a Markdown document first" dialog rather than no-op'ing.
+
+### macOS
+
+- **Friendlier permission prompts.** Added `NSDocumentsFolderUsageDescription`, `NSDownloadsFolderUsageDescription`, and `NSDesktopFolderUsageDescription` to the bundled `Info.plist`. When macOS asks for access to one of those folders, the dialog now shows our own explanation ("Yeogi needs access to your Documents folder to open and save your Markdown notes.") instead of the generic OS wording. **Note:** this doesn't change *how often* the prompt appears — that's a function of the app's signing identity, which is still ad-hoc on CI builds. A separate change will move the release workflow to a stable signing identity so the Documents permission grant persists across releases.
+
 ## v0.4.6 — 2026-04-28
 
 A focused release on **explorer file management** + **tab ergonomics**.
