@@ -9,6 +9,13 @@ interface Props {
    *  directionally worded relative to this (primary → right, secondary → left). */
   sourcePaneId: PaneId;
   onOpenToSide(docId: string, sourcePaneId: PaneId): void;
+  /**
+   * Reload this tab's document from disk. Hidden when the doc has no
+   * path on disk yet (Untitled buffer — there's nothing to reload to).
+   */
+  onReload?: (docId: string) => void;
+  /** True when the right-clicked tab is a path-less Untitled buffer. */
+  hasPath: boolean;
   onClose(): void;
 }
 
@@ -18,9 +25,11 @@ export function TabContextMenu({
   y,
   sourcePaneId,
   onOpenToSide,
+  onReload,
+  hasPath,
   onClose,
 }: Props) {
-  const label =
+  const sideLabel =
     sourcePaneId === "primary"
       ? "Open to the Right Side"
       : "Open to the Left Side";
@@ -76,8 +85,41 @@ export function TabContextMenu({
           onClose();
         }}
       >
-        {label}
+        {sideLabel}
       </button>
+      {hasPath && onReload && (
+        <>
+          <div
+            role="separator"
+            style={{
+              margin: "4px 0",
+              height: 1,
+              background: "var(--border)",
+            }}
+          />
+          <button
+            type="button"
+            role="menuitem"
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "6px 12px",
+              border: 0,
+              background: "transparent",
+              textAlign: "left",
+              cursor: "pointer",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            onClick={() => {
+              onReload(docId);
+              onClose();
+            }}
+          >
+            Reload from disk
+          </button>
+        </>
+      )}
     </div>
   );
 }

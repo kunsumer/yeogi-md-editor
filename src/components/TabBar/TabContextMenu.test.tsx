@@ -12,6 +12,7 @@ describe("TabContextMenu", () => {
         x={100}
         y={100}
         sourcePaneId="primary"
+        hasPath
         onOpenToSide={onOpenToSide}
         onClose={onClose}
       />,
@@ -30,11 +31,46 @@ describe("TabContextMenu", () => {
         x={100}
         y={100}
         sourcePaneId="secondary"
+        hasPath
         onOpenToSide={onOpenToSide}
         onClose={onClose}
       />,
     );
     fireEvent.click(screen.getByText(/open to the left side/i));
     expect(onOpenToSide).toHaveBeenCalledWith("doc-2", "secondary");
+  });
+
+  it("shows 'Reload from disk' when hasPath + onReload are provided", () => {
+    const onReload = vi.fn();
+    render(
+      <TabContextMenu
+        docId="doc-3"
+        x={0}
+        y={0}
+        sourcePaneId="primary"
+        hasPath
+        onOpenToSide={vi.fn()}
+        onReload={onReload}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByText(/reload from disk/i));
+    expect(onReload).toHaveBeenCalledWith("doc-3");
+  });
+
+  it("hides 'Reload from disk' for path-less Untitled buffers", () => {
+    render(
+      <TabContextMenu
+        docId="doc-4"
+        x={0}
+        y={0}
+        sourcePaneId="primary"
+        hasPath={false}
+        onOpenToSide={vi.fn()}
+        onReload={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText(/reload from disk/i)).toBeNull();
   });
 });

@@ -1042,6 +1042,28 @@ export default function App() {
     ) => useLayout.getState().reorderTabs(paneId, id, beforeId),
     onOpenToSide: (id: string, sourcePaneId: "primary" | "secondary") =>
       useLayout.getState().openInOtherPane(sourcePaneId, id),
+    onReloadTab: async (id: string) => {
+      // Reload-from-disk for the right-clicked tab specifically — replaces
+      // its buffer with the latest on-disk content. Untitled buffers
+      // (no path) are filtered out by the menu so we won't get called
+      // for one. Any unsaved edits in this doc are dropped — the user
+      // chose Reload explicitly, so we treat that as informed consent
+      // and skip the unsaved-changes prompt.
+      const doc = useDocuments.getState().documents.find((d) => d.id === id);
+      if (!doc?.path) return;
+      try {
+        const r = await fsRead(doc.path);
+        useDocuments
+          .getState()
+          .replaceContentFromDisk(id, { content: r.content, mtimeMs: r.mtime_ms });
+      } catch (e) {
+        console.error("reload tab failed:", e);
+        setAlertDialog({
+          title: "Reload failed",
+          message: String(e instanceof Error ? e.message : e),
+        });
+      }
+    },
     onSetViewMode: (paneId: "primary" | "secondary", mode: ViewMode) => {
       if (paneId === focusedPaneId) setViewMode(mode);
       else useLayout.getState().setViewMode(paneId, mode);

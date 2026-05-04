@@ -33,6 +33,8 @@ interface Props {
   onActivateTab(paneId: PaneId, docId: string): void;
   onReorderTabs(paneId: PaneId, docId: string, beforeId: string | null): void;
   onOpenToSide(docId: string, sourcePaneId: PaneId): void;
+  /** Reload a single tab's document from disk via the tab right-click menu. */
+  onReloadTab?: (docId: string) => void;
   onSetViewMode(paneId: PaneId, mode: ViewMode): void;
   onFocusPane(paneId: PaneId): void;
   onSetContent(docId: string, next: string): void;
@@ -87,6 +89,7 @@ export function EditorPane({
   onActivateTab,
   onReorderTabs,
   onOpenToSide,
+  onReloadTab,
   onSetViewMode,
   onFocusPane,
   onSetContent,
@@ -139,6 +142,7 @@ export function EditorPane({
         onClose={(id) => onCloseTab(pane.id, id)}
         onReorder={(docId, beforeId) => onReorderTabs(pane.id, docId, beforeId)}
         onOpenToSide={(id, source) => onOpenToSide(id, source)}
+        onReload={onReloadTab}
         onCreateBlank={onCreateBlank}
         onOpenFiles={onOpenFiles}
       />

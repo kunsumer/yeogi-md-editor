@@ -12,6 +12,11 @@ interface Props {
   onClose(id: string): void;
   onOpenToSide(id: string, sourcePaneId: PaneId): void;
   /**
+   * Reload the right-clicked tab's document from disk. The right-click
+   * menu hides this option when the doc has no path (Untitled buffer).
+   */
+  onReload?: (id: string) => void;
+  /**
    * Called when a tab is dropped onto a new slot via drag-reorder. `beforeId`
    * is the id of the tab the dragged one should land before; null means
    * "drop at the end of the strip".
@@ -120,6 +125,7 @@ export function TabBar({
   onActivate,
   onClose,
   onOpenToSide,
+  onReload,
   onReorder,
   onCreateBlank,
   onOpenFiles,
@@ -484,16 +490,21 @@ export function TabBar({
           +
         </button>
       )}
-      {ctx && (
-        <TabContextMenu
-          docId={ctx.docId}
-          x={ctx.x}
-          y={ctx.y}
-          sourcePaneId={pane.id}
-          onOpenToSide={(id, source) => onOpenToSide(id, source)}
-          onClose={() => setCtx(null)}
-        />
-      )}
+      {ctx && (() => {
+        const ctxDoc = documents.find((d) => d.id === ctx.docId);
+        return (
+          <TabContextMenu
+            docId={ctx.docId}
+            x={ctx.x}
+            y={ctx.y}
+            sourcePaneId={pane.id}
+            hasPath={!!ctxDoc?.path}
+            onOpenToSide={(id, source) => onOpenToSide(id, source)}
+            onReload={onReload}
+            onClose={() => setCtx(null)}
+          />
+        );
+      })()}
       {newMenu && (
         <TabNewMenu
           x={newMenu.x}
