@@ -139,15 +139,20 @@ jobs:
           # Without this, `find-identity -p codesigning` reports 0 valid
           # identities even though the cert is in the keychain — the cert
           # chain doesn't validate for codesigning. Trust settings are
-          # NOT carried in the .p12, so we extract the cert and add it
-          # as a trusted codesigning root in this build's keychain.
-          # (Local builds get this for free because create-apple-signing-cert.sh
-          # runs add-trusted-cert at cert creation time.)
+          # NOT carried in the .p12, so we re-export the cert from the
+          # keychain (after import) and add it as a trusted codesigning
+          # root. (Local builds get this for free because
+          # create-apple-signing-cert.sh runs add-trusted-cert at cert
+          # creation time.)
+          #
+          # `security find-certificate -p` is used instead of
+          # `openssl pkcs12 -nokeys -legacy ...` because the runner's
+          # LibreSSL doesn't recognize -legacy, and the .p12 produced by
+          # macOS's `security export` uses legacy PBE that LibreSSL
+          # can't read without it.
           CERT_PEM_PATH="$RUNNER_TEMP/yeogi-dev-cert.pem"
-          openssl pkcs12 -in "$CERT_PATH" \
-            -nokeys -clcerts -legacy \
-            -passin "pass:$CERT_PASSWORD" \
-            -out "$CERT_PEM_PATH"
+          security find-certificate -c "Yeogi Dev Cert" -p \
+            "$KEYCHAIN_PATH" > "$CERT_PEM_PATH"
           security add-trusted-cert -p codeSign \
             -k "$KEYCHAIN_PATH" \
             "$CERT_PEM_PATH"
