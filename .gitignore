@@ -46,3 +46,6 @@ lerna-debug.log*
 *.sln
 *.sw?
 src-tauri/src/lib/
+
+# personal blog drafts — not part of the shipped repo
+docs/blog/
