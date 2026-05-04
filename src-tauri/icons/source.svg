@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Yeogi .MD Editor app icon:
+       Solid red rounded-square tile so the icon reads as a single shape on
+       the macOS Dock + across the Home Screen, with a white outlined document
+       (folded top-right corner) + white "MD" wordmark + underline bar that
+       mirror the brand's wordmark logo. -->
+  <rect width="1024" height="1024" rx="200" ry="200" fill="#ef3b3b"/>
+  <!-- Document body. Stroked (no fill) so the red tile shows through. -->
+  <path
+    d="M 280 180
+       H 620
+       L 800 360
+       V 808
+       C 800 852 764 888 720 888
+       H 280
+       C 236 888 200 852 200 808
+       V 260
+       C 200 216 236 180 280 180
+       Z"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="60"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  />
+  <!-- Folded corner: the small L that reads as a dog-ear. -->
+  <path
+    d="M 620 180 V 360 H 800"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="60"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  />
+  <!-- "MD" wordmark — centered in the body. -->
+  <text
+    x="500"
+    y="640"
+    text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif"
+    font-weight="900"
+    font-size="220"
+    letter-spacing="-8"
+    fill="#ffffff"
+    dominant-baseline="middle"
+  >MD</text>
+  <!-- Short bar under "MD" suggesting a line of body text. -->
+  <rect x="360" y="720" width="280" height="42" rx="21" fill="#ffffff"/>
+</svg>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+        TCC usage descriptions. macOS shows the matching string in the
+        access-prompt dialog; without these keys the prompt falls back to
+        the generic "would like to access files in your Documents folder"
+        wording. Keys must match the system's expectations exactly — see
+        the "Privacy" section of Apple's Info.plist key reference.
+
+        These DO NOT affect how often the prompt appears (that's keyed by
+        the app's signing identity). They only make the prompt more
+        meaningful when it does appear.
+    -->
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Yeogi .MD Editor needs access to your Documents folder to open and save your Markdown notes.</string>
+
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Yeogi .MD Editor needs access to your Downloads folder to open Markdown files you've saved there.</string>
+
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Yeogi .MD Editor needs access to your Desktop to open and save Markdown files placed there.</string>
+</dict>
+</plist>
