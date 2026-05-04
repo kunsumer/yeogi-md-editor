@@ -94,65 +94,18 @@ jobs:
           fi
 
       - name: Import Apple signing identity
-        # Re-creates a temporary keychain on the runner, imports the
-        # exported PKCS#12, and unlocks it for the build. The keychain
-        # is wiped along with the runner image when the job ends — no
-        # persistence across runs.
-        env:
-          CERT_B64: ${{ secrets.APPLE_SIGNING_CERT_P12_BASE64 }}
-          CERT_PASSWORD: ${{ secrets.APPLE_SIGNING_CERT_PASSWORD }}
-        run: |
-          set -euo pipefail
-          KEYCHAIN_PATH="$RUNNER_TEMP/yeogi-build.keychain-db"
-          KEYCHAIN_PASSWORD=$(uuidgen)
-          CERT_PATH="$RUNNER_TEMP/yeogi-dev-cert.p12"
-
-          echo "$CERT_B64" | base64 --decode -o "$CERT_PATH"
-
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          # Prepend the build keychain to the user search list so
-          # codesign's identity lookup finds it without disturbing the
-          # default keychain order.
-          security list-keychains -d user -s \
-            "$KEYCHAIN_PATH" $(security list-keychains -d user | xargs)
-
-          # -A grants every tool access to the private key without an
-          # interactive approval popup; -t agg makes it search both
-          # certs and keys during the import.
-          security import "$CERT_PATH" \
-            -k "$KEYCHAIN_PATH" \
-            -P "$CERT_PASSWORD" \
-            -A \
-            -t agg
-
-          # Trust the cert for code signing — without this, codesign
-          # rejects the identity with "Invalid Key Usage for policy".
-          security set-key-partition-list \
-            -S apple-tool:,apple:,codesign: \
-            -s -k "$KEYCHAIN_PASSWORD" \
-            "$KEYCHAIN_PATH"
-
-          # NOTE: We intentionally do NOT run `security add-trusted-cert
-          # -p codeSign` here. On a headless runner that command hangs
-          # forever waiting for an interactive trust-modification UI
-          # confirmation that no one can answer. Without trust,
-          # `find-identity -p codesigning` reports 0 valid identities,
-          # but the cert + private key are still present in the keychain
-          # and `codesign` itself signs successfully against them — the
-          # `-p codesigning` policy filter is a chain-validation check,
-          # not a signing prerequisite. release-build.sh below uses
-          # `find-identity -v` (no policy filter) for its sanity check
-          # so the missing trust doesn't trip it.
-
-          # Sanity check — list ALL identities (no policy filter).
-          # Must show "Yeogi Dev Cert".
-          security find-identity -v "$KEYCHAIN_PATH"
-
-          # Wipe the cert from disk now that it's in the keychain.
-          rm -f "$CERT_PATH"
+        # Battle-tested community action that handles the full
+        # keychain dance: temp keychain creation, .p12 decode + import,
+        # set-key-partition-list with the correct partitions, default
+        # keychain swap, search-list registration. Replaces a
+        # hand-rolled `security` script that worked in local smoke
+        # tests but produced "0 valid identities found" on the runner —
+        # likely a `-t agg` vs `-t cert -f pkcs12` mismatch the action
+        # gets right.
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_SIGNING_CERT_P12_BASE64 }}
+          p12-password: ${{ secrets.APPLE_SIGNING_CERT_PASSWORD }}
 
       - name: Build signed universal bundle
         env:
