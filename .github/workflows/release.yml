@@ -135,11 +135,28 @@ jobs:
             -s -k "$KEYCHAIN_PASSWORD" \
             "$KEYCHAIN_PATH"
 
-          # Sanity check.
+          # Self-signed certs require an explicit codeSign trust setting.
+          # Without this, `find-identity -p codesigning` reports 0 valid
+          # identities even though the cert is in the keychain — the cert
+          # chain doesn't validate for codesigning. Trust settings are
+          # NOT carried in the .p12, so we extract the cert and add it
+          # as a trusted codesigning root in this build's keychain.
+          # (Local builds get this for free because create-apple-signing-cert.sh
+          # runs add-trusted-cert at cert creation time.)
+          CERT_PEM_PATH="$RUNNER_TEMP/yeogi-dev-cert.pem"
+          openssl pkcs12 -in "$CERT_PATH" \
+            -nokeys -clcerts -legacy \
+            -passin "pass:$CERT_PASSWORD" \
+            -out "$CERT_PEM_PATH"
+          security add-trusted-cert -p codeSign \
+            -k "$KEYCHAIN_PATH" \
+            "$CERT_PEM_PATH"
+
+          # Sanity check — must show "1 valid identities found".
           security find-identity -p codesigning -v "$KEYCHAIN_PATH"
 
-          # Wipe the cert from disk now that it's in the keychain.
-          rm -f "$CERT_PATH"
+          # Wipe artifacts from disk now that they're in the keychain.
+          rm -f "$CERT_PATH" "$CERT_PEM_PATH"
 
       - name: Build signed universal bundle
         env:
@@ -233,14 +250,17 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
-          # GitHub takes a moment to mark a release "latest" — poll briefly.
-          for i in 1 2 3 4 5; do
+          # GitHub takes a moment to mark a release "latest" — poll
+          # for up to 2 min. The previous 50 s budget was on the edge
+          # during peak hours and produced false-failure runs even
+          # though the release itself published correctly.
+          for i in $(seq 1 12); do
             REMOTE=$(curl -sL "https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/latest.json" | jq -r .version)
             if [ "$REMOTE" = "$VERSION" ]; then
               echo "Updater endpoint resolves to $VERSION ✓"
               exit 0
             fi
-            echo "Attempt $i: endpoint reports $REMOTE, expected $VERSION — retrying in 10 s"
+            echo "Attempt $i/12: endpoint reports $REMOTE, expected $VERSION — retrying in 10 s"
             sleep 10
           done
           echo "::error::Updater endpoint never resolved to $VERSION"
