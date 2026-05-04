@@ -154,6 +154,26 @@ export default function App() {
     return () => window.removeEventListener("pagehide", handler);
   }, []);
 
+  // Suppress WKWebView's native right-click context menu globally.
+  // macOS Tahoe redesigned the native menu as a floating chip-style
+  // panel that includes a "Reload" action — clicking it reloads the
+  // entire webview frame, blowing away all in-memory state and
+  // forcing every open tab to be re-read from disk. That's a
+  // catastrophic action one accidental right-click away.
+  //
+  // The trade-off is losing native Cut/Copy/Paste from right-click
+  // inside editor regions; ⌘C/⌘V/⌘X still work. Our own context
+  // menus (file tree, tab bar, folder header) already call
+  // preventDefault on their handlers, so this listener is a no-op
+  // for those and a safety net everywhere else.
+  useEffect(() => {
+    function onContextMenu(e: MouseEvent) {
+      e.preventDefault();
+    }
+    window.addEventListener("contextmenu", onContextMenu);
+    return () => window.removeEventListener("contextmenu", onContextMenu);
+  }, []);
+
   // Chrome-style tab navigation: ⌘1..⌘8 jump to the Nth tab of the focused
   // pane, ⌘9 jumps to the LAST tab regardless of count (browsers, including
   // Chrome and Safari, follow this convention so Cmd+9 always lands on the
