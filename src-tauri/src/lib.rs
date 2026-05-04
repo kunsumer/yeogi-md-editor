@@ -68,6 +68,7 @@ pub fn run() {
             commands::fs_read,
             commands::fs_write,
             commands::fs_create,
+            commands::fs_create_dir,
             commands::fs_rename,
             commands::fs_list,
             commands::watcher_subscribe,

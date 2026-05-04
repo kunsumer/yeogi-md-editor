@@ -26,6 +26,16 @@ export async function fsCreate(path: string): Promise<void> {
   return invoke("fs_create", { path });
 }
 
+/**
+ * Create a single new directory. Non-recursive — the parent must already
+ * exist. Refuses to overwrite an existing entry; the frontend "New
+ * Folder…" flow uses this with a freshly-prompted basename inside a known
+ * existing parent.
+ */
+export async function fsCreateDir(path: string): Promise<void> {
+  return invoke("fs_create_dir", { path });
+}
+
 export async function fsRename(from: string, to: string): Promise<void> {
   return invoke("fs_rename", { from, to });
 }

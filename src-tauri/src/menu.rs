@@ -72,6 +72,12 @@ pub fn build_menu<R: Runtime>(
 
     let file = SubmenuBuilder::new(app, "File")
         .item(
+            &MenuItemBuilder::with_id("file:new", "New")
+                .accelerator("CmdOrCtrl+N")
+                .build(app)?,
+        )
+        .separator()
+        .item(
             &MenuItemBuilder::with_id("file:open", "Open…")
                 .accelerator("CmdOrCtrl+O")
                 .build(app)?,

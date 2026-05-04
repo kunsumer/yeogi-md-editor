@@ -7,6 +7,8 @@ import { AsidePanel } from "./AsidePanel";
 import { MAX_OPEN_FOLDERS } from "../../state/documents";
 import {
   fsCountRecursive,
+  fsCreate,
+  fsCreateDir,
   fsDelete,
   fsRename,
   shellOpenInTerminal,
@@ -124,6 +126,11 @@ export function FolderPanel({
   // and N items inside" copy.
   const [folderDeleteTarget, setFolderDeleteTarget] = useState<
     { root: string; descendantCount: number } | null
+  >(null);
+  // "New File…" / "New Folder…" target for the folder-header menu. The
+  // created entry lands inside the folder root the user right-clicked.
+  const [folderCreateTarget, setFolderCreateTarget] = useState<
+    { parentDir: string; kind: "file" | "folder" } | null
   >(null);
 
   const selectedFolder =
@@ -332,7 +339,26 @@ export function FolderPanel({
           y={folderCtx.y}
           actions={[
             {
+              label: "New File…",
+              onSelect: () => {
+                setFolderCreateTarget({
+                  parentDir: folderCtx.root,
+                  kind: "file",
+                });
+              },
+            },
+            {
+              label: "New Folder…",
+              onSelect: () => {
+                setFolderCreateTarget({
+                  parentDir: folderCtx.root,
+                  kind: "folder",
+                });
+              },
+            },
+            {
               label: "Open in Finder",
+              separatorAbove: true,
               onSelect: () => {
                 shellRevealInFinder(folderCtx.root).catch(console.error);
               },
@@ -393,6 +419,49 @@ export function FolderPanel({
               onRenameFolder?.(oldPath, newPath);
             } catch (err) {
               console.error("rename folder failed:", err);
+            }
+          }}
+        />
+      )}
+      {folderCreateTarget && (
+        <PromptDialog
+          title={folderCreateTarget.kind === "file" ? "New file" : "New folder"}
+          placeholder={
+            folderCreateTarget.kind === "file" ? "Untitled.md" : "New folder"
+          }
+          submitLabel="Create"
+          onCancel={() => setFolderCreateTarget(null)}
+          onSubmit={async (rawName) => {
+            const target = folderCreateTarget;
+            setFolderCreateTarget(null);
+            const trimmed = rawName.trim();
+            if (!trimmed) return;
+            if (trimmed.includes("/")) {
+              console.warn("New file/folder name may not contain '/'");
+              return;
+            }
+            const finalName =
+              target.kind === "file" && !trimmed.includes(".")
+                ? `${trimmed}.md`
+                : trimmed;
+            const dst = `${target.parentDir}/${finalName}`;
+            try {
+              if (target.kind === "file") {
+                await fsCreate(dst);
+              } else {
+                await fsCreateDir(dst);
+              }
+              // Bump the global reloadSeq so every cached tree re-fetches —
+              // the new entry's parent is one of the open roots, and this
+              // is the cheapest way to force its FileTree to refresh
+              // without plumbing a per-root reload counter all the way
+              // down. Other trees revalidating is harmless.
+              setReloadSeq((n) => n + 1);
+              if (target.kind === "file") {
+                onOpenFile(dst);
+              }
+            } catch (err) {
+              console.error(`create ${target.kind} failed:`, err);
             }
           }}
         />

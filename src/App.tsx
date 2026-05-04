@@ -66,6 +66,13 @@ export default function App() {
   >(null);
   // Confirmation for Help → Reset Welcome.md to Default. Null = no prompt.
   const [resetWelcomeConfirmOpen, setResetWelcomeConfirmOpen] = useState(false);
+  // One-shot user-visible alert. Used for export/print failures and
+  // "no active document" cases that previously silently no-op'd. WKWebView
+  // disables window.alert(), so we reuse ConfirmDialog as a single-button
+  // OK dialog.
+  const [alertDialog, setAlertDialog] = useState<
+    { title: string; message: string } | null
+  >(null);
   const updater = useUpdater({ checkOnStartup: true });
   useWatcherEvents(setWatcherOffline);
   const { documents, openDocument, setContent } = useDocuments();
@@ -391,7 +398,13 @@ export default function App() {
   }
 
   async function exportHtml() {
-    if (!active) return;
+    if (!active) {
+      setAlertDialog({
+        title: "No document open",
+        message: "Open a Markdown document first, then try Export to HTML again.",
+      });
+      return;
+    }
     try {
       const { renderMarkdown } = await import("./lib/markdown/pipeline");
       const html = await renderMarkdown(active.content);
@@ -408,11 +421,21 @@ export default function App() {
       await fsWrite(chosen, standalone);
     } catch (e) {
       console.error("Export HTML failed:", e);
+      setAlertDialog({
+        title: "Export to HTML failed",
+        message: String(e instanceof Error ? e.message : e),
+      });
     }
   }
 
   async function printDocument() {
-    if (!active) return;
+    if (!active) {
+      setAlertDialog({
+        title: "No document open",
+        message: "Open a Markdown document first, then try Print again.",
+      });
+      return;
+    }
     // WKWebView swallows window.print() calls routed through the menu IPC
     // — the user gesture is lost. Write a standalone HTML file to the OS
     // temp directory and open it in the default browser, where Cmd+P works
@@ -433,6 +456,10 @@ export default function App() {
       await openPath(tmpPath);
     } catch (e) {
       console.error("Print failed:", e);
+      setAlertDialog({
+        title: "Print / Export to PDF failed",
+        message: String(e instanceof Error ? e.message : e),
+      });
     }
   }
 
@@ -578,6 +605,18 @@ export default function App() {
         return;
       }
       switch (id) {
+        case "file:new":
+          // Untitled buffer — no path on disk yet. The TabBar already
+          // labels path-less docs as "Untitled", and saveDocument falls
+          // back to Save As when path is null, so the first ⌘S will
+          // prompt for a destination.
+          useDocuments.getState().openDocument({
+            path: null,
+            content: "",
+            savedMtime: 0,
+            encoding: "utf-8",
+          });
+          break;
         case "file:open":
           pickAndOpenFiles().catch(console.error);
           break;
@@ -1159,6 +1198,16 @@ export default function App() {
             />
           );
         })()}
+      {alertDialog && (
+        <ConfirmDialog
+          title={alertDialog.title}
+          message={alertDialog.message}
+          confirmLabel="OK"
+          cancelLabel={null}
+          onConfirm={() => setAlertDialog(null)}
+          onCancel={() => setAlertDialog(null)}
+        />
+      )}
       {resetWelcomeConfirmOpen && (
         <ConfirmDialog
           title="Reset Welcome.md to default?"

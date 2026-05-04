@@ -66,6 +66,19 @@ pub fn create(path: &str) -> Result<(), FsError> {
     Ok(())
 }
 
+/// Create a single new directory at `path`. Refuses to overwrite an
+/// existing entry — the caller (frontend) is expected to compute a unique
+/// target and surface a meaningful error otherwise. Non-recursive:
+/// `parent/new` requires `parent` to already exist. The frontend's
+/// "New Folder…" action only ever calls this with the right-clicked
+/// folder + a single basename, so non-recursive is the right shape.
+pub fn create_dir(path: &str) -> Result<(), FsError> {
+    let p = Path::new(path);
+    if p.exists() { return Err(FsError::Io(format!("path exists: {path}"))); }
+    stdfs::create_dir(p).map_err(|e| FsError::Io(e.to_string()))?;
+    Ok(())
+}
+
 pub fn rename(from: &str, to: &str) -> Result<(), FsError> {
     stdfs::rename(from, to).map_err(|e| FsError::Io(e.to_string()))
 }

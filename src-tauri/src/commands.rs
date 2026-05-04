@@ -20,6 +20,11 @@ pub fn fs_create(path: String) -> Result<(), FsError> {
 }
 
 #[tauri::command]
+pub fn fs_create_dir(path: String) -> Result<(), FsError> {
+    fs::create_dir(&path)
+}
+
+#[tauri::command]
 pub fn fs_rename(from: String, to: String) -> Result<(), FsError> {
     fs::rename(&from, &to)
 }

@@ -13,7 +13,11 @@ interface Props {
   confirmLabel?: string;
   /** Destructive secondary action (e.g. "Don't Save"). Optional. */
   discardLabel?: string;
-  cancelLabel?: string;
+  /**
+   * Label for the dismiss/cancel button. Pass `null` to hide it entirely
+   * — useful for one-button alerts that only need an OK affordance.
+   */
+  cancelLabel?: string | null;
   tone?: "normal" | "danger";
   onConfirm: () => void;
   onDiscard?: () => void;
@@ -88,9 +92,11 @@ export function ConfirmDialog({
             </button>
           )}
           <div style={{ flex: 1 }} />
-          <button type="button" className="btn-ghost" onClick={onCancel}>
-            {cancelLabel}
-          </button>
+          {cancelLabel !== null && (
+            <button type="button" className="btn-ghost" onClick={onCancel}>
+              {cancelLabel}
+            </button>
+          )}
           <button
             ref={confirmRef}
             type="button"

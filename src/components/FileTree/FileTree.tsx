@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   fsCopy,
   fsCountRecursive,
+  fsCreate,
+  fsCreateDir,
   fsDelete,
   fsList,
   fsRename,
@@ -158,6 +160,13 @@ export function FileTree({
   // (a single file or an empty folder).
   const [deleteTarget, setDeleteTarget] = useState<
     { entry: DirEntry; descendantCount: number } | null
+  >(null);
+  // "New File…" / "New Folder…" creation target. parentDir is the absolute
+  // directory the new entry will live in (the right-clicked folder itself
+  // for folder rows, the parent dir for file rows). expandParent triggers
+  // an auto-expand after create so the new entry is actually visible.
+  const [createTarget, setCreateTarget] = useState<
+    { parentDir: string; kind: "file" | "folder"; expandParent: boolean } | null
   >(null);
 
   // Flat cache so filter / expand-all / collapse-all can operate across the
@@ -481,9 +490,33 @@ export function FileTree({
   }
 
   function buildCtxActions(entry: DirEntry) {
+    // "Create inside" target: the entry itself if it's a folder (the new
+    // file/folder lands as a child); otherwise the file's parent dir (the
+    // new entry lands as a sibling). Mirrors VS Code / Finder behavior.
+    const slash = entry.path.lastIndexOf("/");
+    const parentDir = slash >= 0 ? entry.path.slice(0, slash) : root;
+    const createIn = entry.is_dir ? entry.path : parentDir;
+    // Only auto-expand when we created INSIDE a folder we right-clicked —
+    // for sibling-create off a file row, the parent is already showing the
+    // file we right-clicked, so expansion isn't needed.
+    const expandAfter = entry.is_dir;
+
     return [
       {
+        label: "New File…",
+        onSelect: () => {
+          setCreateTarget({ parentDir: createIn, kind: "file", expandParent: expandAfter });
+        },
+      },
+      {
+        label: "New Folder…",
+        onSelect: () => {
+          setCreateTarget({ parentDir: createIn, kind: "folder", expandParent: expandAfter });
+        },
+      },
+      {
         label: "Open in Finder",
+        separatorAbove: true,
         onSelect: () => {
           shellRevealInFinder(entry.path).catch(console.error);
         },
@@ -574,6 +607,64 @@ export function FileTree({
               await reloadParent(target.path);
             } catch (err) {
               console.error("rename failed:", err);
+            }
+          }}
+        />
+      )}
+      {createTarget && (
+        <PromptDialog
+          title={createTarget.kind === "file" ? "New file" : "New folder"}
+          placeholder={
+            createTarget.kind === "file" ? "Untitled.md" : "New folder"
+          }
+          submitLabel="Create"
+          onCancel={() => setCreateTarget(null)}
+          onSubmit={async (rawName) => {
+            const target = createTarget;
+            setCreateTarget(null);
+            const trimmed = rawName.trim();
+            if (!trimmed) return;
+            // Reject path separators — we only accept a basename. Anything
+            // fancier (nested path creation) is out of scope for v1.
+            if (trimmed.includes("/")) {
+              console.warn("New file/folder name may not contain '/'");
+              return;
+            }
+            // Files default to .md when the user omits an extension —
+            // this is a Markdown editor, that's almost always what they
+            // want. Folders are name-as-typed.
+            const finalName =
+              target.kind === "file" && !trimmed.includes(".")
+                ? `${trimmed}.md`
+                : trimmed;
+            const dst = `${target.parentDir}/${finalName}`;
+            try {
+              if (target.kind === "file") {
+                await fsCreate(dst);
+              } else {
+                await fsCreateDir(dst);
+              }
+              // Reload the parent so the tree shows the new entry. Pass
+              // the new path; reloadParent walks one segment up.
+              await reloadParent(dst);
+              // Expand the parent if we created INSIDE a folder the user
+              // right-clicked (so the new child is actually visible).
+              if (target.expandParent) {
+                setExpanded((prev) => {
+                  if (prev.has(target.parentDir)) return prev;
+                  const next = new Set(prev);
+                  next.add(target.parentDir);
+                  return next;
+                });
+              }
+              // For files, also open it in the editor — VS Code's
+              // convention, and it matches the user's intent ("I made
+              // this file because I want to write in it").
+              if (target.kind === "file") {
+                onOpenFile(dst);
+              }
+            } catch (err) {
+              console.error(`create ${target.kind} failed:`, err);
             }
           }}
         />
