@@ -18,7 +18,16 @@ DEFAULT_IDENTITY="Yeogi Dev Cert"
 EXPLICIT_IDENTITY=${APPLE_SIGNING_IDENTITY+1}
 APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-$DEFAULT_IDENTITY}"
 
-if security find-identity -p codesigning -v 2>/dev/null \
+# Identity-presence check uses `find-identity -v` WITHOUT the
+# `-p codesigning` policy filter. Self-signed certs that aren't yet
+# explicitly trusted for code signing won't pass the policy filter
+# (find-identity returns 0 valid), but `codesign` itself signs
+# successfully against them as long as the cert + private key are in
+# the keychain. CI imports the cert into a fresh keychain and skips
+# the trust step (see .github/workflows/release.yml — add-trusted-cert
+# hangs on the runner waiting for a UI confirmation that never comes),
+# so this check has to be policy-agnostic to work in that environment.
+if security find-identity -v 2>/dev/null \
     | grep -q -F "$APPLE_SIGNING_IDENTITY"; then
   export APPLE_SIGNING_IDENTITY
   echo "Signing with identity: $APPLE_SIGNING_IDENTITY"

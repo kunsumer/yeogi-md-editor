@@ -135,33 +135,24 @@ jobs:
             -s -k "$KEYCHAIN_PASSWORD" \
             "$KEYCHAIN_PATH"
 
-          # Self-signed certs require an explicit codeSign trust setting.
-          # Without this, `find-identity -p codesigning` reports 0 valid
-          # identities even though the cert is in the keychain — the cert
-          # chain doesn't validate for codesigning. Trust settings are
-          # NOT carried in the .p12, so we re-export the cert from the
-          # keychain (after import) and add it as a trusted codesigning
-          # root. (Local builds get this for free because
-          # create-apple-signing-cert.sh runs add-trusted-cert at cert
-          # creation time.)
-          #
-          # `security find-certificate -p` is used instead of
-          # `openssl pkcs12 -nokeys -legacy ...` because the runner's
-          # LibreSSL doesn't recognize -legacy, and the .p12 produced by
-          # macOS's `security export` uses legacy PBE that LibreSSL
-          # can't read without it.
-          CERT_PEM_PATH="$RUNNER_TEMP/yeogi-dev-cert.pem"
-          security find-certificate -c "Yeogi Dev Cert" -p \
-            "$KEYCHAIN_PATH" > "$CERT_PEM_PATH"
-          security add-trusted-cert -p codeSign \
-            -k "$KEYCHAIN_PATH" \
-            "$CERT_PEM_PATH"
+          # NOTE: We intentionally do NOT run `security add-trusted-cert
+          # -p codeSign` here. On a headless runner that command hangs
+          # forever waiting for an interactive trust-modification UI
+          # confirmation that no one can answer. Without trust,
+          # `find-identity -p codesigning` reports 0 valid identities,
+          # but the cert + private key are still present in the keychain
+          # and `codesign` itself signs successfully against them — the
+          # `-p codesigning` policy filter is a chain-validation check,
+          # not a signing prerequisite. release-build.sh below uses
+          # `find-identity -v` (no policy filter) for its sanity check
+          # so the missing trust doesn't trip it.
 
-          # Sanity check — must show "1 valid identities found".
-          security find-identity -p codesigning -v "$KEYCHAIN_PATH"
+          # Sanity check — list ALL identities (no policy filter).
+          # Must show "Yeogi Dev Cert".
+          security find-identity -v "$KEYCHAIN_PATH"
 
-          # Wipe artifacts from disk now that they're in the keychain.
-          rm -f "$CERT_PATH" "$CERT_PEM_PATH"
+          # Wipe the cert from disk now that it's in the keychain.
+          rm -f "$CERT_PATH"
 
       - name: Build signed universal bundle
         env:
