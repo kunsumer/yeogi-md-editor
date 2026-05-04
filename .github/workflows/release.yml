@@ -12,14 +12,21 @@ name: release
 # passphrase, and setting that var to anything triggers a "Wrong password
 # for that key" failure (see docs/releasing.md troubleshooting).
 #
-# Apple code-signing identity ("Yeogi Dev Cert") is intentionally NOT
-# wired up in CI yet — release-build.sh falls back to ad-hoc signing
-# when the keychain doesn't have the dev cert. Auto-update + Gatekeeper
-# both work fine with ad-hoc; the only consequence is that updaters
-# don't share a stable code-sign identifier with prior versions, so
-# macOS may re-prompt for Files & Folders permission on the first
-# launch after upgrade. Local builds (`pnpm release:build`) still
-# pick up the dev cert if it's present.
+# Apple code-signing: the runner imports a stable self-signed identity
+# (the same "Yeogi Dev Cert" used for local release builds) into a fresh
+# temporary keychain, then runs `pnpm release:build` with the signing
+# identity forced via APPLE_SIGNING_IDENTITY. The temp keychain is wiped
+# along with the runner image at job end — no cross-run persistence.
+#
+# Required additional secrets (alongside TAURI_SIGNING_PRIVATE_KEY):
+#   APPLE_SIGNING_CERT_P12_BASE64 — base64 of the exported .p12
+#   APPLE_SIGNING_CERT_PASSWORD   — the .p12 export password
+#
+# This identity is NOT an Apple Developer ID, so first-install Gatekeeper
+# warnings still apply (right-click → Open). What it DOES do is keep the
+# bundle's signing identifier stable across releases, so macOS TCC's
+# "Yeogi can access your Documents" grant persists across updates
+# instead of re-prompting on every release.
 #
 # Security note: this workflow only consumes GITHUB_REF_NAME (the tag
 # the user pushed) as a shell variable via the runner's env, never via
@@ -86,11 +93,64 @@ jobs:
             exit 1
           fi
 
+      - name: Import Apple signing identity
+        # Re-creates a temporary keychain on the runner, imports the
+        # exported PKCS#12, and unlocks it for the build. The keychain
+        # is wiped along with the runner image when the job ends — no
+        # persistence across runs.
+        env:
+          CERT_B64: ${{ secrets.APPLE_SIGNING_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_SIGNING_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN_PATH="$RUNNER_TEMP/yeogi-build.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          CERT_PATH="$RUNNER_TEMP/yeogi-dev-cert.p12"
+
+          echo "$CERT_B64" | base64 --decode -o "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Prepend the build keychain to the user search list so
+          # codesign's identity lookup finds it without disturbing the
+          # default keychain order.
+          security list-keychains -d user -s \
+            "$KEYCHAIN_PATH" $(security list-keychains -d user | xargs)
+
+          # -A grants every tool access to the private key without an
+          # interactive approval popup; -t agg makes it search both
+          # certs and keys during the import.
+          security import "$CERT_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$CERT_PASSWORD" \
+            -A \
+            -t agg
+
+          # Trust the cert for code signing — without this, codesign
+          # rejects the identity with "Invalid Key Usage for policy".
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+
+          # Sanity check.
+          security find-identity -p codesigning -v "$KEYCHAIN_PATH"
+
+          # Wipe the cert from disk now that it's in the keychain.
+          rm -f "$CERT_PATH"
+
       - name: Build signed universal bundle
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           # Intentionally NOT setting TAURI_SIGNING_PRIVATE_KEY_PASSWORD
           # (the key has no passphrase; see docs/releasing.md).
+          #
+          # Force release-build.sh to use the imported identity. If the
+          # import step above failed, this makes codesign fail loudly
+          # at the build step instead of silently falling back to ad-hoc.
+          APPLE_SIGNING_IDENTITY: "Yeogi Dev Cert"
         run: pnpm release:build
 
       - name: Generate latest.json
