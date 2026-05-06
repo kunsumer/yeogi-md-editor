@@ -20,11 +20,16 @@ vi.mock("mermaid", () => ({
 import { renderMarkdown } from "./pipeline";
 
 describe("renderMarkdown", () => {
+  // First call to renderMarkdown lazy-loads remark + rehype + shiki + katex
+  // (~1 MB of grammars and fonts). On a cold-cache CI runner that takes
+  // 4–6 s; subsequent tests in this file reuse the warm pipeline and finish
+  // in well under 100 ms. Bump the per-test timeout for the cold-load case
+  // so the first assertion doesn't trip the 5 s default.
   it("renders GFM headings and tables", async () => {
     const html = await renderMarkdown("# Hi\n\n| a | b |\n|---|---|\n| 1 | 2 |\n");
     expect(html).toContain("<h1>Hi</h1>");
     expect(html).toContain("<table>");
-  });
+  }, 30_000);
 
   it("renders math via katex", async () => {
     const html = await renderMarkdown("$E=mc^2$");
