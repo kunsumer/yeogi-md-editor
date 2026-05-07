@@ -2,6 +2,16 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.9 — 2026-05-07
+
+### New
+
+- **Pasting from ChatGPT no longer leaves stripey placeholder boxes.** ChatGPT brackets in-line citations with invisible Unicode Private Use Area markers (U+E000–U+F8FF). Every other app renders them as font-fallback boxes because no font has glyphs for them. The WYSIWYG editor now strips those characters on paste. New preference: **Edit → Strip Hidden Citation Markers on Paste** (checkbox, default on). Disable it if you have a legitimate reason to preserve PUA codepoints (specialized font work).
+
+### Fixed
+
+- **Mermaid render errors now show the real message.** Mermaid throws a mix of error shapes — Error subclasses, plain `{ str, hash }` objects from the Jison parser, raw strings — and the catch handler used `String(err)`, which produces `[object Object]` for the most common (parser) case. Now extracts whichever message-like field is present (`.message` → `.str` → `.error`) and falls back to JSON. Diagrams that were previously failing with an opaque box will now show the actual parse / render error.
+
 ## v0.4.8 — 2026-05-04
 
 ### New
