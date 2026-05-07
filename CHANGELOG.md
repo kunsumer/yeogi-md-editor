@@ -2,6 +2,12 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.12 — 2026-05-07
+
+### Fixed
+
+- **Standalone semicolons inside `sequenceDiagram` notes no longer break the diagram.** v0.4.11 fixed `;<br/>` separators (the LLM "two phrases on separate lines" idiom), but a free-floating `;` *inside* a note body still tripped Mermaid's grammar — `;` is a statement terminator at the top level, so a note like `Note over X: server-side<br/>result inline; loop continues` would prematurely end the note, parse `loop continues` as the start of a new `loop` block, and then choke on the next `else`/`end` with a confusing `got 'else'` error. The renderer now swaps `;` for `,` inside `Note over|left of|right of` text. Source-mode (⌘E) shows your unchanged markdown.
+
 ## v0.4.11 — 2026-05-07
 
 ### Fixed
