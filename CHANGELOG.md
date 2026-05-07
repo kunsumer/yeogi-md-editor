@@ -2,6 +2,19 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.10 — 2026-05-07
+
+A follow-up to v0.4.9 that actually finishes the two fixes it claimed.
+
+### Fixed
+
+- **ChatGPT citation tokens are now fully stripped, not just their invisible markers.** The first cut only removed the Private Use Area characters but left the visible label and payload text behind — pasting a ChatGPT response would still leave "filecite turn0file0", `entity ["country","Japan"]`, etc. lying around in the doc with the placeholder boxes gone but the citation label still visible. Now matches whole citation tokens (`cite`, `filecite`, `entity`, `fileid`, `videocite`, `searchresult`, `navigation`, `search`) by both label and known payload shapes (turn IDs / JSON arrays) and removes the entire token. Tight payload matching deliberately avoids consuming ordinary text that happens to sit between two adjacent citations.
+- **Mermaid `quadrantChart` data points with arrow-like labels (e.g. `KR->JP pilot`) now render.** The grammar requires labels containing `->`, hyphens, or other special chars to be quoted, but most users (and most LLMs) write them unquoted. The renderer now auto-quotes unquoted data-point labels on the way to Mermaid; your saved markdown is untouched.
+
+### New
+
+- **Edit → "Clean Hidden Citation Markers in Current Document"** — one-shot retroactive cleanup for documents whose content was pasted before the paste-strip feature shipped, or where the auto-strip skipped a malformed/unknown token shape. Shows a "Nothing to clean" alert when there's nothing to do.
+
 ## v0.4.9 — 2026-05-07
 
 ### New
