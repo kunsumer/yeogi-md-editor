@@ -108,16 +108,17 @@ export async function reseedWelcomeFile(): Promise<string> {
 }
 
 /**
- * Rebuild the native menu to reflect the current `recentFiles` list and
- * `theme` preference. Called at mount and on every change to either. One
- * command (rather than two) means either change triggers the same server-
+ * Rebuild the native menu to reflect the frontend's current preference
+ * state. Called at mount and on every change to any of the inputs. One
+ * command (rather than N) means any change triggers the same server-
  * side rebuild path, keeping the menu in a known-consistent state.
  */
 export async function syncMenuState(
   recentFiles: string[],
   theme: string,
+  stripPuaOnPaste: boolean,
 ): Promise<void> {
-  return invoke("sync_menu_state", { recentFiles, theme });
+  return invoke("sync_menu_state", { recentFiles, theme, stripPuaOnPaste });
 }
 
 export type { DirEntry, FsError };

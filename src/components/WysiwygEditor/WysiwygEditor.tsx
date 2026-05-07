@@ -89,6 +89,8 @@ import { createWikiLinkFile } from "../../lib/wikiLinkCreate";
 import { fsRead, watcherSubscribe } from "../../lib/ipc/commands";
 import { useDocuments } from "../../state/documents";
 import { useLayout } from "../../state/layout";
+import { usePreferences } from "../../state/preferences";
+import { stripPrivateUseArea } from "../../lib/stripPrivateUseArea";
 import { Toolbar } from "./Toolbar";
 import { WysiwygSearchBar } from "./WysiwygSearchBar";
 import { MathBlock, MathInline } from "./nodes/MathNodes";
@@ -237,6 +239,25 @@ export function WysiwygEditor({
         transformCopiedText: true,
       }),
     ],
+    editorProps: {
+      // Strip Unicode Private Use Area characters (U+E000–U+F8FF) from
+      // pasted content when the user has the preference enabled
+      // (default: true). These are invisible-to-most-fonts markers
+      // OpenAI/ChatGPT injects around citation tokens; without this,
+      // pasting from ChatGPT leaves stripey placeholder boxes in the
+      // doc. Uses .getState() so flipping the preference takes effect
+      // immediately without recreating the editor instance.
+      transformPastedText(text) {
+        return usePreferences.getState().stripPrivateUseAreaOnPaste
+          ? stripPrivateUseArea(text)
+          : text;
+      },
+      transformPastedHTML(html) {
+        return usePreferences.getState().stripPrivateUseAreaOnPaste
+          ? stripPrivateUseArea(html)
+          : html;
+      },
+    },
     editable: !readOnly,
     // Auto-focus on mount so a freshly-opened doc (blank or otherwise) lands
     // with a caret ready. `"end"` puts the caret after existing content;

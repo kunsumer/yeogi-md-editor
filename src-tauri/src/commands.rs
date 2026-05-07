@@ -167,14 +167,15 @@ pub fn reseed_welcome_file(app: AppHandle) -> Result<String, FsError> {
 
 /// Rebuild the native menu to reflect the frontend's current state and swap
 /// it in. Called once at mount (after preferences hydrate) and any time
-/// either the MRU list or the theme preference changes. Batching both into
-/// one command avoids the Rust side needing to cache either piece of state
-/// — the frontend already does, and sends both on every change.
+/// any of the inputs change. Batching them all into one command avoids the
+/// Rust side needing to cache them — the frontend already does and sends
+/// the full set on every change.
 #[tauri::command]
 pub fn sync_menu_state(
     app: AppHandle,
     recent_files: Vec<String>,
     theme: String,
+    strip_pua_on_paste: bool,
 ) -> Result<(), FsError> {
     let entries: Vec<crate::menu::RecentFile> = recent_files
         .into_iter()
@@ -187,7 +188,7 @@ pub fn sync_menu_state(
             crate::menu::RecentFile { path, display }
         })
         .collect();
-    let menu = crate::menu::build_menu(&app, &entries, theme.as_str())
+    let menu = crate::menu::build_menu(&app, &entries, theme.as_str(), strip_pua_on_paste)
         .map_err(|e| FsError::Io(format!("menu build failed: {}", e)))?;
     app.set_menu(menu)
         .map_err(|e| FsError::Io(format!("set_menu failed: {}", e)))?;

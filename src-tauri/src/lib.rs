@@ -49,7 +49,7 @@ pub fn run() {
             // Initial menu: empty recent-files list, "system" theme. The
             // frontend pushes its persisted preferences on mount via
             // `sync_menu_state`, which rebuilds + swaps in one shot.
-            let menu = menu::build_menu(app.handle(), &[], "system")?;
+            let menu = menu::build_menu(app.handle(), &[], "system", true)?;
             app.set_menu(menu)?;
 
             let handle = app.handle().clone();

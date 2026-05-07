@@ -29,6 +29,7 @@ pub fn build_menu<R: Runtime>(
     app: &AppHandle<R>,
     recent_files: &[RecentFile],
     theme: ThemeMode<'_>,
+    strip_pua_on_paste: bool,
 ) -> tauri::Result<Menu<R>> {
     let app_name = "Yeogi .MD Editor";
 
@@ -141,6 +142,15 @@ pub fn build_menu<R: Runtime>(
             &MenuItemBuilder::with_id("edit:find-replace", "Find and Replace…")
                 .accelerator("Alt+CmdOrCtrl+F")
                 .build(app)?,
+        )
+        .separator()
+        .item(
+            &CheckMenuItemBuilder::with_id(
+                "edit:strip-pua-on-paste",
+                "Strip Hidden Citation Markers on Paste",
+            )
+            .checked(strip_pua_on_paste)
+            .build(app)?,
         )
         .build()?;
 

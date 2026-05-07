@@ -22,6 +22,16 @@ interface Prefs {
    * `"dracula"`) overrides. Default: `"system"`.
    */
   theme: ThemeId;
+  /**
+   * When true, paste events into the WYSIWYG editor strip Unicode
+   * Private Use Area characters (U+E000–U+F8FF). These are the
+   * invisible markers OpenAI/ChatGPT injects around citation tokens —
+   * they have no glyph in any font, so they render as placeholder
+   * boxes in any non-ChatGPT UI. Default: true. Disable if you
+   * actually need to preserve PUA codepoints (e.g., specialized
+   * font work).
+   */
+  stripPrivateUseAreaOnPaste: boolean;
   setAutosaveEnabled(v: boolean): void;
   setFolderVisible(v: boolean): void;
   setTocVisible(v: boolean): void;
@@ -30,6 +40,7 @@ interface Prefs {
   pushRecent(path: string): void;
   clearRecent(): void;
   setTheme(t: ThemeId): void;
+  setStripPrivateUseAreaOnPaste(v: boolean): void;
 }
 
 const RECENT_MAX = 10;
@@ -54,6 +65,7 @@ export const usePreferences = create<Prefs>()(
       tocWidth: 220,
       recentFiles: [],
       theme: "system",
+      stripPrivateUseAreaOnPaste: true,
       setAutosaveEnabled: (v) => set({ autosaveEnabled: v }),
       setFolderVisible: (v) => set({ folderVisible: v }),
       setTocVisible: (v) => set({ tocVisible: v }),
@@ -66,6 +78,8 @@ export const usePreferences = create<Prefs>()(
         }),
       clearRecent: () => set({ recentFiles: [] }),
       setTheme: (t) => set({ theme: t }),
+      setStripPrivateUseAreaOnPaste: (v) =>
+        set({ stripPrivateUseAreaOnPaste: v }),
     }),
     {
       name: "yeogi-md-editor:prefs",
@@ -80,6 +94,7 @@ export const usePreferences = create<Prefs>()(
         tocWidth: s.tocWidth,
         recentFiles: s.recentFiles,
         theme: s.theme,
+        stripPrivateUseAreaOnPaste: s.stripPrivateUseAreaOnPaste,
       }),
     },
   ),

@@ -101,11 +101,12 @@ export default function App() {
   // preference store in lockstep without coupling the store to Tauri IPC.
   const recentFiles = usePreferences((s) => s.recentFiles);
   const theme = usePreferences((s) => s.theme);
+  const stripPuaOnPaste = usePreferences((s) => s.stripPrivateUseAreaOnPaste);
   useEffect(() => {
-    syncMenuState(recentFiles, theme).catch((err) => {
+    syncMenuState(recentFiles, theme, stripPuaOnPaste).catch((err) => {
       console.warn("sync_menu_state failed:", err);
     });
-  }, [recentFiles, theme]);
+  }, [recentFiles, theme, stripPuaOnPaste]);
 
   // Apply the user's theme preference to <html> via CSS variables. When
   // `theme === "system"`, resolve to Light or Dark based on prefers-color-
@@ -662,6 +663,15 @@ export default function App() {
         case "edit:find-replace":
           triggerFind(true);
           break;
+        case "edit:strip-pua-on-paste": {
+          // Toggle the preference. The menu rebuild effect will re-run
+          // automatically because the syncMenuState useEffect depends on
+          // stripPrivateUseAreaOnPaste, which flips the checkmark on the
+          // menu item itself.
+          const prefs = usePreferences.getState();
+          prefs.setStripPrivateUseAreaOnPaste(!prefs.stripPrivateUseAreaOnPaste);
+          break;
+        }
         case "view:toggle-folder-panel": {
           const { folderVisible, setFolderVisible } = usePreferences.getState();
           setFolderVisible(!folderVisible);
