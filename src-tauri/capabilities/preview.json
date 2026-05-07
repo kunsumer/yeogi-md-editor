@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "preview",
+  "description": "Capability for preview-* windows (read-only markdown preview)",
+  "windows": ["preview-*"],
+  "permissions": [
+    "core:default",
+    "opener:default"
+  ]
+}
