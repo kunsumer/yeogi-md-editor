@@ -137,7 +137,7 @@ function MermaidView({ node }: NodeViewProps) {
         setError(null);
       } catch (err) {
         if (cancelled) return;
-        setError(String(err));
+        setError(formatMermaidError(err));
       }
     };
     queueMermaid(run);
@@ -278,4 +278,30 @@ function escAttr(s: string): string {
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+/**
+ * Mermaid throws a mix of shapes depending on which subsystem failed:
+ *   - Real Error subclasses (`error.message`) for most parse / render paths.
+ *   - Plain `{ str, hash }` objects from the Jison parser on grammar errors.
+ *   - Plain strings from a few config validators.
+ * `String(obj)` produces "[object Object]" for the Jison case, which is
+ * useless. This helper extracts whichever message-like field is present
+ * and falls back to a JSON dump so the user always sees something
+ * actionable instead of a placeholder.
+ */
+function formatMermaidError(err: unknown): string {
+  if (err instanceof Error) return err.message || err.toString();
+  if (typeof err === "string") return err;
+  if (err && typeof err === "object") {
+    const obj = err as Record<string, unknown>;
+    const candidate = obj.message ?? obj.str ?? obj.error;
+    if (typeof candidate === "string") return candidate;
+    try {
+      return JSON.stringify(err, null, 2);
+    } catch {
+      return Object.prototype.toString.call(err);
+    }
+  }
+  return String(err);
 }
