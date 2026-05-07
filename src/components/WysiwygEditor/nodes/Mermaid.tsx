@@ -95,6 +95,33 @@ function normalizeBreaks(source: string): string {
 }
 
 /**
+ * Mermaid's sequenceDiagram parser uses `;` as a statement separator
+ * AT THE TOP LEVEL. A semicolon inside note text terminates the note
+ * statement; whatever follows is parsed as a fresh statement,
+ * frequently turning `loop continues` (intended as plain prose) into
+ * the start of a new `loop` block, which then makes a later `else` or
+ * `end` look misplaced and surfaces as a `got 'else'` error far from
+ * the actual cause.
+ *
+ * In note text the user almost always means `;` as English punctuation,
+ * not as a control character. Swap to `,` to preserve the visual
+ * separator semantics without the parser hazard. Scoped to lines that
+ * begin with `Note (over|left of|right of) ...:` so we don't touch any
+ * other statement on the off chance someone genuinely wanted a
+ * literal `;` in a message.
+ */
+export function dropSemicolonsInSequenceNotes(source: string): string {
+  if (detectDiagramType(source).toLowerCase() !== "sequencediagram") {
+    return source;
+  }
+  return source.replace(
+    /^(\s*[Nn]ote\s+(?:over|left of|right of)\s+[^:\n]+:\s*)(.+)$/gm,
+    (_match, prefix: string, text: string) =>
+      prefix + text.replace(/;/g, ","),
+  );
+}
+
+/**
  * Apply all per-diagram-type preprocessors. Order doesn't matter today
  * (each preprocessor short-circuits on diagrams it doesn't apply to),
  * but the function is the single hook point for any future shimming.
@@ -104,6 +131,7 @@ export function preprocessMermaid(source: string): string {
   s = autoQuoteQuadrantLabels(s);
   s = autoQuoteFlowchartLabels(s);
   s = normalizeBreaks(s);
+  s = dropSemicolonsInSequenceNotes(s);
   return s;
 }
 

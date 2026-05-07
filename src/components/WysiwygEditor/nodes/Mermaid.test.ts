@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   autoQuoteFlowchartLabels,
   autoQuoteQuadrantLabels,
+  dropSemicolonsInSequenceNotes,
   preprocessMermaid,
 } from "./Mermaid";
 
@@ -184,6 +185,67 @@ describe("preprocessMermaid (combined pipeline)", () => {
     const output = preprocessMermaid(input);
     expect(output).toContain(
       'FastAPI["FastAPI app<br>POST /v1/summaries<br>GET /v1/summaries/{job_id}"]',
+    );
+  });
+
+  it("strips standalone semicolons inside sequenceDiagram notes (the loop-continues bug)", () => {
+    const input = [
+      "sequenceDiagram",
+      "    participant A",
+      "    participant B",
+      "    Note over A: server-side<br/>result inline; loop continues",
+    ].join("\n");
+    const output = preprocessMermaid(input);
+    // The standalone ; should become a comma; the <br/> should be normalized.
+    expect(output).toContain(
+      "Note over A: server-side<br>result inline, loop continues",
+    );
+    expect(output).not.toMatch(/Note[^\n]*;/);
+  });
+});
+
+describe("dropSemicolonsInSequenceNotes", () => {
+  it("is a no-op for non-sequence diagrams", () => {
+    const flowchart = "flowchart TB\n  A[note over A: text; more]";
+    expect(dropSemicolonsInSequenceNotes(flowchart)).toBe(flowchart);
+  });
+
+  it("replaces ; with , inside Note over text", () => {
+    const input =
+      "sequenceDiagram\n    Note over X: phrase one; phrase two; phrase three";
+    const output = dropSemicolonsInSequenceNotes(input);
+    expect(output).toContain("Note over X: phrase one, phrase two, phrase three");
+  });
+
+  it("handles 'Note left of' and 'Note right of'", () => {
+    const input = [
+      "sequenceDiagram",
+      "    Note left of A: pre; thing",
+      "    Note right of B: post; thing",
+    ].join("\n");
+    const output = dropSemicolonsInSequenceNotes(input);
+    expect(output).toContain("Note left of A: pre, thing");
+    expect(output).toContain("Note right of B: post, thing");
+  });
+
+  it("leaves semicolons in non-note lines alone", () => {
+    // Messages can contain literal ; which Mermaid does NOT treat as a
+    // statement terminator inside the message body (the colon already
+    // delimits the message text from the actor pair). Don't touch them.
+    const input = [
+      "sequenceDiagram",
+      "    A->>B: hello; world",
+      "    Note over A: keep; me; clean",
+    ].join("\n");
+    const output = dropSemicolonsInSequenceNotes(input);
+    expect(output).toContain("A->>B: hello; world"); // untouched
+    expect(output).toContain("Note over A: keep, me, clean"); // cleaned
+  });
+
+  it("handles multi-actor 'Note over A,B'", () => {
+    const input = "sequenceDiagram\n    Note over A,B: foo; bar";
+    expect(dropSemicolonsInSequenceNotes(input)).toContain(
+      "Note over A,B: foo, bar",
     );
   });
 });
