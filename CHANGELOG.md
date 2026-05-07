@@ -2,6 +2,16 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.11 — 2026-05-07
+
+### Fixed
+
+- **Mermaid flowchart nodes whose labels contain `{`, `}`, `(`, or `)` now render.** Mermaid's flowchart shape lexer reads `{` inside `[label]` as the start of a rhombus shape (`DIAMOND_START`), so a node like `FastAPI[POST /v1/summaries/{job_id}]` errored out. The renderer now auto-quotes such labels on the way to Mermaid; non-rectangle shapes (cylinders `[(...)]`, subroutines `[[...]]`, stadiums `([...])`) are left alone.
+- **`;<br/>` separators inside diagram labels and notes no longer split the diagram.** A common LLM idiom is to write `phrase A;<br/>phrase B` to put two phrases on separate lines inside a label. Mermaid's stateDiagram / flowchart / sequenceDiagram parsers all read `;` as a *statement* terminator, so the label was getting fragmented into ghost nodes and orphan transitions. The preceding `;` is now stripped before the line break — the line break still renders.
+- **Self-closing `<br/>` is normalized to `<br>`.** Some Mermaid versions trip on the self-closing form inside sequenceDiagram note text, surfacing as a confusing `got 'else'` parse error several lines past the actual note. Both forms render identically.
+
+All three fixes happen on the way to Mermaid only; your saved markdown stays exactly as written.
+
 ## v0.4.10 — 2026-05-07
 
 A follow-up to v0.4.9 that actually finishes the two fixes it claimed.
