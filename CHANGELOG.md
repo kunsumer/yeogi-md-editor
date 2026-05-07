@@ -2,6 +2,12 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.13 — 2026-05-07
+
+### Fixed
+
+- **Right-click → "Reload from disk" now actually re-renders the page,** even when the on-disk content is byte-identical to what's already in the editor. Previously, when content hadn't actually changed externally, `setContent` was a no-op and Mermaid diagrams / NodeViews kept their stale render — making Reload feel broken. The right-click action now also bumps a per-document `reloadEpoch` that the WYSIWYG editor keys on, so the editor (and every NodeView inside it) force-remounts on every explicit Reload. The watcher's silent-reload path (external file change, doc not dirty) does **not** bump the epoch, so external edits still update content without disturbing your cursor / scroll / undo history.
+
 ## v0.4.12 — 2026-05-07
 
 ### Fixed
