@@ -22,6 +22,49 @@ import { usePreferences } from "../../../state/preferences";
 const FONT_STACK =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
+/**
+ * Mermaid's quadrantChart lexer treats `->`, `-->`, and a handful of other
+ * sequences as reserved arrow tokens. A user who writes a data point like
+ * `KR->JP pilot: [0.45, 0.72]` (i.e., a multi-word label that happens to
+ * include `->`, hyphens, or other punctuation) hits a "Lexical error on
+ * line N" with no obvious cause — the grammar requires the label to be
+ * quoted in those cases.
+ *
+ * This preprocessor scans quadrantChart source for data-point lines of
+ * the shape `Name: [x, y]` and wraps the unquoted name in double quotes
+ * before handing it to mermaid.render. The user's saved markdown is
+ * untouched — the quoting only happens on the way to the renderer, so
+ * round-tripping (parse → serialize) stays a no-op.
+ */
+export function autoQuoteQuadrantLabels(source: string): string {
+  // Cheap guard so we don't pay the per-line scan for every diagram type.
+  // Looks at the first non-blank, non-comment, non-frontmatter line — same
+  // shape detectDiagramType uses.
+  if (detectDiagramType(source).toLowerCase() !== "quadrantchart") {
+    return source;
+  }
+  // Match: <indent><label>: [<coords>]
+  // - label first char must NOT be `"` (already quoted) or `[` (paranoia)
+  // - label must contain at least one character we'd care about — the
+  //   regex itself doesn't filter for the offending chars; we just quote
+  //   ALL unquoted data-point labels so the renderer doesn't have to
+  //   guess. If a label was already simple enough to parse unquoted,
+  //   quoting it is harmless (mermaid accepts both forms).
+  const dataPoint = /^(\s*)([^"\s\[][^:]*?)\s*:\s*\[([^\]]+)\]\s*$/;
+  return source
+    .split("\n")
+    .map((line) => {
+      const m = line.match(dataPoint);
+      if (!m) return line;
+      const [, indent, rawLabel, coords] = m;
+      const label = rawLabel.trim();
+      // Defensive — never quote a directive that somehow matched.
+      if (/^(title|x-axis|y-axis|quadrant-[1-4])\b/i.test(label)) return line;
+      return `${indent}"${label}": [${coords}]`;
+    })
+    .join("\n");
+}
+
 function detectDiagramType(source: string): string {
   // Mermaid 10+ supports YAML frontmatter (e.g. `---\ntitle: X\n---\n`) as
   // the first block of a diagram. We must track the open/close fence pair
@@ -129,7 +172,12 @@ function MermaidView({ node }: NodeViewProps) {
       const placeholder = document.createElement("div");
       placeholder.className = "mermaid";
       placeholder.id = `mermaid-wysiwyg-${++idSeq}`;
-      placeholder.textContent = source; // user markdown, inserted as text
+      // Preprocess for known per-diagram-type quirks. Currently the only
+      // one is auto-quoting unquoted quadrantChart labels; expand here
+      // if other diagrams ever need similar shimming. The original
+      // `source` (unmodified) is what gets serialized back to disk via
+      // addStorage().markdown.serialize, so this is render-only.
+      placeholder.textContent = autoQuoteQuadrantLabels(source);
       host.replaceChildren(placeholder);
       try {
         await mermaid.run({ nodes: [placeholder], suppressErrors: false });
