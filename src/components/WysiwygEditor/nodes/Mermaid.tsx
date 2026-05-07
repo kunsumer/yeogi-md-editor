@@ -36,6 +36,77 @@ const FONT_STACK =
  * untouched — the quoting only happens on the way to the renderer, so
  * round-tripping (parse → serialize) stays a no-op.
  */
+/**
+ * Mermaid's flowchart shape lexer treats `{`, `}`, `(`, `)` as
+ * shape-shorthand starts (rhombus, round, etc.) even when they appear
+ * inside what's clearly meant to be a rectangle label. A node like
+ * `FastAPI[POST /v1/summaries/{job_id}]` errors with
+ * `got 'DIAMOND_START'` because the `{` is read as the start of a
+ * rhombus shape glued onto the rectangle.
+ *
+ * The fix is to quote the label: `FastAPI["POST /v1/summaries/{job_id}"]`.
+ * This preprocessor scans rectangle node definitions (`id[label]`) and
+ * wraps the label in double quotes when it contains one of the
+ * problematic chars and isn't already quoted. Non-rectangle shapes
+ * (`id[(...)]` cylinders, `id[[...]]` subroutines, `id([...])` stadiums,
+ * etc.) are skipped via a negative lookahead so we don't accidentally
+ * convert a cylinder into a rectangle.
+ *
+ * As with the quadrantChart preprocessor, this only runs on the way to
+ * mermaid.render — the user's saved markdown is untouched.
+ */
+export function autoQuoteFlowchartLabels(source: string): string {
+  if (detectDiagramType(source).toLowerCase() !== "flowchart") return source;
+  // Word ID followed by `[`, then a label whose first char isn't
+  // already a quote, opening bracket, or opening paren (those would
+  // indicate a non-rectangle shape — leave them alone).
+  return source.replace(
+    /\b([A-Za-z_]\w*)\[(?!["\[(])([^\]]*?)\]/g,
+    (match, id, rawLabel) => {
+      if (!/[{}()]/.test(rawLabel)) return match;
+      const escaped = rawLabel.replace(/"/g, "#quot;");
+      return `${id}["${escaped}"]`;
+    },
+  );
+}
+
+/**
+ * Two related fixes in one pass:
+ *
+ * 1. **`;<br/>` → `<br>`.** LLMs love writing `phrase A;<br/>phrase B`
+ *    as a way to separate phrases in a label or note. Mermaid's
+ *    stateDiagram, flowchart, and sequenceDiagram parsers treat `;`
+ *    as a statement separator, so the label gets split into ghost
+ *    nodes / orphan transitions. Dropping the `;` before the line
+ *    break preserves the visual effect (line break still renders)
+ *    without the parse-time terminator.
+ *
+ * 2. **Self-closing `<br/>` → `<br>`.** Mermaid's sequence-note
+ *    lexer (and a few others) sometimes choke on the self-closing
+ *    form, surfacing as a `got 'else'` parse error several lines
+ *    past the actual note. Both forms render identically.
+ *
+ * Combined regex: optional `;` + optional whitespace + `<br>` or
+ * `<br/>`, all replaced with a single canonical `<br>`. Idempotent
+ * — a doc that already uses bare `<br>` is left alone.
+ */
+function normalizeBreaks(source: string): string {
+  return source.replace(/;?\s*<br\s*\/?>/gi, "<br>");
+}
+
+/**
+ * Apply all per-diagram-type preprocessors. Order doesn't matter today
+ * (each preprocessor short-circuits on diagrams it doesn't apply to),
+ * but the function is the single hook point for any future shimming.
+ */
+export function preprocessMermaid(source: string): string {
+  let s = source;
+  s = autoQuoteQuadrantLabels(s);
+  s = autoQuoteFlowchartLabels(s);
+  s = normalizeBreaks(s);
+  return s;
+}
+
 export function autoQuoteQuadrantLabels(source: string): string {
   // Cheap guard so we don't pay the per-line scan for every diagram type.
   // Looks at the first non-blank, non-comment, non-frontmatter line — same
@@ -172,12 +243,13 @@ function MermaidView({ node }: NodeViewProps) {
       const placeholder = document.createElement("div");
       placeholder.className = "mermaid";
       placeholder.id = `mermaid-wysiwyg-${++idSeq}`;
-      // Preprocess for known per-diagram-type quirks. Currently the only
-      // one is auto-quoting unquoted quadrantChart labels; expand here
-      // if other diagrams ever need similar shimming. The original
-      // `source` (unmodified) is what gets serialized back to disk via
-      // addStorage().markdown.serialize, so this is render-only.
-      placeholder.textContent = autoQuoteQuadrantLabels(source);
+      // Preprocess to work around common LLM-generated-diagram quirks:
+      // unquoted quadrantChart labels, unquoted flowchart labels with
+      // braces/parens, and `;<br/>` separators that Mermaid reads as
+      // statement terminators. The original `source` is unmodified —
+      // this is render-only, so addStorage().markdown.serialize still
+      // writes exactly what the user typed.
+      placeholder.textContent = preprocessMermaid(source);
       host.replaceChildren(placeholder);
       try {
         await mermaid.run({ nodes: [placeholder], suppressErrors: false });

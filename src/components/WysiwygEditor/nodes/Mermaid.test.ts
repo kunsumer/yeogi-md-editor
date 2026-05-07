@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { autoQuoteQuadrantLabels } from "./Mermaid";
+import {
+  autoQuoteFlowchartLabels,
+  autoQuoteQuadrantLabels,
+  preprocessMermaid,
+} from "./Mermaid";
 
 describe("autoQuoteQuadrantLabels", () => {
   it("is a no-op for non-quadrantChart diagrams", () => {
@@ -88,5 +92,98 @@ describe("autoQuoteQuadrantLabels", () => {
     expect(output).toContain('"KR->JP pilot": [0.45, 0.72]');
     expect(output).toContain("    title Quick wins impact versus effort");
     expect(output).toContain("    quadrant-1 Deprioritize");
+  });
+});
+
+describe("autoQuoteFlowchartLabels", () => {
+  it("is a no-op for non-flowchart diagrams", () => {
+    const seq = "sequenceDiagram\n  A->>B: hello";
+    expect(autoQuoteFlowchartLabels(seq)).toBe(seq);
+  });
+
+  it("quotes a label containing braces (the {job_id} case)", () => {
+    const input =
+      "flowchart TB\n  FastAPI[FastAPI app<br/>POST /v1/summaries<br/>GET /v1/summaries/{job_id}]";
+    const output = autoQuoteFlowchartLabels(input);
+    expect(output).toContain(
+      'FastAPI["FastAPI app<br/>POST /v1/summaries<br/>GET /v1/summaries/{job_id}"]',
+    );
+  });
+
+  it("quotes a label containing parentheses inside the rectangle", () => {
+    const input = "flowchart LR\n  N[some (paren) text]";
+    expect(autoQuoteFlowchartLabels(input)).toContain('N["some (paren) text"]');
+  });
+
+  it("does NOT touch cylinder shapes id[(...)]", () => {
+    // Cylinder is encoded as `id[(content)]`. Our preprocessor must not
+    // quote this — quoting would convert it back into a rectangle and
+    // change the rendered shape.
+    const input = "flowchart TB\n  Files[(tests/fixtures/reviews/<br/>source_a..d/*.json)]";
+    const output = autoQuoteFlowchartLabels(input);
+    expect(output).toBe(input);
+  });
+
+  it("does NOT touch subroutine shapes id[[...]]", () => {
+    const input = "flowchart TB\n  Sub[[my subroutine (work)]]";
+    const output = autoQuoteFlowchartLabels(input);
+    expect(output).toBe(input);
+  });
+
+  it("leaves already-quoted labels alone", () => {
+    const input = 'flowchart TB\n  N["already quoted {x}"]';
+    expect(autoQuoteFlowchartLabels(input)).toBe(input);
+  });
+
+  it("leaves plain alphanumeric labels alone", () => {
+    const input = "flowchart LR\n  Client[Client / Catalog system]";
+    expect(autoQuoteFlowchartLabels(input)).toBe(input);
+  });
+
+  it("preserves <br/> breaks inside the label when quoting", () => {
+    const input = "flowchart TB\n  N[line one<br/>{token}<br/>line three]";
+    const output = autoQuoteFlowchartLabels(input);
+    expect(output).toContain('N["line one<br/>{token}<br/>line three"]');
+  });
+});
+
+describe("preprocessMermaid (combined pipeline)", () => {
+  it("normalizes ;<br/> sequences to <br> (the stateDiagram bug)", () => {
+    const input = [
+      "stateDiagram-v2",
+      "    [*] --> pending",
+      "    pending --> succeeded: producer returned;<br/>build_summary OK;<br/>JobStore.succeed",
+    ].join("\n");
+    const output = preprocessMermaid(input);
+    expect(output).toContain(
+      "pending --> succeeded: producer returned<br>build_summary OK<br>JobStore.succeed",
+    );
+    // The semicolons that were ONLY there to glue phrases before <br/>
+    // should be gone.
+    expect(output).not.toContain(";<br");
+  });
+
+  it("normalizes self-closing <br/> in a sequenceDiagram note", () => {
+    const input = [
+      "sequenceDiagram",
+      "    Note over X: phrase one<br/>phrase two",
+    ].join("\n");
+    const output = preprocessMermaid(input);
+    expect(output).toContain("phrase one<br>phrase two");
+    expect(output).not.toContain("<br/>");
+  });
+
+  it("leaves bare <br> alone (idempotent on already-normalized input)", () => {
+    const input = "flowchart TB\n  N[line one<br>line two]";
+    expect(preprocessMermaid(input)).toBe(input);
+  });
+
+  it("composes flowchart auto-quote + break normalization in one pass", () => {
+    const input =
+      "flowchart TB\n  FastAPI[FastAPI app<br/>POST /v1/summaries<br/>GET /v1/summaries/{job_id}]";
+    const output = preprocessMermaid(input);
+    expect(output).toContain(
+      'FastAPI["FastAPI app<br>POST /v1/summaries<br>GET /v1/summaries/{job_id}"]',
+    );
   });
 });
