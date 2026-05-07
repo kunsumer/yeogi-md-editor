@@ -9,7 +9,7 @@ function makeDoc(over: Partial<Document> = {}): Document {
     id: "doc-1", path: "/a.md", content: "one two three", lastSavedContent: "",
     savedMtime: 1, isDirty: false, encoding: "utf-8", cursor: 0, scrollTop: 0,
     readOnly: false, previewWindowLabel: null, conflict: null,
-    saveState: "idle", lastSaveError: null, autosaveEnabled: false,
+    saveState: "idle", lastSaveError: null, autosaveEnabled: false, reloadEpoch: 0,
     ...over,
   };
 }

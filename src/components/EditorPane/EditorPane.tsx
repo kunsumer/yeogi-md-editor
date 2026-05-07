@@ -193,7 +193,14 @@ export function EditorPane({
         <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden" }}>
           {effectiveViewMode === "wysiwyg" ? (
             <WysiwygEditor
-              key={active.id}
+              // Key on doc id + reloadEpoch so the explicit "Reload from
+              // disk" right-click action force-remounts the editor (and
+              // every NodeView inside it — Mermaid, etc.) even when the
+              // on-disk bytes happen to be identical to what's rendered.
+              // The watcher's silent-reload path doesn't bump the epoch,
+              // so external file changes still update content in place
+              // without disturbing cursor / scroll / undo history.
+              key={`${active.id}-${active.reloadEpoch}`}
               content={active.content}
               onChange={(next) => onSetContent(active.id, next)}
               readOnly={!editable}
@@ -204,6 +211,7 @@ export function EditorPane({
             />
           ) : (
             <Editor
+              key={`${active.id}-${active.reloadEpoch}`}
               docId={active.id}
               value={active.content}
               onChange={(next) => onSetContent(active.id, next)}

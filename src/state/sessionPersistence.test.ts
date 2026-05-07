@@ -106,8 +106,8 @@ describe("sessionPersistence — layout", () => {
   it("round-trips two-pane layout", () => {
     useDocuments.setState({
       documents: [
-        { id: "d1", path: "/a.md", content: "a", lastSavedContent: "a", savedMtime: 1, isDirty: false, encoding: "utf-8", cursor: 0, scrollTop: 0, readOnly: false, previewWindowLabel: null, conflict: null, saveState: "idle", lastSaveError: null, autosaveEnabled: false },
-        { id: "d2", path: "/b.md", content: "b", lastSavedContent: "b", savedMtime: 1, isDirty: false, encoding: "utf-8", cursor: 0, scrollTop: 0, readOnly: false, previewWindowLabel: null, conflict: null, saveState: "idle", lastSaveError: null, autosaveEnabled: false },
+        { id: "d1", path: "/a.md", content: "a", lastSavedContent: "a", savedMtime: 1, isDirty: false, encoding: "utf-8", cursor: 0, scrollTop: 0, readOnly: false, previewWindowLabel: null, conflict: null, saveState: "idle", lastSaveError: null, autosaveEnabled: false, reloadEpoch: 0 },
+        { id: "d2", path: "/b.md", content: "b", lastSavedContent: "b", savedMtime: 1, isDirty: false, encoding: "utf-8", cursor: 0, scrollTop: 0, readOnly: false, previewWindowLabel: null, conflict: null, saveState: "idle", lastSaveError: null, autosaveEnabled: false, reloadEpoch: 0 },
       ],
       folder: "/repo",
     });

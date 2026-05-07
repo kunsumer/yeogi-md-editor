@@ -27,6 +27,17 @@ export interface Document {
    * — useful for a scratch buffer you don't want flushed to disk mid-edit.
    */
   autosaveEnabled: boolean;
+  /**
+   * Monotonic counter bumped by an explicit user "Reload from disk" so the
+   * editor view force-re-mounts even when the on-disk content is byte-
+   * identical to what's already rendered. Without this, reload was a
+   * no-op for the common case of "I just want a fresh render" — most
+   * relevantly, Mermaid diagrams wouldn't re-run their preprocess +
+   * render path. The watcher-driven silent-reload path deliberately
+   * does NOT bump this so external file changes don't disturb cursor /
+   * scroll / undo history.
+   */
+  reloadEpoch: number;
 }
 
 /**
@@ -68,6 +79,15 @@ interface DocumentsState {
   setConflict(id: string, conflict: Conflict | null): void;
   setAutosaveEnabled(id: string, enabled: boolean): void;
   replaceContentFromDisk(id: string, input: { content: string; mtimeMs: number }): void;
+  /**
+   * Bump the doc's reloadEpoch so consumers keying on it (the WYSIWYG
+   * editor, NodeViews like Mermaid) force a fresh render. Called from
+   * the explicit "Reload from disk" right-click action AFTER the
+   * content has been replaced — separated from replaceContentFromDisk
+   * so the watcher's silent-reload path doesn't accidentally remount
+   * the editor.
+   */
+  bumpReloadEpoch(id: string): void;
 }
 
 let seq = 0;
@@ -104,6 +124,7 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
       saveState: "idle",
       lastSaveError: null,
       autosaveEnabled: autosaveDefault,
+      reloadEpoch: 0,
     };
     set((s) => ({ documents: [...s.documents, doc] }));
     useLayout.getState().openInFocusedPane(id);
@@ -230,6 +251,14 @@ export const useDocuments = create<DocumentsState>((set, get) => ({
               conflict: null,
             }
           : d,
+      ),
+    }));
+  },
+
+  bumpReloadEpoch(id) {
+    set((s) => ({
+      documents: s.documents.map((d) =>
+        d.id === id ? { ...d, reloadEpoch: d.reloadEpoch + 1 } : d,
       ),
     }));
   },

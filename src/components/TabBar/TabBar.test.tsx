@@ -9,7 +9,7 @@ function makeDoc(id: string, path: string): Document {
     id, path, content: "", lastSavedContent: "", savedMtime: 1, isDirty: false,
     encoding: "utf-8", cursor: 0, scrollTop: 0, readOnly: false,
     previewWindowLabel: null, conflict: null, saveState: "idle",
-    lastSaveError: null, autosaveEnabled: false,
+    lastSaveError: null, autosaveEnabled: false, reloadEpoch: 0,
   };
 }
 

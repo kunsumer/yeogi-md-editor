@@ -105,6 +105,7 @@ it("Outline switches when focus moves between panes", async () => {
       cursor: 0, scrollTop: 0, readOnly: false,
       previewWindowLabel: null, conflict: null,
       saveState: "idle" as const, lastSaveError: null, autosaveEnabled: false,
+      reloadEpoch: 0,
     };
   }
 

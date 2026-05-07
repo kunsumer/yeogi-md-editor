@@ -1085,6 +1085,14 @@ export default function App() {
       // for one. Any unsaved edits in this doc are dropped — the user
       // chose Reload explicitly, so we treat that as informed consent
       // and skip the unsaved-changes prompt.
+      //
+      // After replacing content, we ALSO bump the doc's reloadEpoch.
+      // The WYSIWYG editor's React key includes the epoch, so the
+      // editor force-remounts on every explicit Reload — even when the
+      // on-disk bytes are identical to what's already rendered. This
+      // makes Reload do what users expect (re-run NodeViews like
+      // Mermaid, clear any stale render state) instead of being a
+      // silent no-op when content didn't actually change.
       const doc = useDocuments.getState().documents.find((d) => d.id === id);
       if (!doc?.path) return;
       try {
@@ -1092,6 +1100,7 @@ export default function App() {
         useDocuments
           .getState()
           .replaceContentFromDisk(id, { content: r.content, mtimeMs: r.mtime_ms });
+        useDocuments.getState().bumpReloadEpoch(id);
       } catch (e) {
         console.error("reload tab failed:", e);
         setAlertDialog({
