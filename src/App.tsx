@@ -29,6 +29,7 @@ import { buildStandaloneHtml } from "./lib/exportHtml";
 import { extractBlocks, extractHeadings, type Block, type Heading } from "./lib/toc";
 import { isMarkdownPath } from "./lib/isMarkdownPath";
 import { slugify } from "./lib/slug";
+import { stripPrivateUseArea } from "./lib/stripPrivateUseArea";
 import { useDocuments } from "./state/documents";
 import { useLayout, type ViewMode } from "./state/layout";
 import { usePreferences } from "./state/preferences";
@@ -670,6 +671,31 @@ export default function App() {
           // menu item itself.
           const prefs = usePreferences.getState();
           prefs.setStripPrivateUseAreaOnPaste(!prefs.stripPrivateUseAreaOnPaste);
+          break;
+        }
+        case "edit:strip-pua-now": {
+          // Retroactive cleanup for content that was already pasted into
+          // the doc before the paste-strip feature shipped. Runs the
+          // same stripper on the active doc's content. No-op when the
+          // content has no citation tokens or PUA chars.
+          if (!active) {
+            setAlertDialog({
+              title: "No document open",
+              message:
+                "Open a document first, then run Clean Hidden Citation Markers.",
+            });
+            break;
+          }
+          const cleaned = stripPrivateUseArea(active.content);
+          if (cleaned === active.content) {
+            setAlertDialog({
+              title: "Nothing to clean",
+              message:
+                "This document doesn't contain any hidden citation markers.",
+            });
+            break;
+          }
+          setContent(active.id, cleaned);
           break;
         }
         case "view:toggle-folder-panel": {

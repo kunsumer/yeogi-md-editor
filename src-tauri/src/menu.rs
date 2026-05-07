@@ -152,6 +152,13 @@ pub fn build_menu<R: Runtime>(
             .checked(strip_pua_on_paste)
             .build(app)?,
         )
+        .item(
+            &MenuItemBuilder::with_id(
+                "edit:strip-pua-now",
+                "Clean Hidden Citation Markers in Current Document",
+            )
+            .build(app)?,
+        )
         .build()?;
 
     let view = SubmenuBuilder::new(app, "View")
