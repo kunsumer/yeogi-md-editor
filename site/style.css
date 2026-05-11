@@ -276,7 +276,7 @@ code {
 }
 .screenshot-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
   gap: 24px;
 }
 .screenshot {
@@ -291,8 +291,9 @@ code {
 .screenshot img {
   display: block;
   width: 100%;
+  aspect-ratio: 16 / 10;
   height: auto;
-  object-fit: contain;
+  object-fit: cover;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
