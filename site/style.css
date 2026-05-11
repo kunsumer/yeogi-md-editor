@@ -274,29 +274,34 @@ code {
   margin: 0 auto;
   padding: 64px 24px;
 }
-.screenshots-note {
-  text-align: center;
-  color: var(--text-faint);
-  font-size: 13px;
-  margin: -24px 0 32px;
-}
 .screenshot-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-  gap: 20px;
+  gap: 24px;
 }
-.screenshot-placeholder {
+.screenshot {
+  margin: 0;
   background: var(--bg-elev);
-  border: 2px dashed var(--border-strong);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 64px 24px;
-  text-align: center;
-  color: var(--text-faint);
-  font-size: 13px;
-  min-height: 260px;
+  overflow: hidden;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+}
+.screenshot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.screenshot figcaption {
+  padding: 12px 16px;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
 }
 
 /* ---------- Why ---------- */
