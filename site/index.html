@@ -498,6 +498,91 @@
     });
 </script>
 
+<script>
+  // Lightbox for the Screenshots section. Click (or Enter/Space) on
+  // any .screenshot img to open it full-size; click overlay, press
+  // Escape, or use the × button to close. No external library, no
+  // CDN — matches the page's no-tracking, no-deps posture.
+  (function () {
+    var thumbs = document.querySelectorAll(".screenshot img");
+    if (!thumbs.length) return;
+
+    // Build the overlay once, reuse for every image. Uses createElement
+    // throughout (no innerHTML) since the content is fully under our
+    // control but the linter rightly enforces the safer pattern.
+    var overlay = document.createElement("div");
+    overlay.className = "lightbox";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "Enlarged screenshot");
+
+    var closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "lightbox-close";
+    closeBtn.setAttribute("aria-label", "Close enlarged screenshot");
+    closeBtn.textContent = "×"; // ×
+
+    var figure = document.createElement("figure");
+    figure.className = "lightbox-figure";
+
+    var bigImg = document.createElement("img");
+    bigImg.className = "lightbox-img";
+    bigImg.alt = "";
+
+    var cap = document.createElement("figcaption");
+    cap.className = "lightbox-caption";
+
+    figure.appendChild(bigImg);
+    figure.appendChild(cap);
+    overlay.appendChild(closeBtn);
+    overlay.appendChild(figure);
+    document.body.appendChild(overlay);
+
+    var lastTrigger = null;
+
+    function open(thumb) {
+      lastTrigger = thumb;
+      bigImg.src = thumb.currentSrc || thumb.src;
+      bigImg.alt = thumb.alt || "";
+      var fig = thumb.closest("figure");
+      var figcap = fig ? fig.querySelector("figcaption") : null;
+      cap.textContent = figcap ? figcap.textContent.trim() : "";
+      overlay.classList.add("is-open");
+      document.body.classList.add("lightbox-open");
+      closeBtn.focus();
+    }
+    function close() {
+      overlay.classList.remove("is-open");
+      document.body.classList.remove("lightbox-open");
+      setTimeout(function () { bigImg.src = ""; }, 200);
+      if (lastTrigger) lastTrigger.focus();
+    }
+
+    thumbs.forEach(function (thumb) {
+      thumb.setAttribute("tabindex", "0");
+      thumb.setAttribute("role", "button");
+      thumb.setAttribute("aria-label",
+        "Enlarge screenshot: " + (thumb.alt || ""));
+      thumb.addEventListener("click", function () { open(thumb); });
+      thumb.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          open(thumb);
+        }
+      });
+    });
+
+    overlay.addEventListener("click", function (e) {
+      // Click on the image itself: ignore (so right-click → Save works).
+      if (e.target === bigImg) return;
+      close();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && overlay.classList.contains("is-open")) close();
+    });
+  })();
+</script>
+
 <!-- GoatCounter — privacy-first analytics (no cookies, no PII, no
      fingerprinting). Only fires on the deployed site; never counts
      local dev visits (file:// or localhost). Also tracks Download
