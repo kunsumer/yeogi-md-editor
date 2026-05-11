@@ -52,7 +52,13 @@ permissions:
 jobs:
   release:
     runs-on: macos-latest
-    timeout-minutes: 30
+    # 30 was fine when the only slow step was the universal build (~6 min).
+    # Once Apple notarization landed it added a wait-on-Apple's-queue step
+    # that is typically 3-15 min but can spike to 30-60+ min during peak
+    # load — v0.4.14's first attempt got 23 min into Notarizing before the
+    # 30-min cap fired. 75 gives Apple's notarytool plenty of headroom
+    # without making a genuinely-stuck job linger for hours.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
 
