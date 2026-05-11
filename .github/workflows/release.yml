@@ -12,21 +12,28 @@ name: release
 # passphrase, and setting that var to anything triggers a "Wrong password
 # for that key" failure (see docs/releasing.md troubleshooting).
 #
-# Apple code-signing: the runner imports a stable self-signed identity
-# (the same "Yeogi Dev Cert" used for local release builds) into a fresh
+# Apple code-signing: the runner imports a Developer ID Application
+# identity (issued by Apple, $99/yr Developer Program) into a fresh
 # temporary keychain, then runs `pnpm release:build` with the signing
-# identity forced via APPLE_SIGNING_IDENTITY. The temp keychain is wiped
-# along with the runner image at job end — no cross-run persistence.
+# identity forced via APPLE_SIGNING_IDENTITY. Tauri's bundler also
+# auto-notarizes the .app when APPLE_ID, APPLE_PASSWORD, and
+# APPLE_TEAM_ID are set during the build — it submits to Apple's
+# notarytool service, waits for the verdict, and staples the ticket
+# onto the .app so Gatekeeper greenlights it offline. The temp
+# keychain is wiped along with the runner image at job end — no
+# cross-run persistence.
 #
 # Required additional secrets (alongside TAURI_SIGNING_PRIVATE_KEY):
 #   APPLE_SIGNING_CERT_P12_BASE64 — base64 of the exported .p12
 #   APPLE_SIGNING_CERT_PASSWORD   — the .p12 export password
+#   APPLE_ID                       — Apple ID email for notarization
+#   APPLE_TEAM_ID                  — 10-char team identifier
+#   APPLE_APP_SPECIFIC_PASSWORD    — generated at account.apple.com
 #
-# This identity is NOT an Apple Developer ID, so first-install Gatekeeper
-# warnings still apply (right-click → Open). What it DOES do is keep the
-# bundle's signing identifier stable across releases, so macOS TCC's
-# "Yeogi can access your Documents" grant persists across updates
-# instead of re-prompting on every release.
+# Outcome: first-install Gatekeeper accepts the .app without the
+# "unidentified developer" warning, AND macOS TCC's "Yeogi can access
+# your Documents" grant persists across updates since the bundle
+# identifier stays stable.
 #
 # Security note: this workflow only consumes GITHUB_REF_NAME (the tag
 # the user pushed) as a shell variable via the runner's env, never via
@@ -112,7 +119,16 @@ jobs:
           # Force release-build.sh to use the imported identity. If the
           # import step above failed, this makes codesign fail loudly
           # at the build step instead of silently falling back to ad-hoc.
-          APPLE_SIGNING_IDENTITY: "Yeogi Dev Cert"
+          APPLE_SIGNING_IDENTITY: "Developer ID Application: Kun Soo Han (USZUQ9Y8ZN)"
+          # Notarization credentials — Tauri's bundler reads all three
+          # and auto-runs `xcrun notarytool submit ... --wait` followed
+          # by `xcrun stapler staple` on the .app. Missing any one of
+          # the three means notarization is silently skipped (we'd ship
+          # a signed-but-not-notarized .app, which Gatekeeper would
+          # quarantine on first launch).
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: pnpm release:build
 
       - name: Generate latest.json
