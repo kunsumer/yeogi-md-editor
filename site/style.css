@@ -89,7 +89,7 @@ code {
   font-weight: 600;
 }
 .nav-logo {
-  border-radius: 7px;
+  display: block;
 }
 .nav-title {
   font-size: 15px;
@@ -119,8 +119,7 @@ code {
   text-align: center;
 }
 .hero-logo {
-  border-radius: 22px;
-  box-shadow: 0 8px 28px rgba(247, 50, 63, 0.18);
+  filter: drop-shadow(0 10px 24px rgba(247, 50, 63, 0.28));
   margin-bottom: 32px;
 }
 .hero h1 {
