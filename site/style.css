@@ -90,6 +90,7 @@ code {
 }
 .nav-logo {
   display: block;
+  clip-path: inset(0 round 28%);
 }
 .nav-title {
   font-size: 15px;
@@ -119,6 +120,7 @@ code {
   text-align: center;
 }
 .hero-logo {
+  clip-path: inset(0 round 28%);
   filter: drop-shadow(0 10px 24px rgba(247, 50, 63, 0.28));
   margin-bottom: 32px;
 }
