@@ -498,5 +498,30 @@
     });
 </script>
 
+<!-- GoatCounter — privacy-first analytics (no cookies, no PII, no
+     fingerprinting). Only fires on the deployed site; never counts
+     local dev visits (file:// or localhost). Also tracks Download
+     button clicks as a custom event so we can correlate visits with
+     actual downloads without instrumenting GitHub itself. -->
+<script data-goatcounter="https://kunsumer.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+<script>
+  (function () {
+    var host = location.hostname;
+    if (location.protocol === "file:" || host === "localhost" || host === "127.0.0.1") return;
+    var btn = document.getElementById("download");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      if (window.goatcounter && window.goatcounter.count) {
+        window.goatcounter.count({
+          path: "download-button-click",
+          title: "Download button clicked",
+          event: true,
+        });
+      }
+    });
+  })();
+</script>
+
 </body>
 </html>
