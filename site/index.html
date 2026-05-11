@@ -84,7 +84,9 @@
       "publisher": { "@id": "https://kunsumer.github.io/yeogi-md-editor/#organization" },
       "isAccessibleForFree": true,
       "featureList": [
-        "WYSIWYG editing of Markdown",
+        "WYSIWYG editing of Markdown, with one-click toggle to the source view",
+        "Per-document autosave (toggle on or off per file)",
+        "Document outline panel with click-to-jump headings",
         "Side-by-side panes for two documents",
         "Multi-folder explorer (up to five folders open at once)",
         "Drag-reorder tabs",
@@ -227,6 +229,28 @@
     </div>
 
     <div class="feature">
+      <div class="feature-icon">⇌</div>
+      <h3>WYSIWYG ⇄ Edit, with autosave</h3>
+      <p>
+        A visible toggle in the toolbar flips between rendered WYSIWYG
+        and the raw Markdown source on the same buffer — keyboard ⌘E
+        does the same thing. Autosave is per-document, so you can leave
+        it on for the draft and off for the file you're just auditing.
+      </p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-icon">☰</div>
+      <h3>Document outline</h3>
+      <p>
+        A live outline of every heading in the open document, indented
+        by depth (H1 → H6), pinned to the side. Click any entry to jump
+        straight to that section; collapse the panel when you don't
+        need it.
+      </p>
+    </div>
+
+    <div class="feature">
       <div class="feature-icon">⊞</div>
       <h3>Side-by-side panes</h3>
       <p>
@@ -291,7 +315,6 @@
       <li>Native menu bar with Open Recent, Find &amp; Replace, Zoom, Themes</li>
       <li>Print / Export to PDF · Export to HTML</li>
       <li>File watcher — external changes show up live, conflict banner for unsaved-edit collisions</li>
-      <li>Per-document autosave (toggle per file)</li>
       <li>Session restore — tabs, panes, focus all come back on relaunch</li>
     </ul>
   </div>
