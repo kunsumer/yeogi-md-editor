@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Yeogi .MD Editor — A Markdown editor for macOS that does all seven things</title>
+<meta name="description" content="A macOS Markdown editor with a real WYSIWYG view, side-by-side panes, multi-folder explorer, drag-reorder tabs, and right-click context menus that actually do work. Free, code-signed, auto-updating." />
+<meta property="og:title" content="Yeogi .MD Editor" />
+<meta property="og:description" content="A macOS Markdown editor that does all seven things you actually want." />
+<meta property="og:image" content="icon.png" />
+<meta property="og:type" content="website" />
+<link rel="icon" href="icon.png" type="image/png" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <div class="nav-brand">
+      <img src="icon.png" alt="" class="nav-logo" width="28" height="28" />
+      <span class="nav-title">Yeogi <span class="dot">.MD</span> Editor</span>
+    </div>
+    <div class="nav-links">
+      <a href="https://github.com/kunsumer/yeogi-md-editor">GitHub</a>
+      <a href="https://github.com/kunsumer/yeogi-md-editor/releases">Releases</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <img src="icon.png" alt="" class="hero-logo" width="96" height="96" />
+  <h1>A Markdown editor that does <em>all</em> seven things you actually want.</h1>
+  <p class="hero-tag">
+    Rendered + editable WYSIWYG. Side-by-side panes. Real folder tree.
+    Multiple folders open at once. Drag-reorder tabs. Right-click that
+    actually works. Free.
+  </p>
+  <div class="hero-cta">
+    <a id="download" href="https://github.com/kunsumer/yeogi-md-editor/releases/latest" class="btn-primary">
+      Download for macOS<span id="version-badge"></span>
+    </a>
+    <a href="https://github.com/kunsumer/yeogi-md-editor" class="btn-secondary">
+      View on GitHub
+    </a>
+  </div>
+  <p class="hero-meta">
+    Universal binary (Apple Silicon + Intel) · macOS 10.13+ · Code-signed · Notarized · Auto-updating
+  </p>
+</section>
+
+<section class="features">
+  <h2 class="section-title">Built for people who write a lot of Markdown</h2>
+  <div class="feature-grid">
+
+    <div class="feature">
+      <div class="feature-icon">✎</div>
+      <h3>WYSIWYG that's actually editable</h3>
+      <p>
+        Tables are tables, headings are heading-sized, code blocks are
+        syntax-highlighted — and you can put your cursor in the middle
+        of any of them and just type. ⌘E flips to source mode whenever
+        you want to see the actual Markdown.
+      </p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-icon">⊞</div>
+      <h3>Side-by-side panes</h3>
+      <p>
+        Open two documents side by side, or the same doc in WYSIWYG +
+        source mode at the same time. Each pane has its own toggle. ⌘\
+        opens a tab in the other pane.
+      </p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-icon">⊟</div>
+      <h3>Multi-folder explorer</h3>
+      <p>
+        Open up to five folders at once — work notes, personal notes,
+        a reference vault, all in one explorer. Per-folder collapse so
+        you only pay for the ones you're using.
+      </p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-icon">⇆</div>
+      <h3>Chrome-style drag-reorder tabs</h3>
+      <p>
+        Drag tabs to reorder them within a pane. Live visual feedback —
+        the dragged tab follows your cursor, others slide aside. Works
+        with pointer events, not flaky HTML5 drag-and-drop.
+      </p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-icon">⊕</div>
+      <h3>Right-click that does real work</h3>
+      <p>
+        New File · New Folder · Open in Finder · Open in Terminal · Rename
+        · Duplicate · Delete with descendant-count confirmation · Reload
+        from disk. On files, folders, and folder-group headers.
+      </p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-icon">⟳</div>
+      <h3>Auto-updating</h3>
+      <p>
+        Signed with an Apple Developer ID, notarized by Apple, and
+        delivered through Tauri's signed auto-updater. Open the app;
+        if there's a new version, it offers to install. No re-download
+        ritual.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<section class="extras">
+  <div class="extras-inner">
+    <h2 class="section-title">Plus the obvious things</h2>
+    <ul class="extras-list">
+      <li>Wiki-links (<code>[[Note Name]]</code>) with auto-create + backlinks</li>
+      <li>Inline math (KaTeX), tables, footnotes, definition lists, task lists</li>
+      <li>Mermaid diagrams (flowchart, sequence, state, gantt, quadrant, ER, …) — with a render-only preprocessor that fixes the common ways LLMs produce broken Mermaid syntax</li>
+      <li>10 themes (Light, Dark, GitHub, Dracula, Nord, Tokyo Night, …) — each with a matching Shiki code-block palette</li>
+      <li>Native menu bar with Open Recent, Find &amp; Replace, Zoom, Themes</li>
+      <li>Print / Export to PDF · Export to HTML</li>
+      <li>File watcher — external changes show up live, conflict banner for unsaved-edit collisions</li>
+      <li>Per-document autosave (toggle per file)</li>
+      <li>Session restore — tabs, panes, focus all come back on relaunch</li>
+    </ul>
+  </div>
+</section>
+
+<section class="screenshots">
+  <h2 class="section-title">Screenshots</h2>
+  <p class="screenshots-note">
+    Screenshots go here. (TODO: capture + drop into site/screenshots/.)
+  </p>
+  <div class="screenshot-grid">
+    <div class="screenshot-placeholder">Hero shot — side-by-side WYSIWYG + source mode with multi-folder explorer</div>
+    <div class="screenshot-placeholder">Right-click context menu with New File / Open in Finder / Delete</div>
+    <div class="screenshot-placeholder">Drag-reorder tabs mid-motion</div>
+    <div class="screenshot-placeholder">A long doc rendered cleanly — Mermaid + table + math + code</div>
+  </div>
+</section>
+
+<section class="why">
+  <div class="why-inner">
+    <h2 class="section-title">Why this exists</h2>
+    <p>
+      I write a lot of Markdown. Every editor I'd tried picked three of
+      the seven things I cared about and called it a feature set. Obsidian
+      has folders but the rendered view is half-rendered. Bear is gorgeous
+      but no folder tree. Typora is the actual WYSIWYG editor that works,
+      but no folder explorer, no tabs, no side-by-side. So I built
+      something with all seven, and now I use it every day.
+    </p>
+    <p>
+      Yeogi is built with <a href="https://tauri.app">Tauri 2</a> (Rust +
+      WebView), React, <a href="https://tiptap.dev">Tiptap</a> for the
+      WYSIWYG mode, and <a href="https://codemirror.net">CodeMirror</a>
+      for source mode. It's free. It runs locally. It doesn't phone home,
+      doesn't collect data, doesn't have ads, doesn't have a subscription.
+    </p>
+    <p class="why-cta">
+      <a href="https://github.com/kunsumer/yeogi-md-editor/releases/latest" class="btn-primary">
+        Download Yeogi .MD Editor
+      </a>
+    </p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <p>
+      <a href="https://github.com/kunsumer/yeogi-md-editor">GitHub</a> ·
+      <a href="https://github.com/kunsumer/yeogi-md-editor/releases">Releases</a> ·
+      <a href="https://github.com/kunsumer/yeogi-md-editor/blob/main/CHANGELOG.md">Changelog</a>
+    </p>
+    <p class="footer-meta">
+      Built with Tauri 2, React, Tiptap, CodeMirror. Free and open source.
+      This app doesn't collect any data; the updater pings GitHub to check
+      for new releases.
+    </p>
+  </div>
+</footer>
+
+<script>
+  // Pull the latest release tag from the GitHub API and surface it on
+  // the download button. Falls back silently if the API is rate-limited
+  // or unreachable — the existing /releases/latest link still works.
+  fetch("https://api.github.com/repos/kunsumer/yeogi-md-editor/releases/latest")
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then((data) => {
+      const badge = document.getElementById("version-badge");
+      if (badge && data.tag_name) badge.textContent = " " + data.tag_name;
+      // If a .dmg asset exists, point the download button straight at it
+      // so users skip the GitHub Releases asset list.
+      const dmg = (data.assets || []).find((a) => a.name.endsWith(".dmg"));
+      if (dmg) document.getElementById("download").href = dmg.browser_download_url;
+    })
+    .catch(() => {
+      /* keep the fallback link; nothing to do */
+    });
+</script>
+
+</body>
+</html>

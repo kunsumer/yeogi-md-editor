@@ -1,0 +1,58 @@
+name: pages
+
+# Publishes the static landing page in /site to GitHub Pages on every
+# push to main that touches site/* or this workflow. The site is
+# plain HTML/CSS — no build step needed.
+#
+# One-time setup (you, web UI):
+#   Repo Settings → Pages → Source → "GitHub Actions"
+#
+# After that, every successful run of this workflow updates the live
+# site at https://kunsumer.github.io/yeogi-md-editor (or your custom
+# domain, once you wire one up via Settings → Pages → Custom domain).
+#
+# Security note: this workflow consumes NO untrusted event payload
+# (no issue titles, PR bodies, commit messages, etc.). It only checks
+# out the repo and serves static files from site/, so the standard
+# "workflow injection via untrusted input" risks don't apply.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one in-flight Pages deploy at a time. A second push while
+# the first run is mid-deploy gets queued; older queued runs are
+# cancelled in favor of the latest.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site/ as a Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
