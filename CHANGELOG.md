@@ -2,6 +2,13 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.14 — 2026-05-11
+
+### Code-signing
+
+- **First release signed with an Apple Developer ID + notarized.** Until now releases were signed with a self-signed cert ("Yeogi Dev Cert"). It was good enough to keep macOS TCC's "you have access to Documents" grant stable across releases (from v0.4.8 onward), but it didn't help with Gatekeeper: every new install still triggered the *"unidentified developer"* warning and required right-click → Open. v0.4.14 swaps in a real **Apple Developer ID Application** identity and runs Apple's notarytool service on every release artifact via Tauri's bundler. After the auto-update lands v0.4.14 you should be able to **just double-click the app to launch it** — no right-click dance, no Gatekeeper warning.
+- TCC stability (the Documents permission persisting across releases) is preserved — the bundle identifier `com.yeogi.mdeditor` stays stable, just as it did under the self-signed cert.
+
 ## v0.4.13 — 2026-05-07
 
 ### Fixed
