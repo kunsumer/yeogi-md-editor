@@ -1,8 +1,27 @@
 use crate::types::{DirEntry, FileRead, FileWritten, FsError};
 use std::fs as stdfs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::time::UNIX_EPOCH;
+
+/// Cheap text-vs-binary sniff. Reads up to 4 KB and treats any NUL byte
+/// as a binary marker — same heuristic `read()` uses to refuse a file
+/// at open time. Used by `list()` to decide whether to surface files
+/// with no extension (`.env`, `Dockerfile`, `Makefile`, `LICENSE`, …).
+/// Returns `false` on any I/O error so unreadable files don't pollute
+/// the tree.
+fn looks_like_text(path: &Path) -> bool {
+    let mut f = match stdfs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut buf = [0u8; 4096];
+    let n = match f.read(&mut buf) {
+        Ok(n) => n,
+        Err(_) => return false,
+    };
+    !buf[..n].contains(&0)
+}
 
 pub fn read(path: &str) -> Result<FileRead, FsError> {
     let p = Path::new(path);
@@ -178,7 +197,17 @@ pub fn list(path: &str) -> Result<Vec<DirEntry>, FsError> {
                 "md", "markdown", "mdown", "mkd",
                 "txt", "json", "yaml", "yml", "toml", "sh", "log", "csv",
             ];
-            if !ALLOWED.contains(&ext.as_str()) { continue; }
+            if ext.is_empty() {
+                // No extension at all — `.env`, `Dockerfile`, `Makefile`,
+                // `LICENSE`, etc. Path::extension() returns None for both
+                // the "starts with a dot, nothing after" case (`.env`) and
+                // the "no dot anywhere" case (`Dockerfile`). Sniff the
+                // first 4 KB: include if it looks like text, drop if it's
+                // a binary with no extension (rare but possible).
+                if !looks_like_text(&ep) { continue; }
+            } else if !ALLOWED.contains(&ext.as_str()) {
+                continue;
+            }
         }
         out.push(DirEntry { name, path: ep.to_string_lossy().to_string(), is_dir });
     }
