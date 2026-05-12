@@ -35,6 +35,44 @@ fn lists_md_files_and_subfolders() {
 }
 
 #[test]
+fn extensionless_text_files_surface() {
+    let dir = TempDir::new().unwrap();
+    // Common no-extension text files real repos contain.
+    stdfs::write(dir.path().join(".env"), "API_KEY=secret\nDEBUG=true\n").unwrap();
+    stdfs::write(dir.path().join("Dockerfile"), "FROM rust:1.78\nWORKDIR /app\n").unwrap();
+    stdfs::write(dir.path().join("Makefile"), "all:\n\techo ok\n").unwrap();
+    stdfs::write(dir.path().join("LICENSE"), "MIT License\n\nCopyright (c) 2026\n").unwrap();
+    // Empty file with no extension should also count as text.
+    stdfs::write(dir.path().join("Procfile"), "").unwrap();
+
+    let entries = fs::list(dir.path().to_str().unwrap()).unwrap();
+    let names: Vec<_> = entries.iter().map(|e| e.name.clone()).collect();
+
+    assert!(names.contains(&".env".to_string()), "names: {names:?}");
+    assert!(names.contains(&"Dockerfile".to_string()));
+    assert!(names.contains(&"Makefile".to_string()));
+    assert!(names.contains(&"LICENSE".to_string()));
+    assert!(names.contains(&"Procfile".to_string()));
+}
+
+#[test]
+fn extensionless_binary_files_are_filtered() {
+    let dir = TempDir::new().unwrap();
+    // Binary file with no extension — should not surface in the tree.
+    // NULs in the first 4 KB are what flags it as binary.
+    let mut binary = vec![0u8; 16];
+    binary.extend_from_slice(b"more bytes after the nuls");
+    stdfs::write(dir.path().join("blob"), &binary).unwrap();
+    // Keep one .md so the directory isn't empty (clearer failure mode).
+    stdfs::write(dir.path().join("a.md"), "").unwrap();
+
+    let entries = fs::list(dir.path().to_str().unwrap()).unwrap();
+    let names: Vec<_> = entries.iter().map(|e| e.name.clone()).collect();
+    assert!(names.contains(&"a.md".to_string()));
+    assert!(!names.contains(&"blob".to_string()), "binary leaked: {names:?}");
+}
+
+#[test]
 fn ds_store_is_filtered_out() {
     let dir = TempDir::new().unwrap();
     stdfs::write(dir.path().join("a.md"), "").unwrap();
