@@ -34,6 +34,7 @@ import { useDocuments } from "./state/documents";
 import { useLayout, type ViewMode } from "./state/layout";
 import { usePreferences } from "./state/preferences";
 import { applyThemeToDOM, resolveTheme } from "./lib/themes";
+import { useActiveHeading } from "./hooks/useActiveHeading";
 import { useAutosave } from "./hooks/useAutosave";
 import { useUpdater } from "./hooks/useUpdater";
 import { useWatcherEvents } from "./hooks/useWatcherEvents";
@@ -777,6 +778,11 @@ export default function App() {
     [active?.content, active?.id],
   );
 
+  // Tracks which heading the user is currently inside so the Outline
+  // panel can highlight that row. Only the WYSIWYG scroller is tracked;
+  // in Edit mode the hook returns -1 and no row is highlighted.
+  const activeHeadingIndex = useActiveHeading(headings);
+
   // Top-level block anchors used for view-mode scroll sync. Wider than
   // `headings` (includes paragraphs, lists, code, tables, etc.) so the
   // WYSIWYG ↔ Edit swap lands closer to the actual viewport position
@@ -1164,6 +1170,7 @@ export default function App() {
             <TocPanel
               hasDocument={active != null}
               headings={headings}
+              activeIndex={activeHeadingIndex}
               activeDocPath={active?.path ?? null}
               folder={folder}
               onJump={(h, i) => jumpToHeading(h, i)}
