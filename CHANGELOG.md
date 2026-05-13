@@ -2,6 +2,12 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.5.1 — 2026-05-13
+
+### Fixed
+
+- **Outline highlight finally works in Edit mode.** v0.5.0 claimed the fix but didn't actually land it: a stale-view-ref bug (React StrictMode's dev double-mount destroys the first `EditorView` between the hook's setup and its first tick, leaving the hook reading from a detached DOM forever) meant `view.viewport.from` stayed pinned at 0 no matter how far the user scrolled. The hook now reads the EditorView ref fresh on every event instead of capturing it in a closure, so a re-mounted view is picked up the next time the user interacts. Scroll-event driven now (no perpetual polling); a one-shot 5-second startup interval covers session-restored scrollTop.
+
 ## v0.5.0 — 2026-05-13
 
 The Outline now reliably tracks where you are in the doc, in both view modes, in any file.
