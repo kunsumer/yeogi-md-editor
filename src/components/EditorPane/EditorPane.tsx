@@ -57,10 +57,10 @@ interface Props {
   onConflictKeep?: () => void;
   onConflictReload?: () => void;
 
-  // Pane-layout toolbar group — wired only on the primary pane so the
-  // split icons appear once at the right end of the primary tab strip.
-  // Clicking the active mode collapses to single; clicking the other
-  // rotates orientation.
+  // Pane-layout toolbar group. The caller decides which pane gets the
+  // icons (whichever sits at the top-right of the window — primary
+  // when single or stacked, secondary when side-by-side); the EditorPane
+  // itself just renders them when the props are supplied.
   paneMode?: "single" | "horizontal" | "vertical";
   onSetPaneHorizontal?: () => void;
   onSetPaneVertical?: () => void;
@@ -157,10 +157,7 @@ export function EditorPane({
         onCreateBlank={onCreateBlank}
         onOpenFiles={onOpenFiles}
         paneSplit={
-          pane.id === "primary" &&
-          paneMode &&
-          onSetPaneHorizontal &&
-          onSetPaneVertical
+          paneMode && onSetPaneHorizontal && onSetPaneVertical
             ? {
                 mode: paneMode,
                 onSetHorizontal: onSetPaneHorizontal,

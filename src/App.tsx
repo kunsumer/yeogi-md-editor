@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { openSearchPanel } from "@codemirror/search";
@@ -1130,6 +1130,47 @@ export default function App() {
     ? "single"
     : splitOrientation;
 
+  // Which pane occupies the window's top-right corner, so the split
+  // icons stay pinned there as the layout changes:
+  //   - single pane          → primary (only pane)
+  //   - horizontal split     → secondary (right-side pane)
+  //   - vertical / stacked   → primary (top pane spans full width)
+  const splitIconsOn: "primary" | "secondary" =
+    secondary && splitOrientation === "horizontal" ? "secondary" : "primary";
+
+  // Stable handler identities so the EditorPane currently hosting the
+  // split icons doesn't see fresh function refs on every parent render
+  // (that propagates as new TabBar props → TabBar re-render → in JSDOM
+  // it surfaces a latent Tiptap+scrollToSelection async error).
+  const onSetPaneHorizontal = useCallback(() => {
+    const layout = useLayout.getState();
+    if (layout.secondary && layout.splitOrientation === "horizontal") {
+      layout.closeSecondary();
+      return;
+    }
+    if (layout.secondary) {
+      layout.setSplitOrientation("horizontal");
+      return;
+    }
+    layout.openEmptyToTheSide("horizontal");
+  }, []);
+  const onSetPaneVertical = useCallback(() => {
+    const layout = useLayout.getState();
+    if (layout.secondary && layout.splitOrientation === "vertical") {
+      layout.closeSecondary();
+      return;
+    }
+    if (layout.secondary) {
+      layout.setSplitOrientation("vertical");
+      return;
+    }
+    layout.openEmptyToTheSide("vertical");
+  }, []);
+  const splitIconHandlers = useMemo(
+    () => ({ paneMode, onSetPaneHorizontal, onSetPaneVertical }),
+    [paneMode, onSetPaneHorizontal, onSetPaneVertical],
+  );
+
   const paneProps = {
     documents,
     onOpenFiles: () => pickAndOpenFiles().catch(console.error),
@@ -1278,34 +1319,7 @@ export default function App() {
                 .getState()
                 .replaceContentFromDisk(active.id, { content: r.content, mtimeMs: r.mtime_ms });
             }}
-            paneMode={paneMode}
-            onSetPaneHorizontal={() => {
-              // Click the active mode's icon → collapse back to single.
-              // Click any other → open empty pane in this orientation
-              // (or rotate if there's already a secondary in the other).
-              const layout = useLayout.getState();
-              if (layout.secondary && layout.splitOrientation === "horizontal") {
-                layout.closeSecondary();
-                return;
-              }
-              if (layout.secondary) {
-                layout.setSplitOrientation("horizontal");
-                return;
-              }
-              layout.openEmptyToTheSide("horizontal");
-            }}
-            onSetPaneVertical={() => {
-              const layout = useLayout.getState();
-              if (layout.secondary && layout.splitOrientation === "vertical") {
-                layout.closeSecondary();
-                return;
-              }
-              if (layout.secondary) {
-                layout.setSplitOrientation("vertical");
-                return;
-              }
-              layout.openEmptyToTheSide("vertical");
-            }}
+            {...(splitIconsOn === "primary" ? splitIconHandlers : {})}
           />
           {secondary && (
             <>
@@ -1321,6 +1335,7 @@ export default function App() {
                 isFocused={focusedPaneId === "secondary"}
                 otherPaneActiveTabId={primary.activeTabId}
                 {...paneProps}
+                {...(splitIconsOn === "secondary" ? splitIconHandlers : {})}
               />
             </>
           )}

@@ -41,17 +41,29 @@ interface Props {
   };
 }
 
+// Outer row: holds the scrollable tab list AND the (non-scrolling)
+// split-icon cluster pinned to the visible right edge.
+const tabBarOuterStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "stretch",
+  height: 38,
+  background: "var(--bg-tabbar)",
+  borderBottom: "1px solid var(--border)",
+  flexShrink: 0,
+};
+
+// Inner tab list: scrolls horizontally when there are more tabs than
+// fit. No bottom border (the outer row owns it).
 const tablistStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "flex-end",
   gap: 2,
-  height: 38,
-  background: "var(--bg-tabbar)",
+  background: "transparent",
   padding: "0 8px",
   overflowX: "auto",
   overflowY: "hidden",
-  borderBottom: "1px solid var(--border)",
-  flexShrink: 0,
+  flex: 1,
+  minWidth: 0,
 };
 
 const tabStyle = (active: boolean, isFocused: boolean): React.CSSProperties => ({
@@ -127,17 +139,15 @@ const newTabBtnStyle: React.CSSProperties = {
   alignSelf: "center",
 };
 
-// Pushes the split-icon cluster to the far right of the strip so the
-// tabs flow left-aligned and the split controls sit flush with the
-// right edge regardless of how many tabs are open.
+// Split-icon cluster lives outside the scrolling tab list so it stays
+// pinned to the visible right edge regardless of how far the user has
+// scrolled the tab strip.
 const splitGroupStyle: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   gap: 2,
-  marginLeft: "auto",
-  marginBottom: 2,
-  alignSelf: "center",
-  paddingLeft: 8,
+  padding: "0 8px",
+  flexShrink: 0,
 };
 
 const splitIconBtnStyle = (active: boolean): React.CSSProperties => ({
@@ -425,10 +435,10 @@ export function TabBar({
     };
   });
   return (
+    <div className="app-tabbar" style={tabBarOuterStyle}>
     <div
       ref={stripRef}
       role="tablist"
-      className="app-tabbar"
       style={tablistStyle}
     >
       {tabs.map((d) => {
@@ -532,46 +542,6 @@ export function TabBar({
           +
         </button>
       )}
-      {paneSplit && (
-        <div style={splitGroupStyle} role="group" aria-label="Pane layout">
-          <button
-            type="button"
-            style={splitIconBtnStyle(paneSplit.mode === "horizontal")}
-            onClick={paneSplit.onSetHorizontal}
-            aria-pressed={paneSplit.mode === "horizontal"}
-            aria-label={
-              paneSplit.mode === "horizontal"
-                ? "Collapse side-by-side split"
-                : "Open side-by-side split"
-            }
-            title={
-              paneSplit.mode === "horizontal"
-                ? "Collapse split"
-                : "Split side by side"
-            }
-          >
-            <SplitHorizontalIcon />
-          </button>
-          <button
-            type="button"
-            style={splitIconBtnStyle(paneSplit.mode === "vertical")}
-            onClick={paneSplit.onSetVertical}
-            aria-pressed={paneSplit.mode === "vertical"}
-            aria-label={
-              paneSplit.mode === "vertical"
-                ? "Collapse stacked split"
-                : "Open stacked split"
-            }
-            title={
-              paneSplit.mode === "vertical"
-                ? "Collapse split"
-                : "Stack top and bottom"
-            }
-          >
-            <SplitVerticalIcon />
-          </button>
-        </div>
-      )}
       {ctx && (() => {
         const ctxDoc = documents.find((d) => d.id === ctx.docId);
         return (
@@ -596,6 +566,47 @@ export function TabBar({
           onClose={() => setNewMenu(null)}
         />
       )}
+    </div>
+    {paneSplit && (
+      <div style={splitGroupStyle} role="group" aria-label="Pane layout">
+        <button
+          type="button"
+          style={splitIconBtnStyle(paneSplit.mode === "horizontal")}
+          onClick={paneSplit.onSetHorizontal}
+          aria-pressed={paneSplit.mode === "horizontal"}
+          aria-label={
+            paneSplit.mode === "horizontal"
+              ? "Collapse side-by-side split"
+              : "Open side-by-side split"
+          }
+          title={
+            paneSplit.mode === "horizontal"
+              ? "Collapse split"
+              : "Split side by side"
+          }
+        >
+          <SplitHorizontalIcon />
+        </button>
+        <button
+          type="button"
+          style={splitIconBtnStyle(paneSplit.mode === "vertical")}
+          onClick={paneSplit.onSetVertical}
+          aria-pressed={paneSplit.mode === "vertical"}
+          aria-label={
+            paneSplit.mode === "vertical"
+              ? "Collapse stacked split"
+              : "Open stacked split"
+          }
+          title={
+            paneSplit.mode === "vertical"
+              ? "Collapse split"
+              : "Stack top and bottom"
+          }
+        >
+          <SplitVerticalIcon />
+        </button>
+      </div>
+    )}
     </div>
   );
 }
