@@ -2,6 +2,7 @@
   "name": "yeogi-md-editor",
   "private": true,
   "version": "0.4.15",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

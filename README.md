@@ -1,5 +1,11 @@
 # Yeogi .MD Editor
 
+[![License: MIT](https://img.shields.io/github/license/kunsumer/yeogi-md-editor?color=blue)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/kunsumer/yeogi-md-editor?label=release&color=f7323f)](https://github.com/kunsumer/yeogi-md-editor/releases/latest)
+[![Build status](https://img.shields.io/github/actions/workflow/status/kunsumer/yeogi-md-editor/release.yml?label=build)](https://github.com/kunsumer/yeogi-md-editor/actions/workflows/release.yml)
+[![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)](https://kunsumer.github.io/yeogi-md-editor/)
+[![Downloads](https://img.shields.io/github/downloads/kunsumer/yeogi-md-editor/total)](https://github.com/kunsumer/yeogi-md-editor/releases)
+
 **A free WYSIWYG Markdown editor for macOS.** WYSIWYG editing, side-by-side panes, a real folder tree, drag-reorder tabs, and right-click context menus that actually do work. Code-signed, notarized, and auto-updating.
 
 **Landing page:** <https://kunsumer.github.io/yeogi-md-editor/>
