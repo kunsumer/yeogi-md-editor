@@ -1,31 +1,48 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { EditorView } from "@codemirror/view";
 import type { Heading } from "../lib/toc";
+import type { ViewMode } from "../state/layout";
 
 /**
- * Index of the heading the user is currently "inside" — i.e. the last
- * H1-H6 in the rendered WYSIWYG document whose top edge has scrolled
- * above an offset just below the sticky toolbar ribbon. Drives the
- * active-row highlight in the Outline panel.
+ * Index of the heading the user is currently inside — the row the
+ * Outline panel highlights as "you are here".
  *
- * Returns -1 when:
- *   - no document is open
- *   - the doc has no headings
- *   - the user has scrolled above the first heading
- *   - the editor is in Edit mode (no .wysiwyg-content in the DOM)
+ * Two paths, picked by `viewMode`:
  *
- * Scroll handler is RAF-throttled so we only do one set of layout
- * reads per frame, even on a long fast scroll.
+ *   WYSIWYG — Walk the rendered `<h1>..<h6>` elements inside
+ *     `.wysiwyg-content .ProseMirror` and pick the last one whose top
+ *     edge has scrolled past an offset just below the sticky ribbon.
  *
- * Maps DOM heading index 1:1 to `headings[]` index. Frontmatter,
- * headings inside table cells, and footnote-section headings can
- * skew this mapping in edge cases — the existing jumpToHeading()
- * code handles those via slug-and-occurrence matching, but for a
- * "good enough" highlight we accept the rare mis-mapping rather than
- * pay that cost on every scroll event.
+ *   Edit (CodeMirror) — Ask the EditorView for the line at the top
+ *     of its scroll viewport (`lineBlockAtHeight(scrollTop)`), then
+ *     pick the heading with the largest `heading.line` ≤ that
+ *     line. This works regardless of line-wrap or CodeMirror's
+ *     virtual scrolling.
+ *
+ * Both paths RAF-throttle the scroll listener (one layout read per
+ * frame). Returns -1 when there is no doc, no headings, the editor
+ * isn't mounted yet, or the user has scrolled above the first
+ * heading.
+ *
+ * `headings` content is read through a ref so the listener doesn't
+ * rebind on every keystroke; the effect only re-binds when the
+ * heading count or the view mode changes.
  */
-export function useActiveHeading(headings: Heading[]): number {
+export function useActiveHeading(
+  headings: Heading[],
+  viewMode: ViewMode,
+  editorViewRef: { current: EditorView | null },
+): number {
   const [activeIndex, setActiveIndex] = useState(-1);
   const headingsLen = headings.length;
+
+  // Keep the latest headings array reachable from inside the scroll
+  // closure without making it a dep of the binding effect (otherwise
+  // the listener would rebind on every keystroke).
+  const headingsRef = useRef(headings);
+  useEffect(() => {
+    headingsRef.current = headings;
+  }, [headings]);
 
   useEffect(() => {
     if (headingsLen === 0) {
@@ -33,53 +50,84 @@ export function useActiveHeading(headings: Heading[]): number {
       return;
     }
 
-    const scroller = document.querySelector<HTMLElement>(".wysiwyg-scroll");
-    const root = document.querySelector<HTMLElement>(
-      ".wysiwyg-content .ProseMirror",
-    );
-    if (!scroller || !root) {
+    let rafId: number | null = null;
+
+    if (viewMode === "wysiwyg") {
+      const scroller = document.querySelector<HTMLElement>(".wysiwyg-scroll");
+      const root = document.querySelector<HTMLElement>(
+        ".wysiwyg-content .ProseMirror",
+      );
+      if (!scroller || !root) {
+        setActiveIndex(-1);
+        return;
+      }
+
+      function computeWysiwyg() {
+        rafId = null;
+        if (!scroller || !root) return;
+        const sRect = scroller.getBoundingClientRect();
+        const threshold = sRect.top + 80;
+        const els = root.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6");
+        const max = Math.min(els.length, headingsRef.current.length);
+        let last = -1;
+        for (let i = 0; i < max; i++) {
+          if (els[i].getBoundingClientRect().top <= threshold) last = i;
+          else break;
+        }
+        setActiveIndex((prev) => (prev === last ? prev : last));
+      }
+
+      function onScroll() {
+        if (rafId !== null) return;
+        rafId = requestAnimationFrame(computeWysiwyg);
+      }
+
+      scroller.addEventListener("scroll", onScroll, { passive: true });
+      rafId = requestAnimationFrame(computeWysiwyg);
+
+      return () => {
+        scroller.removeEventListener("scroll", onScroll);
+        if (rafId !== null) cancelAnimationFrame(rafId);
+      };
+    }
+
+    // Edit mode — CodeMirror.
+    const view = editorViewRef.current;
+    if (!view) {
       setActiveIndex(-1);
       return;
     }
+    const scroller = view.scrollDOM;
 
-    let rafId: number | null = null;
-
-    function compute() {
+    function computeEdit() {
       rafId = null;
-      // Defensive null-check: hook deps mean these are non-null at bind,
-      // but a doc swap mid-frame could in theory remount them away.
-      if (!scroller || !root) return;
-      const sRect = scroller.getBoundingClientRect();
-      // ~ ribbon height + a small lead-in so a heading is "active" a
-      // touch before it docks against the very top edge.
-      const threshold = sRect.top + 80;
-      const els = root.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6");
-      const max = Math.min(els.length, headingsLen);
+      // The EditorView could be torn down between the scroll event and
+      // the next frame; guard against a use-after-destroy.
+      if (!view || !view.state) return;
+      const block = view.lineBlockAtHeight(scroller.scrollTop);
+      const topLine = view.state.doc.lineAt(block.from).number; // 1-indexed
+      const hs = headingsRef.current;
       let last = -1;
-      for (let i = 0; i < max; i++) {
-        if (els[i].getBoundingClientRect().top <= threshold) {
-          last = i;
-        } else {
-          break;
-        }
+      for (let i = 0; i < hs.length; i++) {
+        if (hs[i].line <= topLine) last = i;
+        else break;
       }
       setActiveIndex((prev) => (prev === last ? prev : last));
     }
 
     function onScroll() {
       if (rafId !== null) return;
-      rafId = requestAnimationFrame(compute);
+      rafId = requestAnimationFrame(computeEdit);
     }
 
     scroller.addEventListener("scroll", onScroll, { passive: true });
-    // Initial read after layout settles.
-    rafId = requestAnimationFrame(compute);
+    rafId = requestAnimationFrame(computeEdit);
 
     return () => {
       scroller.removeEventListener("scroll", onScroll);
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
-  }, [headingsLen]);
+  }, [headingsLen, viewMode, editorViewRef]);
 
   return activeIndex;
 }
