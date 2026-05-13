@@ -2,6 +2,19 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.5.0 — 2026-05-13
+
+The Outline now reliably tracks where you are in the doc, in both view modes, in any file.
+
+### Fixed
+
+- **Outline "you are here" highlight now works in every document.** v0.4.15 introduced the highlight, v0.4.16 patched the Tiptap mount race — but the highlight still bailed silently on any file with YAML frontmatter (e.g. the bundled `Welcome.md`). Root cause: without `remark-frontmatter`, the parser was reading the closing `---` of a `---\n…\n---` block as a setext-H2 underline for the YAML body, emitting a phantom depth-2 heading whose text was `"title: …\nauthor: …"`. That phantom lived in the headings array but had no `<h*>` counterpart in the WYSIWYG DOM, so the slug-based mapping walk got stuck on it and every later heading mapped to "no match". Frontmatter now parses as a single `yaml` node and is filtered out of the heading list before mapping starts.
+- **Outline highlight now works in Edit mode too.** The first cut bound a `scroll` listener to CodeMirror's `view.scrollDOM`, which wasn't catching scroll events reliably in our shell. Swapped to a `requestAnimationFrame` poll that samples `scrollDOM.scrollTop` once per frame — early-exits when nothing changed, so the steady-state cost is a single property read per frame.
+
+### Changed
+
+- **Outline highlight is now far quieter.** The first treatment was a pink background wash + a 2px brand-red left bar + a font-weight bump — it read as "selected" and pulled the eye away from the document you were reading. Now: no background, no font-weight change, just a thin 1px left bar in muted brand red and a slight text-colour bump for the active row. Just-noticeable-enough when you glance at the Outline; invisible when you're not looking for it.
+
 ## v0.4.16 — 2026-05-13
 
 ### New
