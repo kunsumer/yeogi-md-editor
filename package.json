@@ -1,7 +1,7 @@
 {
   "name": "yeogi-md-editor",
   "private": true,
-  "version": "0.4.15",
+  "version": "0.4.16",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "lint": "tsc --noEmit",
-    "release:keygen": "echo '\\nGenerating Tauri updater signing keypair.\\nStore the private key securely — losing it orphans all existing installs.\\n' && tauri signer generate -w ~/.tauri/yeogi-update.key && echo '\\n→ Copy the printed PUBLIC key into src-tauri/tauri.conf.json -> plugins.updater.pubkey'",
+    "release:keygen": "echo '\\nGenerating Tauri updater signing keypair.\\nStore the private key securely \u2014 losing it orphans all existing installs.\\n' && tauri signer generate -w ~/.tauri/yeogi-update.key && echo '\\n\u2192 Copy the printed PUBLIC key into src-tauri/tauri.conf.json -> plugins.updater.pubkey'",
     "release:apple-keygen": "bash scripts/create-apple-signing-cert.sh",
     "release:build": "bash scripts/release-build.sh",
     "release:steps": "echo '\\nYeogi .MD Editor release checklist\\n===================================\\n\\n1. Bump version in lockstep:\\n     package.json                     .version\\n     src-tauri/Cargo.toml            version\\n     src-tauri/tauri.conf.json       .version\\n\\n2. Load signing env (first time: pnpm release:keygen)\\n     export TAURI_SIGNING_PRIVATE_KEY=\"$(cat ~/.tauri/yeogi-update.key)\"\\n     export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=\"<passphrase>\"\\n\\n3. Build the universal bundle:\\n     pnpm release:build\\n\\n4. Publish a GitHub release tagged v<version>. Upload:\\n     - *.dmg\\n     - *.app.tar.gz\\n     - *.app.tar.gz.sig\\n     - latest.json  (see docs/releasing.md for template)\\n\\nFull walkthrough:  docs/releasing.md\\n'"

@@ -2,6 +2,18 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.16 — 2026-05-13
+
+### New
+
+- **Side-by-side and stacked pane splits.** A pair of icons at the right end of the active pane's tab strip opens a second editor pane. Side-by-side gives you the panes left/right; stacked gives you top/bottom. The new pane starts empty so you can pick what to load via "Create blank document / Open file(s)… / Open folder…". Each pane keeps its own tabs, focus, and view-mode toggle; closing the last tab in the secondary pane collapses back to single-column.
+- **Keyboard shortcuts for splits.** **⌥⌘\\** toggles a side-by-side split; **⇧⌥⌘\\** toggles a stacked split. Same orientation again collapses back to single. Both shortcuts are now in View → Split Editor.
+- **MIT license + open-source repo metadata.** The project now ships a proper MIT `LICENSE` file alongside the source (`github.com/kunsumer/yeogi-md-editor`). Already advertised on the landing page, just formalized in the repo so re-distributors and packagers can do their thing.
+
+### Fixed
+
+- **Outline now reliably highlights the section you're currently reading** in both WYSIWYG and Edit. The first cut of the feature shipped in v0.4.15 had a race: Tiptap's editor mounts asynchronously, and the highlight hook ran its initial DOM lookup before the headings had been rendered, then never retried. Now we retry for the first ~30 frames after the doc opens, and a `MutationObserver` on the ProseMirror root catches heading nodes inserted after the eager lookup so the map stays in sync.
+
 ## v0.4.15 — 2026-05-13
 
 ### New
