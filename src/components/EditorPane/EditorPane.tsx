@@ -58,10 +58,10 @@ interface Props {
   onConflictReload?: () => void;
 
   // Pane-layout toolbar group — wired only on the primary pane so the
-  // segmented control appears once at the window level (the secondary
-  // pane closes via its own tab Xs or via the "single pane" icon here).
+  // split icons appear once at the right end of the primary tab strip.
+  // Clicking the active mode collapses to single; clicking the other
+  // rotates orientation.
   paneMode?: "single" | "horizontal" | "vertical";
-  onSetPaneSingle?: () => void;
   onSetPaneHorizontal?: () => void;
   onSetPaneVertical?: () => void;
 }
@@ -113,7 +113,6 @@ export function EditorPane({
   onConflictKeep,
   onConflictReload,
   paneMode,
-  onSetPaneSingle,
   onSetPaneHorizontal,
   onSetPaneVertical,
 }: Props) {
@@ -157,6 +156,18 @@ export function EditorPane({
         onReload={onReloadTab}
         onCreateBlank={onCreateBlank}
         onOpenFiles={onOpenFiles}
+        paneSplit={
+          pane.id === "primary" &&
+          paneMode &&
+          onSetPaneHorizontal &&
+          onSetPaneVertical
+            ? {
+                mode: paneMode,
+                onSetHorizontal: onSetPaneHorizontal,
+                onSetVertical: onSetPaneVertical,
+              }
+            : undefined
+        }
       />
       <TopBar
         pane={pane}
@@ -166,20 +177,6 @@ export function EditorPane({
         onSetAutosaveEnabled={(enabled) => {
           if (active) onSetAutosaveEnabled?.(active.id, enabled);
         }}
-        paneSplit={
-          pane.id === "primary" &&
-          paneMode &&
-          onSetPaneSingle &&
-          onSetPaneHorizontal &&
-          onSetPaneVertical
-            ? {
-                mode: paneMode,
-                onSetSingle: onSetPaneSingle,
-                onSetHorizontal: onSetPaneHorizontal,
-                onSetVertical: onSetPaneVertical,
-              }
-            : undefined
-        }
       />
       {sameDocLock && (
         <div

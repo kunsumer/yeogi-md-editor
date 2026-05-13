@@ -12,19 +12,6 @@ interface Props {
   viewModeLocked?: boolean;
   onSetViewMode(mode: ViewMode): void;
   onSetAutosaveEnabled(enabled: boolean): void;
-  /**
-   * When defined the pane-layout segmented control is rendered: a
-   * three-icon group covering single-pane, side-by-side, and stacked
-   * layouts. Only the primary pane wires this — the secondary pane
-   * already has the close-X on its tabs.
-   */
-  paneSplit?: {
-    /** "single" = no secondary; "horizontal" = side-by-side; "vertical" = stacked. */
-    mode: "single" | "horizontal" | "vertical";
-    onSetSingle(): void;
-    onSetHorizontal(): void;
-    onSetVertical(): void;
-  };
 }
 
 const wrap: React.CSSProperties = {
@@ -78,23 +65,6 @@ const segBtn = (active: boolean): React.CSSProperties => ({
   transition: "background 120ms, color 120ms",
 });
 
-// Square version of segBtn for icon-only buttons. Keeps the same active/
-// inactive colour treatment as the WYSIWYG/Edit segment so they read as
-// one toolbar family.
-const segIconBtn = (active: boolean): React.CSSProperties => ({
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 30,
-  height: 28,
-  padding: 0,
-  border: 0,
-  background: active ? "var(--text)" : "transparent",
-  color: active ? "var(--bg)" : "var(--text-muted)",
-  cursor: "pointer",
-  transition: "background 120ms, color 120ms",
-});
-
 const autosaveWrap: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
@@ -133,7 +103,6 @@ export function TopBar({
   viewModeLocked = false,
   onSetViewMode,
   onSetAutosaveEnabled,
-  paneSplit,
 }: Props) {
   const filename = active?.path ? active.path.split("/").pop() : "Untitled";
   const wordCount = (active?.content ?? "").trim().split(/\s+/).filter(Boolean).length;
@@ -221,98 +190,6 @@ export function TopBar({
           </button>
         </div>
       )}
-      {paneSplit && (
-        <div style={segWrap} role="group" aria-label="Pane layout">
-          <button
-            type="button"
-            style={segIconBtn(paneSplit.mode === "single")}
-            onClick={paneSplit.onSetSingle}
-            aria-pressed={paneSplit.mode === "single"}
-            aria-label="Single pane"
-            title="Single pane"
-          >
-            <SinglePaneIcon />
-          </button>
-          <button
-            type="button"
-            style={segIconBtn(paneSplit.mode === "horizontal")}
-            onClick={paneSplit.onSetHorizontal}
-            aria-pressed={paneSplit.mode === "horizontal"}
-            aria-label="Split side by side"
-            title="Split side by side"
-          >
-            <SplitHorizontalIcon />
-          </button>
-          <button
-            type="button"
-            style={segIconBtn(paneSplit.mode === "vertical")}
-            onClick={paneSplit.onSetVertical}
-            aria-pressed={paneSplit.mode === "vertical"}
-            aria-label="Stack top and bottom"
-            title="Stack top and bottom"
-          >
-            <SplitVerticalIcon />
-          </button>
-        </div>
-      )}
     </div>
-  );
-}
-
-function SinglePaneIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
-    </svg>
-  );
-}
-
-function SplitHorizontalIcon() {
-  // Side-by-side: outer rectangle + vertical divider down the middle.
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
-      <line x1="8" y1="3.5" x2="8" y2="12.5" />
-    </svg>
-  );
-}
-
-function SplitVerticalIcon() {
-  // Stacked: outer rectangle + horizontal divider across the middle.
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
-      <line x1="2.5" y1="8" x2="13.5" y2="8" />
-    </svg>
   );
 }

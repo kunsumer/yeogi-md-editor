@@ -1,6 +1,6 @@
 import { useDocuments } from "./documents";
 import { useLayout } from "./layout";
-import type { ViewMode, PaneId } from "./layout";
+import type { ViewMode, PaneId, SplitOrientation } from "./layout";
 
 const KEY = "yeogi-md-editor:session";
 
@@ -15,6 +15,8 @@ export interface PersistedLayout {
   secondary: PersistedPane | null;
   focusedPaneId: PaneId;
   paneSplit: number;
+  /** Optional for back-compat with payloads written before stacked-split. */
+  splitOrientation?: SplitOrientation;
 }
 
 export interface PersistedSession {
@@ -66,6 +68,7 @@ function snapshot(): PersistedSession {
       secondary,
       focusedPaneId: layout.focusedPaneId,
       paneSplit: layout.paneSplit,
+      splitOrientation: layout.splitOrientation,
     },
   };
 }

@@ -26,6 +26,19 @@ interface Props {
    *  strip. Clicking it opens a menu offering both options. */
   onCreateBlank?: () => void;
   onOpenFiles?: () => void;
+  /**
+   * When provided, a two-icon split control renders at the right end of
+   * the tab strip. Only the primary pane wires this — clicking either
+   * icon opens an empty secondary pane in that orientation; clicking
+   * the icon for the already-active orientation collapses back to a
+   * single pane.
+   */
+  paneSplit?: {
+    /** "single" = no secondary; "horizontal" = side-by-side; "vertical" = stacked. */
+    mode: "single" | "horizontal" | "vertical";
+    onSetHorizontal(): void;
+    onSetVertical(): void;
+  };
 }
 
 const tablistStyle: React.CSSProperties = {
@@ -114,6 +127,34 @@ const newTabBtnStyle: React.CSSProperties = {
   alignSelf: "center",
 };
 
+// Pushes the split-icon cluster to the far right of the strip so the
+// tabs flow left-aligned and the split controls sit flush with the
+// right edge regardless of how many tabs are open.
+const splitGroupStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 2,
+  marginLeft: "auto",
+  marginBottom: 2,
+  alignSelf: "center",
+  paddingLeft: 8,
+};
+
+const splitIconBtnStyle = (active: boolean): React.CSSProperties => ({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 28,
+  height: 28,
+  padding: 0,
+  border: 0,
+  borderRadius: 6,
+  background: active ? "var(--bg-tabbar-hover)" : "transparent",
+  color: active ? "var(--text)" : "var(--text-muted)",
+  cursor: "pointer",
+  transition: "background 120ms, color 120ms",
+});
+
 // Distance the pointer must travel before a click promotes to a drag.
 // Below this threshold a mouseup fires onActivate as before.
 const DRAG_THRESHOLD_PX = 4;
@@ -129,6 +170,7 @@ export function TabBar({
   onReorder,
   onCreateBlank,
   onOpenFiles,
+  paneSplit,
 }: Props) {
   const [ctx, setCtx] = useState<{ docId: string; x: number; y: number } | null>(null);
   const [newMenu, setNewMenu] = useState<{ x: number; y: number } | null>(null);
@@ -490,6 +532,46 @@ export function TabBar({
           +
         </button>
       )}
+      {paneSplit && (
+        <div style={splitGroupStyle} role="group" aria-label="Pane layout">
+          <button
+            type="button"
+            style={splitIconBtnStyle(paneSplit.mode === "horizontal")}
+            onClick={paneSplit.onSetHorizontal}
+            aria-pressed={paneSplit.mode === "horizontal"}
+            aria-label={
+              paneSplit.mode === "horizontal"
+                ? "Collapse side-by-side split"
+                : "Open side-by-side split"
+            }
+            title={
+              paneSplit.mode === "horizontal"
+                ? "Collapse split"
+                : "Split side by side"
+            }
+          >
+            <SplitHorizontalIcon />
+          </button>
+          <button
+            type="button"
+            style={splitIconBtnStyle(paneSplit.mode === "vertical")}
+            onClick={paneSplit.onSetVertical}
+            aria-pressed={paneSplit.mode === "vertical"}
+            aria-label={
+              paneSplit.mode === "vertical"
+                ? "Collapse stacked split"
+                : "Open stacked split"
+            }
+            title={
+              paneSplit.mode === "vertical"
+                ? "Collapse split"
+                : "Stack top and bottom"
+            }
+          >
+            <SplitVerticalIcon />
+          </button>
+        </div>
+      )}
       {ctx && (() => {
         const ctxDoc = documents.find((d) => d.id === ctx.docId);
         return (
@@ -515,5 +597,45 @@ export function TabBar({
         />
       )}
     </div>
+  );
+}
+
+function SplitHorizontalIcon() {
+  // Side-by-side: outer rectangle + vertical divider down the middle.
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
+      <line x1="8" y1="3.5" x2="8" y2="12.5" />
+    </svg>
+  );
+}
+
+function SplitVerticalIcon() {
+  // Stacked: outer rectangle + horizontal divider across the middle.
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
+      <line x1="2.5" y1="8" x2="13.5" y2="8" />
+    </svg>
   );
 }

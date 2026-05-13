@@ -534,7 +534,9 @@ export default function App() {
           let secondaryPane = persisted.layout.secondary
             ? buildPane(persisted.layout.secondary, "secondary")
             : null;
-          if (secondaryPane && secondaryPane.tabs.length === 0) secondaryPane = null;
+          // An empty secondary is now a valid state (user opened a split
+          // but hasn't loaded a file into it yet). Don't collapse it on
+          // restore — the EmptyState UI is the intended landing target.
 
           let focusedPaneId = persisted.layout.focusedPaneId;
           if (focusedPaneId === "secondary" && !secondaryPane) focusedPaneId = "primary";
@@ -544,6 +546,7 @@ export default function App() {
             secondary: secondaryPane,
             focusedPaneId,
             paneSplit: persisted.layout.paneSplit,
+            splitOrientation: persisted.layout.splitOrientation ?? "horizontal",
           });
         }
         return;
@@ -739,35 +742,32 @@ export default function App() {
           break;
         }
         case "view:split-editor-horizontal": {
-          // ⌥⌘\\ — toggles side-by-side. If we're already in horizontal
-          // split, collapse back to single. If we're in vertical split,
-          // rotate to horizontal. If single, open the active doc on the
-          // right.
+          // ⌥⌘\\ — toggles side-by-side. Empty pane on open so the user
+          // can pick what to load (matches the tab-strip split icon).
           const layout = useLayout.getState();
           if (layout.secondary && layout.splitOrientation === "horizontal") {
             layout.closeSecondary();
             break;
           }
-          layout.setSplitOrientation("horizontal");
-          if (!layout.secondary) {
-            const docId = layout.primary.activeTabId;
-            if (docId) layout.openToTheSide(docId);
+          if (layout.secondary) {
+            layout.setSplitOrientation("horizontal");
+            break;
           }
+          layout.openEmptyToTheSide("horizontal");
           break;
         }
         case "view:split-editor-vertical": {
-          // ⇧⌥⌘\\ — toggles stacked. Same idea as the horizontal toggle
-          // but for the vertical axis.
+          // ⇧⌥⌘\\ — toggles stacked.
           const layout = useLayout.getState();
           if (layout.secondary && layout.splitOrientation === "vertical") {
             layout.closeSecondary();
             break;
           }
-          layout.setSplitOrientation("vertical");
-          if (!layout.secondary) {
-            const docId = layout.primary.activeTabId;
-            if (docId) layout.openToTheSide(docId);
+          if (layout.secondary) {
+            layout.setSplitOrientation("vertical");
+            break;
           }
+          layout.openEmptyToTheSide("vertical");
           break;
         }
         // view:theme:<id> — handled before the switch via the startsWith
@@ -1279,22 +1279,32 @@ export default function App() {
                 .replaceContentFromDisk(active.id, { content: r.content, mtimeMs: r.mtime_ms });
             }}
             paneMode={paneMode}
-            onSetPaneSingle={() => useLayout.getState().closeSecondary()}
             onSetPaneHorizontal={() => {
+              // Click the active mode's icon → collapse back to single.
+              // Click any other → open empty pane in this orientation
+              // (or rotate if there's already a secondary in the other).
               const layout = useLayout.getState();
-              layout.setSplitOrientation("horizontal");
-              if (!layout.secondary) {
-                const docId = layout.primary.activeTabId;
-                if (docId) layout.openToTheSide(docId);
+              if (layout.secondary && layout.splitOrientation === "horizontal") {
+                layout.closeSecondary();
+                return;
               }
+              if (layout.secondary) {
+                layout.setSplitOrientation("horizontal");
+                return;
+              }
+              layout.openEmptyToTheSide("horizontal");
             }}
             onSetPaneVertical={() => {
               const layout = useLayout.getState();
-              layout.setSplitOrientation("vertical");
-              if (!layout.secondary) {
-                const docId = layout.primary.activeTabId;
-                if (docId) layout.openToTheSide(docId);
+              if (layout.secondary && layout.splitOrientation === "vertical") {
+                layout.closeSecondary();
+                return;
               }
+              if (layout.secondary) {
+                layout.setSplitOrientation("vertical");
+                return;
+              }
+              layout.openEmptyToTheSide("vertical");
             }}
           />
           {secondary && (

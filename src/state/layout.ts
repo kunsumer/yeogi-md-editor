@@ -50,6 +50,15 @@ interface LayoutState {
   closeSecondary(): void;
   /** Switch the divider axis. Layout-only; tabs and focus are unchanged. */
   setSplitOrientation(orientation: SplitOrientation): void;
+  /**
+   * Open an empty secondary pane in the given orientation. Used by the
+   * split icons in the tab strip: the user opens a panel first, then
+   * picks a file via the new pane's EmptyState ("Open file…" / "Create
+   * blank document"). Focus moves to secondary. No-op when secondary
+   * already exists — call `setSplitOrientation` first to rotate if
+   * needed.
+   */
+  openEmptyToTheSide(orientation: SplitOrientation): void;
 }
 
 const emptyPrimary: Pane = {
@@ -202,6 +211,20 @@ export const useLayout = create<LayoutState>((set, get) => ({
   setSplitOrientation(orientation) {
     if (get().splitOrientation === orientation) return;
     set({ splitOrientation: orientation });
+  },
+
+  openEmptyToTheSide(orientation) {
+    if (get().secondary) return;
+    set({
+      secondary: {
+        id: "secondary",
+        tabs: [],
+        activeTabId: null,
+        viewMode: "wysiwyg",
+      },
+      splitOrientation: orientation,
+      focusedPaneId: "secondary",
+    });
   },
 
   closeTab(paneId, docId) {
