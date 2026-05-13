@@ -38,17 +38,6 @@ import { slugify } from "../lib/slug";
  * poll (~30 frames, half a second) so the listener attaches as soon
  * as the editor lands in the DOM.
  */
-// Set `window.__yeogiTocDebug = true` in DevTools to log every step of
-// the active-heading hook. Off by default — production users won't see
-// anything. Throwaway diagnostic instrumentation; trim once Edit-mode
-// highlight is verified working.
-function debug(...args: unknown[]) {
-  if (typeof window !== "undefined" && (window as unknown as { __yeogiTocDebug?: boolean }).__yeogiTocDebug) {
-    // eslint-disable-next-line no-console
-    console.log("[useActiveHeading]", ...args);
-  }
-}
-
 export function useActiveHeading(
   headings: Heading[],
   viewMode: ViewMode,
@@ -66,7 +55,6 @@ export function useActiveHeading(
   }, [headings]);
 
   useEffect(() => {
-    debug("effect re-run", { headingsLen, viewMode, viewRefCurrent: editorViewRef.current ? "set" : "null" });
     if (headingsLen === 0) {
       setActiveIndex(-1);
       return;
@@ -82,28 +70,15 @@ export function useActiveHeading(
         const root = document.querySelector<HTMLElement>(
           ".wysiwyg-content .ProseMirror",
         );
-        if (!scroller || !root) {
-          debug("WYSIWYG tryBind FAIL", { scroller: !!scroller, root: !!root });
-          return false;
-        }
-        debug("WYSIWYG bind OK");
+        if (!scroller || !root) return false;
         detach = bindWysiwyg(scroller, root, headingsRef, setActiveIndex);
         return true;
       }
       // Don't capture the view in a closure — StrictMode (and any
       // future re-mount path) can destroy it between bind and tick.
-      // bindEdit reads `editorViewRef.current` on every tick instead,
+      // bindEdit reads `editorViewRef.current` on every event instead,
       // so it always sees the live view in the DOM.
-      const view = editorViewRef.current;
-      if (!view) {
-        debug("Edit tryBind FAIL — view ref is null");
-        return false;
-      }
-      debug("Edit bind OK", {
-        viewportFrom: view.viewport?.from,
-        scrollTop: view.scrollDOM?.scrollTop,
-        docLines: view.state?.doc.lines,
-      });
+      if (!editorViewRef.current) return false;
       detach = bindEdit(editorViewRef, headingsRef, setActiveIndex);
       return true;
     }
@@ -231,40 +206,18 @@ function bindEdit(
   headingsRef: { current: Heading[] },
   setActiveIndex: (next: number | ((prev: number) => number)) => void,
 ): () => void {
-  let tickCount = 0;
-  // Read `viewRef.current` on every tick so we always see the live
-  // EditorView in the DOM, not a captured stale one. StrictMode's
-  // dev-mode double-mount can destroy a freshly created view between
-  // setup and the first tick; capturing in a closure would leave the
-  // hook bound to the dead instance forever.
+  // Scroll-event driven. Reads `viewRef.current` fresh on every call
+  // so a re-mounted EditorView (e.g. StrictMode's dev double-mount)
+  // is picked up the next time the user interacts.
   let cancelled = false;
   let lastTopLine = -2;
 
   function compute() {
-    tickCount++;
-    if (cancelled) {
-      debug("Edit tick #" + tickCount + " cancelled");
-      return;
-    }
+    if (cancelled) return;
     const view = viewRef.current;
-    if (!view || !view.state) {
-      // No live view yet (or just torn down). Keep polling — the next
-      // tick may pick up a fresh view if Editor finishes mounting.
-      return;
-    }
-    // Log every 10th tick (~1s) regardless of early-exit so we can
-    // tell the interval is firing.
-    const liveScrollTop = view.scrollDOM ? view.scrollDOM.scrollTop : -1;
+    if (!view || !view.state) return;
     const topPos = view.viewport.from;
     const topLine = view.state.doc.lineAt(topPos).number; // 1-indexed
-    if (tickCount % 10 === 0) {
-      debug("Edit tick #" + tickCount, {
-        viewportFrom: topPos,
-        scrollTop: liveScrollTop,
-        topLine,
-        lastTopLine,
-      });
-    }
     if (topLine === lastTopLine) return;
     lastTopLine = topLine;
     const hs = headingsRef.current;
@@ -273,16 +226,31 @@ function bindEdit(
       if (hs[i].line <= topLine) last = i;
       else break;
     }
-    debug("Edit compute change", { topPos, topLine, hsLen: hs.length, activeIndex: last });
     setActiveIndex((prev: number) => (prev === last ? prev : last));
   }
 
-  const intervalId = window.setInterval(compute, 100);
-  // Kick off once so the initial position lands immediately.
+  // Listen at the document root with capture-phase so a scroll on any
+  // descendant element (the live `.cm-scroller`, no matter which
+  // EditorView owns it) wakes us up. `scroll` doesn't bubble on
+  // elements, but the capture phase fires regardless.
+  document.addEventListener("scroll", compute, { capture: true, passive: true });
+
+  // Startup safety net: until the user actually scrolls, we still
+  // want the initial position to land (e.g. session-restored scroll
+  // > 0). Poll for the first ~5 s, then stop. After that, the scroll
+  // listener handles everything.
+  let startupTicks = 0;
+  const startupInterval = window.setInterval(() => {
+    compute();
+    if (++startupTicks >= 25) window.clearInterval(startupInterval);
+  }, 200);
+  // Kick off immediately too so the initial render isn't a blank
+  // highlight for 200 ms.
   compute();
 
   return () => {
     cancelled = true;
-    window.clearInterval(intervalId);
+    window.clearInterval(startupInterval);
+    document.removeEventListener("scroll", compute, { capture: true });
   };
 }
