@@ -114,6 +114,7 @@ function bindWysiwyg(
   let cachedHeadings: Heading[] | null = null;
   let domEls: HTMLElement[] = [];
   let domToHeadings: number[] = [];
+  let mapDirty = true;
 
   function rebuildMap() {
     const hs = headingsRef.current;
@@ -140,11 +141,21 @@ function bindWysiwyg(
       // and don't advance j (the next DOM heading may match hs[j]).
     }
     cachedHeadings = hs;
+    mapDirty = false;
   }
 
   function compute() {
     rafId = null;
-    if (headingsRef.current !== cachedHeadings) rebuildMap();
+    if (
+      mapDirty ||
+      headingsRef.current !== cachedHeadings ||
+      // Defensive: if Tiptap finished mounting heading nodes after
+      // the last rebuild, the cached domEls is stale. Detect via a
+      // cheap "did the DOM gain or lose <h*> elements?" check.
+      root.querySelectorAll("h1,h2,h3,h4,h5,h6").length !== domEls.length
+    ) {
+      rebuildMap();
+    }
     const sRect = scroller.getBoundingClientRect();
     const threshold = sRect.top + 80;
     let last = -1;
@@ -163,10 +174,25 @@ function bindWysiwyg(
     rafId = requestAnimationFrame(compute);
   }
 
+  // ProseMirror populates the editor's children asynchronously
+  // (Tiptap's `useEditor` resolves on a microtask and content nodes
+  // can stream in across a frame or two). A MutationObserver on the
+  // root flags the heading map as dirty whenever a child changes,
+  // so the next compute frame picks up newly-rendered <h*> elements.
+  // Scoped to direct children + heading-text edits — *not* subtree —
+  // to keep the callback cheap and prevent re-mapping on every
+  // paragraph keystroke deep in the doc.
+  const observer = new MutationObserver(() => {
+    mapDirty = true;
+    if (rafId === null) rafId = requestAnimationFrame(compute);
+  });
+  observer.observe(root, { childList: true });
+
   scroller.addEventListener("scroll", onScroll, { passive: true });
   rafId = requestAnimationFrame(compute);
 
   return () => {
+    observer.disconnect();
     scroller.removeEventListener("scroll", onScroll);
     if (rafId !== null) cancelAnimationFrame(rafId);
   };
