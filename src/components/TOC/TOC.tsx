@@ -20,20 +20,24 @@ const row = (level: number, active: boolean): React.CSSProperties => ({
   paddingBottom: 4,
   borderRadius: 4,
   fontSize: level === 1 ? 13 : 12,
-  // Active row promotes weight one notch and forces full text colour so
-  // a deep H4/H5 isn't hard to read when it's the section you're in.
-  fontWeight: active ? 600 : level === 1 ? 500 : 400,
+  fontWeight: level === 1 ? 500 : 400,
+  // Active row tints the text colour toward the foreground (so a
+  // muted H4/H5 reads at full strength when it's the one you're in)
+  // but otherwise stays visually identical to its neighbours. No
+  // background wash, no left bar — just a slightly stronger colour.
   color: active || level === 1 ? "var(--text)" : "var(--text-muted)",
   cursor: "pointer",
   userSelect: "none",
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
-  // box-shadow inset draws the left-bar accent without taking up width,
-  // so adding/removing the active state doesn't shift the row's content.
-  background: active ? "rgba(247, 50, 63, 0.10)" : "transparent",
-  boxShadow: active ? "inset 2px 0 0 0 var(--brand-red)" : "none",
-  transition: "background 120ms ease, box-shadow 120ms ease",
+  background: "transparent",
+  // Thin, low-opacity left bar — present only on the active row.
+  // 1px keeps it from feeling like a divider; the brand red at 60%
+  // alpha is unmissable on hover-stop but doesn't distract while
+  // reading the doc.
+  boxShadow: active ? "inset 1px 0 0 0 rgba(247, 50, 63, 0.6)" : "none",
+  transition: "color 120ms ease, box-shadow 120ms ease",
 });
 
 const emptyStyle: React.CSSProperties = {
@@ -77,17 +81,11 @@ function TocRow({
   return (
     <div
       onClick={() => onJump(heading, index)}
-      // Hover overlays a slightly darker tint on top of the active wash
-      // (or the transparent base) without overwriting the active accent.
       onMouseEnter={(e) =>
-        ((e.currentTarget as HTMLDivElement).style.background = active
-          ? "rgba(247, 50, 63, 0.16)"
-          : "rgba(0,0,0,0.04)")
+        ((e.currentTarget as HTMLDivElement).style.background = "rgba(0,0,0,0.04)")
       }
       onMouseLeave={(e) =>
-        ((e.currentTarget as HTMLDivElement).style.background = active
-          ? "rgba(247, 50, 63, 0.10)"
-          : "transparent")
+        ((e.currentTarget as HTMLDivElement).style.background = "transparent")
       }
       style={baseStyle}
       aria-current={active ? "location" : undefined}

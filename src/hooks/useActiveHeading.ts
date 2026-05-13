@@ -203,16 +203,32 @@ function bindEdit(
   headingsRef: { current: Heading[] },
   setActiveIndex: (next: number | ((prev: number) => number)) => void,
 ): () => void {
-  let rafId: number | null = null;
+  // CodeMirror's `view.scrollDOM` *should* fire scroll events on user
+  // scroll, but in our shell the listener wasn't catching them reliably
+  // (likely a timing / re-mount edge case we couldn't nail down from
+  // the outside). An rAF loop watching `scrollDOM.scrollTop` is a
+  // bulletproof fallback: the loop yields a frame between samples,
+  // and the early-out when scrollTop hasn't changed makes the steady
+  // state cost a single property read per frame.
   const scroller = view.scrollDOM;
+  let rafId: number | null = null;
+  let cancelled = false;
+  let lastScrollTop = -1;
+  let lastTopLine = -1;
 
-  function compute() {
-    rafId = null;
-    // The EditorView could be torn down between the scroll event and
-    // the next frame; guard against a use-after-destroy.
+  function tick() {
+    if (cancelled) return;
+    rafId = requestAnimationFrame(tick);
+    // The EditorView could be torn down between two frames; guard
+    // against a use-after-destroy.
     if (!view.state) return;
-    const block = view.lineBlockAtHeight(scroller.scrollTop);
+    const st = scroller.scrollTop;
+    if (st === lastScrollTop) return;
+    lastScrollTop = st;
+    const block = view.lineBlockAtHeight(st);
     const topLine = view.state.doc.lineAt(block.from).number; // 1-indexed
+    if (topLine === lastTopLine) return;
+    lastTopLine = topLine;
     const hs = headingsRef.current;
     let last = -1;
     for (let i = 0; i < hs.length; i++) {
@@ -222,16 +238,10 @@ function bindEdit(
     setActiveIndex((prev: number) => (prev === last ? prev : last));
   }
 
-  function onScroll() {
-    if (rafId !== null) return;
-    rafId = requestAnimationFrame(compute);
-  }
-
-  scroller.addEventListener("scroll", onScroll, { passive: true });
-  rafId = requestAnimationFrame(compute);
+  rafId = requestAnimationFrame(tick);
 
   return () => {
-    scroller.removeEventListener("scroll", onScroll);
+    cancelled = true;
     if (rafId !== null) cancelAnimationFrame(rafId);
   };
 }
