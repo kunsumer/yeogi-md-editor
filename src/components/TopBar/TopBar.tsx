@@ -12,6 +12,16 @@ interface Props {
   viewModeLocked?: boolean;
   onSetViewMode(mode: ViewMode): void;
   onSetAutosaveEnabled(enabled: boolean): void;
+  /**
+   * When defined the pane-split segmented control is rendered (single
+   * vs. two-column). Only the primary pane wires this — the secondary
+   * pane already has the close-X on its tabs.
+   */
+  paneSplit?: {
+    hasSecondary: boolean;
+    onOpenSecondary(): void;
+    onCloseSecondary(): void;
+  };
 }
 
 const wrap: React.CSSProperties = {
@@ -65,6 +75,23 @@ const segBtn = (active: boolean): React.CSSProperties => ({
   transition: "background 120ms, color 120ms",
 });
 
+// Square version of segBtn for icon-only buttons. Keeps the same active/
+// inactive colour treatment as the WYSIWYG/Edit segment so they read as
+// one toolbar family.
+const segIconBtn = (active: boolean): React.CSSProperties => ({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 30,
+  height: 28,
+  padding: 0,
+  border: 0,
+  background: active ? "var(--text)" : "transparent",
+  color: active ? "var(--bg)" : "var(--text-muted)",
+  cursor: "pointer",
+  transition: "background 120ms, color 120ms",
+});
+
 const autosaveWrap: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
@@ -103,6 +130,7 @@ export function TopBar({
   viewModeLocked = false,
   onSetViewMode,
   onSetAutosaveEnabled,
+  paneSplit,
 }: Props) {
   const filename = active?.path ? active.path.split("/").pop() : "Untitled";
   const wordCount = (active?.content ?? "").trim().split(/\s+/).filter(Boolean).length;
@@ -190,6 +218,71 @@ export function TopBar({
           </button>
         </div>
       )}
+      {paneSplit && (
+        <div style={segWrap} role="group" aria-label="Pane layout">
+          <button
+            type="button"
+            style={segIconBtn(!paneSplit.hasSecondary)}
+            onClick={() => {
+              if (paneSplit.hasSecondary) paneSplit.onCloseSecondary();
+            }}
+            aria-pressed={!paneSplit.hasSecondary}
+            aria-label="Single pane"
+            title="Single pane"
+          >
+            <SinglePaneIcon />
+          </button>
+          <button
+            type="button"
+            style={segIconBtn(paneSplit.hasSecondary)}
+            onClick={() => {
+              if (!paneSplit.hasSecondary) paneSplit.onOpenSecondary();
+            }}
+            aria-pressed={paneSplit.hasSecondary}
+            aria-label="Split into two panes"
+            title="Split into two panes"
+          >
+            <SplitPaneIcon />
+          </button>
+        </div>
+      )}
     </div>
+  );
+}
+
+function SinglePaneIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
+    </svg>
+  );
+}
+
+function SplitPaneIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
+      <line x1="8" y1="3.5" x2="8" y2="12.5" />
+    </svg>
   );
 }

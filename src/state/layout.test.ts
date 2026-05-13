@@ -177,6 +177,27 @@ describe("useLayout (secondary pane)", () => {
     expect(useLayout.getState().focusedPaneId).toBe("secondary");
   });
 
+  it("closeSecondary collapses to single pane and refocuses primary", () => {
+    useLayout.getState().openInFocusedPane("doc-a");
+    useLayout.getState().openToTheSide("doc-b");
+    expect(useLayout.getState().secondary).not.toBeNull();
+    expect(useLayout.getState().focusedPaneId).toBe("secondary");
+    useLayout.getState().closeSecondary();
+    const s = useLayout.getState();
+    expect(s.secondary).toBeNull();
+    expect(s.focusedPaneId).toBe("primary");
+    // Primary's tab stack is untouched.
+    expect(s.primary.tabs).toEqual(["doc-a"]);
+  });
+
+  it("closeSecondary is a no-op when there is no secondary", () => {
+    useLayout.getState().openInFocusedPane("doc-a");
+    expect(useLayout.getState().secondary).toBeNull();
+    useLayout.getState().closeSecondary();
+    expect(useLayout.getState().secondary).toBeNull();
+    expect(useLayout.getState().focusedPaneId).toBe("primary");
+  });
+
   it("setPaneSplit clamps to [0.2, 0.8]", () => {
     useLayout.getState().setPaneSplit(0.05);
     expect(useLayout.getState().paneSplit).toBe(0.2);

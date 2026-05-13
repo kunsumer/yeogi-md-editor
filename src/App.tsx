@@ -1220,6 +1220,15 @@ export default function App() {
               .getState()
               .replaceContentFromDisk(active.id, { content: r.content, mtimeMs: r.mtime_ms });
           }}
+          hasSecondary={!!secondary}
+          onOpenSecondary={() => {
+            // Split using whichever doc is active in primary; without one
+            // there's nothing meaningful to mirror, so we bail.
+            const docId = primary.activeTabId;
+            if (!docId) return;
+            useLayout.getState().openToTheSide(docId);
+          }}
+          onCloseSecondary={() => useLayout.getState().closeSecondary()}
         />
         {secondary && (
           <>

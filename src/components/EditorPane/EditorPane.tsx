@@ -56,6 +56,13 @@ interface Props {
   // ConflictBanner handlers.
   onConflictKeep?: () => void;
   onConflictReload?: () => void;
+
+  // Pane-split toolbar group — wired only on the primary pane so the
+  // segmented control appears once at the window level (the secondary
+  // pane closes via its own tab Xs or via the "single pane" icon here).
+  hasSecondary?: boolean;
+  onOpenSecondary?: () => void;
+  onCloseSecondary?: () => void;
 }
 
 const mainStyle: React.CSSProperties = {
@@ -104,6 +111,9 @@ export function EditorPane({
   onUpdateDismiss,
   onConflictKeep,
   onConflictReload,
+  hasSecondary,
+  onOpenSecondary,
+  onCloseSecondary,
 }: Props) {
   const active = documents.find((d) => d.id === pane.activeTabId) ?? null;
 
@@ -154,6 +164,15 @@ export function EditorPane({
         onSetAutosaveEnabled={(enabled) => {
           if (active) onSetAutosaveEnabled?.(active.id, enabled);
         }}
+        paneSplit={
+          pane.id === "primary" && onOpenSecondary && onCloseSecondary
+            ? {
+                hasSecondary: !!hasSecondary,
+                onOpenSecondary,
+                onCloseSecondary,
+              }
+            : undefined
+        }
       />
       {sameDocLock && (
         <div

@@ -33,6 +33,13 @@ interface LayoutState {
    */
   reorderTabs(paneId: PaneId, docId: string, beforeId: string | null): void;
   setPaneSplit(fraction: number): void;
+  /**
+   * Collapse the secondary pane back to single-pane view. Tabs in
+   * secondary are dropped without closing their underlying documents
+   * (the docs may still be open in primary). Focus moves to primary.
+   * No-op when there is no secondary.
+   */
+  closeSecondary(): void;
 }
 
 const emptyPrimary: Pane = {
@@ -174,6 +181,11 @@ export const useLayout = create<LayoutState>((set, get) => ({
       return;
     }
     setPane(set, paneId, { ...pane, tabs: nextTabs });
+  },
+
+  closeSecondary() {
+    if (!get().secondary) return;
+    set({ secondary: null, focusedPaneId: "primary" });
   },
 
   closeTab(paneId, docId) {
