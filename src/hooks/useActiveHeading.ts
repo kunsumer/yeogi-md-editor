@@ -203,34 +203,26 @@ function bindEdit(
   headingsRef: { current: Heading[] },
   setActiveIndex: (next: number | ((prev: number) => number)) => void,
 ): () => void {
-  // Belt-and-suspenders wakeup sources:
-  //   1. `scroll` on `view.scrollDOM` — the documented scrolling element.
-  //   2. `scroll` on `view.dom` — in case our shell bubbles scrolls up.
-  //   3. `wheel` on `view.dom` — fires even if scroll events somehow don't.
-  //   4. A 200 ms interval — last-resort safety net that guarantees
-  //      a recompute even when none of the listeners above fire.
+  // CodeMirror exposes the currently rendered range as `view.viewport`
+  // — `view.viewport.from` is the document position at the top of the
+  // visible viewport, updated by CodeMirror itself on every scroll /
+  // selection change / content edit. Reading that directly bypasses
+  // any `scrollTop` / `lineBlockAtHeight` plumbing in the shell.
   //
-  // Each source converges on `schedule()`, which coalesces multiple
-  // wakeups in the same frame into a single `compute()` via rAF.
-  // Cost in the steady state is essentially zero: a stable scrollTop
-  // early-outs before any walk.
-  const scroller = view.scrollDOM;
-  let scheduled = false;
+  // No rAF indirection, no event listeners: a 100 ms interval polls
+  // viewport.from, converts to a 1-indexed line, and updates if it
+  // changed. Two property reads per tick when nothing's moving;
+  // negligible cost.
   let cancelled = false;
-  let lastScrollTop = -1;
   let lastTopLine = -2;
 
   function compute() {
-    scheduled = false;
     if (cancelled) return;
-    // The EditorView could be torn down between scroll and rAF; guard
-    // against a use-after-destroy.
+    // EditorView could be torn down between ticks; guard against a
+    // use-after-destroy.
     if (!view.state) return;
-    const st = scroller.scrollTop;
-    if (st === lastScrollTop) return;
-    lastScrollTop = st;
-    const block = view.lineBlockAtHeight(st);
-    const topLine = view.state.doc.lineAt(block.from).number; // 1-indexed
+    const topPos = view.viewport.from;
+    const topLine = view.state.doc.lineAt(topPos).number; // 1-indexed
     if (topLine === lastTopLine) return;
     lastTopLine = topLine;
     const hs = headingsRef.current;
@@ -242,26 +234,12 @@ function bindEdit(
     setActiveIndex((prev: number) => (prev === last ? prev : last));
   }
 
-  function schedule() {
-    if (scheduled || cancelled) return;
-    scheduled = true;
-    requestAnimationFrame(compute);
-  }
-
-  scroller.addEventListener("scroll", schedule, { passive: true });
-  view.dom.addEventListener("scroll", schedule, { passive: true });
-  view.dom.addEventListener("wheel", schedule, { passive: true });
-  const intervalId = window.setInterval(schedule, 200);
-
-  // Kick off once so the initial position lands without waiting for a
-  // user gesture or the first interval tick.
-  schedule();
+  const intervalId = window.setInterval(compute, 100);
+  // Kick off once so the initial position lands immediately.
+  compute();
 
   return () => {
     cancelled = true;
     window.clearInterval(intervalId);
-    scroller.removeEventListener("scroll", schedule);
-    view.dom.removeEventListener("scroll", schedule);
-    view.dom.removeEventListener("wheel", schedule);
   };
 }
