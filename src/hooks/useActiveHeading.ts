@@ -227,6 +227,7 @@ function bindEdit(
   headingsRef: { current: Heading[] },
   setActiveIndex: (next: number | ((prev: number) => number)) => void,
 ): () => void {
+  let tickCount = 0;
   // CodeMirror exposes the currently rendered range as `view.viewport`
   // — `view.viewport.from` is the document position at the top of the
   // visible viewport, updated by CodeMirror itself on every scroll /
@@ -241,15 +242,30 @@ function bindEdit(
   let lastTopLine = -2;
 
   function compute() {
-    if (cancelled) return;
+    tickCount++;
+    if (cancelled) {
+      debug("Edit tick #" + tickCount + " cancelled");
+      return;
+    }
     // EditorView could be torn down between ticks; guard against a
     // use-after-destroy.
     if (!view.state) {
-      debug("Edit compute: view.state null (destroyed?)");
+      debug("Edit tick #" + tickCount + " view.state null");
       return;
     }
+    // Log every 10th tick (~1s) regardless of early-exit so we can
+    // tell the interval is firing.
+    const liveScrollTop = view.scrollDOM ? view.scrollDOM.scrollTop : -1;
     const topPos = view.viewport.from;
     const topLine = view.state.doc.lineAt(topPos).number; // 1-indexed
+    if (tickCount % 10 === 0) {
+      debug("Edit tick #" + tickCount, {
+        viewportFrom: topPos,
+        scrollTop: liveScrollTop,
+        topLine,
+        lastTopLine,
+      });
+    }
     if (topLine === lastTopLine) return;
     lastTopLine = topLine;
     const hs = headingsRef.current;
@@ -258,7 +274,7 @@ function bindEdit(
       if (hs[i].line <= topLine) last = i;
       else break;
     }
-    debug("Edit compute", { topPos, topLine, hsLen: hs.length, activeIndex: last });
+    debug("Edit compute change", { topPos, topLine, hsLen: hs.length, activeIndex: last });
     setActiveIndex((prev: number) => (prev === last ? prev : last));
   }
 
