@@ -779,9 +779,14 @@ export default function App() {
   );
 
   // Tracks which heading the user is currently inside so the Outline
-  // panel can highlight that row. Only the WYSIWYG scroller is tracked;
-  // in Edit mode the hook returns -1 and no row is highlighted.
-  const activeHeadingIndex = useActiveHeading(headings);
+  // panel can highlight that row. Handles both view modes: walks the
+  // rendered DOM in WYSIWYG mode and uses CodeMirror's
+  // lineBlockAtHeight() in Edit mode.
+  const activeHeadingIndex = useActiveHeading(
+    headings,
+    focusedPane?.viewMode ?? "wysiwyg",
+    viewRef,
+  );
 
   // Top-level block anchors used for view-mode scroll sync. Wider than
   // `headings` (includes paragraphs, lists, code, tables, etc.) so the
