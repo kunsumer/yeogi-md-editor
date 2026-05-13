@@ -6,6 +6,8 @@ import { useBacklinks } from "../../hooks/useBacklinks";
 interface Props {
   hasDocument: boolean;
   headings: Heading[];
+  /** Index of the heading the user is currently reading (-1 = none). */
+  activeIndex?: number;
   /** The currently-focused pane's active doc path; null when no doc open. */
   activeDocPath: string | null;
   /** The open folder in the Files panel; null when no folder picked. */
@@ -20,6 +22,7 @@ interface Props {
 export function TocPanel({
   hasDocument,
   headings,
+  activeIndex,
   activeDocPath,
   folder,
   onJump,
@@ -51,7 +54,7 @@ export function TocPanel({
           {empty}
         </div>
       ) : (
-        <TOC headings={headings} onJump={onJump} />
+        <TOC headings={headings} activeIndex={activeIndex} onJump={onJump} />
       )}
       {/* Backlinks section. Only renders when a folder is open and we have
           an active doc — without those, there's nothing to scan. */}
