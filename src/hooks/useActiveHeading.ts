@@ -38,6 +38,17 @@ import { slugify } from "../lib/slug";
  * poll (~30 frames, half a second) so the listener attaches as soon
  * as the editor lands in the DOM.
  */
+// Set `window.__yeogiTocDebug = true` in DevTools to log every step of
+// the active-heading hook. Off by default — production users won't see
+// anything. Throwaway diagnostic instrumentation; trim once Edit-mode
+// highlight is verified working.
+function debug(...args: unknown[]) {
+  if (typeof window !== "undefined" && (window as unknown as { __yeogiTocDebug?: boolean }).__yeogiTocDebug) {
+    // eslint-disable-next-line no-console
+    console.log("[useActiveHeading]", ...args);
+  }
+}
+
 export function useActiveHeading(
   headings: Heading[],
   viewMode: ViewMode,
@@ -55,6 +66,7 @@ export function useActiveHeading(
   }, [headings]);
 
   useEffect(() => {
+    debug("effect re-run", { headingsLen, viewMode, viewRefCurrent: editorViewRef.current ? "set" : "null" });
     if (headingsLen === 0) {
       setActiveIndex(-1);
       return;
@@ -70,12 +82,24 @@ export function useActiveHeading(
         const root = document.querySelector<HTMLElement>(
           ".wysiwyg-content .ProseMirror",
         );
-        if (!scroller || !root) return false;
+        if (!scroller || !root) {
+          debug("WYSIWYG tryBind FAIL", { scroller: !!scroller, root: !!root });
+          return false;
+        }
+        debug("WYSIWYG bind OK");
         detach = bindWysiwyg(scroller, root, headingsRef, setActiveIndex);
         return true;
       }
       const view = editorViewRef.current;
-      if (!view) return false;
+      if (!view) {
+        debug("Edit tryBind FAIL — view ref is null");
+        return false;
+      }
+      debug("Edit bind OK", {
+        viewportFrom: view.viewport?.from,
+        scrollTop: view.scrollDOM?.scrollTop,
+        docLines: view.state?.doc.lines,
+      });
       detach = bindEdit(view, headingsRef, setActiveIndex);
       return true;
     }
@@ -220,7 +244,10 @@ function bindEdit(
     if (cancelled) return;
     // EditorView could be torn down between ticks; guard against a
     // use-after-destroy.
-    if (!view.state) return;
+    if (!view.state) {
+      debug("Edit compute: view.state null (destroyed?)");
+      return;
+    }
     const topPos = view.viewport.from;
     const topLine = view.state.doc.lineAt(topPos).number; // 1-indexed
     if (topLine === lastTopLine) return;
@@ -231,6 +258,7 @@ function bindEdit(
       if (hs[i].line <= topLine) last = i;
       else break;
     }
+    debug("Edit compute", { topPos, topLine, hsLen: hs.length, activeIndex: last });
     setActiveIndex((prev: number) => (prev === last ? prev : last));
   }
 
