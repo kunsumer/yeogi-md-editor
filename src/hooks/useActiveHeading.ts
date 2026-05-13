@@ -203,23 +203,27 @@ function bindEdit(
   headingsRef: { current: Heading[] },
   setActiveIndex: (next: number | ((prev: number) => number)) => void,
 ): () => void {
-  // CodeMirror's `view.scrollDOM` *should* fire scroll events on user
-  // scroll, but in our shell the listener wasn't catching them reliably
-  // (likely a timing / re-mount edge case we couldn't nail down from
-  // the outside). An rAF loop watching `scrollDOM.scrollTop` is a
-  // bulletproof fallback: the loop yields a frame between samples,
-  // and the early-out when scrollTop hasn't changed makes the steady
-  // state cost a single property read per frame.
+  // Belt-and-suspenders wakeup sources:
+  //   1. `scroll` on `view.scrollDOM` — the documented scrolling element.
+  //   2. `scroll` on `view.dom` — in case our shell bubbles scrolls up.
+  //   3. `wheel` on `view.dom` — fires even if scroll events somehow don't.
+  //   4. A 200 ms interval — last-resort safety net that guarantees
+  //      a recompute even when none of the listeners above fire.
+  //
+  // Each source converges on `schedule()`, which coalesces multiple
+  // wakeups in the same frame into a single `compute()` via rAF.
+  // Cost in the steady state is essentially zero: a stable scrollTop
+  // early-outs before any walk.
   const scroller = view.scrollDOM;
-  let rafId: number | null = null;
+  let scheduled = false;
   let cancelled = false;
   let lastScrollTop = -1;
-  let lastTopLine = -1;
+  let lastTopLine = -2;
 
-  function tick() {
+  function compute() {
+    scheduled = false;
     if (cancelled) return;
-    rafId = requestAnimationFrame(tick);
-    // The EditorView could be torn down between two frames; guard
+    // The EditorView could be torn down between scroll and rAF; guard
     // against a use-after-destroy.
     if (!view.state) return;
     const st = scroller.scrollTop;
@@ -238,10 +242,26 @@ function bindEdit(
     setActiveIndex((prev: number) => (prev === last ? prev : last));
   }
 
-  rafId = requestAnimationFrame(tick);
+  function schedule() {
+    if (scheduled || cancelled) return;
+    scheduled = true;
+    requestAnimationFrame(compute);
+  }
+
+  scroller.addEventListener("scroll", schedule, { passive: true });
+  view.dom.addEventListener("scroll", schedule, { passive: true });
+  view.dom.addEventListener("wheel", schedule, { passive: true });
+  const intervalId = window.setInterval(schedule, 200);
+
+  // Kick off once so the initial position lands without waiting for a
+  // user gesture or the first interval tick.
+  schedule();
 
   return () => {
     cancelled = true;
-    if (rafId !== null) cancelAnimationFrame(rafId);
+    window.clearInterval(intervalId);
+    scroller.removeEventListener("scroll", schedule);
+    view.dom.removeEventListener("scroll", schedule);
+    view.dom.removeEventListener("wheel", schedule);
   };
 }
