@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 export type PaneId = "primary" | "secondary";
 export type ViewMode = "edit" | "wysiwyg";
+export type SplitOrientation = "horizontal" | "vertical";
 
 export interface Pane {
   id: PaneId;
@@ -15,6 +16,13 @@ interface LayoutState {
   secondary: Pane | null;
   focusedPaneId: PaneId;
   paneSplit: number;
+  /**
+   * "horizontal" = panes sit side-by-side (vertical divider between them);
+   * "vertical" = panes stack top/bottom (horizontal divider). Only
+   * meaningful when `secondary` is non-null; persists between splits so
+   * reopening a side-by-side keeps the user's last choice.
+   */
+  splitOrientation: SplitOrientation;
 
   openInFocusedPane(docId: string): void;
   openToTheSide(docId: string): void;
@@ -40,6 +48,8 @@ interface LayoutState {
    * No-op when there is no secondary.
    */
   closeSecondary(): void;
+  /** Switch the divider axis. Layout-only; tabs and focus are unchanged. */
+  setSplitOrientation(orientation: SplitOrientation): void;
 }
 
 const emptyPrimary: Pane = {
@@ -63,6 +73,7 @@ export const useLayout = create<LayoutState>((set, get) => ({
   secondary: null,
   focusedPaneId: "primary",
   paneSplit: 0.5,
+  splitOrientation: "horizontal",
 
   openInFocusedPane(docId) {
     const { primary, secondary, focusedPaneId } = get();
@@ -186,6 +197,11 @@ export const useLayout = create<LayoutState>((set, get) => ({
   closeSecondary() {
     if (!get().secondary) return;
     set({ secondary: null, focusedPaneId: "primary" });
+  },
+
+  setSplitOrientation(orientation) {
+    if (get().splitOrientation === orientation) return;
+    set({ splitOrientation: orientation });
   },
 
   closeTab(paneId, docId) {

@@ -57,12 +57,13 @@ interface Props {
   onConflictKeep?: () => void;
   onConflictReload?: () => void;
 
-  // Pane-split toolbar group — wired only on the primary pane so the
+  // Pane-layout toolbar group — wired only on the primary pane so the
   // segmented control appears once at the window level (the secondary
   // pane closes via its own tab Xs or via the "single pane" icon here).
-  hasSecondary?: boolean;
-  onOpenSecondary?: () => void;
-  onCloseSecondary?: () => void;
+  paneMode?: "single" | "horizontal" | "vertical";
+  onSetPaneSingle?: () => void;
+  onSetPaneHorizontal?: () => void;
+  onSetPaneVertical?: () => void;
 }
 
 const mainStyle: React.CSSProperties = {
@@ -111,9 +112,10 @@ export function EditorPane({
   onUpdateDismiss,
   onConflictKeep,
   onConflictReload,
-  hasSecondary,
-  onOpenSecondary,
-  onCloseSecondary,
+  paneMode,
+  onSetPaneSingle,
+  onSetPaneHorizontal,
+  onSetPaneVertical,
 }: Props) {
   const active = documents.find((d) => d.id === pane.activeTabId) ?? null;
 
@@ -165,11 +167,16 @@ export function EditorPane({
           if (active) onSetAutosaveEnabled?.(active.id, enabled);
         }}
         paneSplit={
-          pane.id === "primary" && onOpenSecondary && onCloseSecondary
+          pane.id === "primary" &&
+          paneMode &&
+          onSetPaneSingle &&
+          onSetPaneHorizontal &&
+          onSetPaneVertical
             ? {
-                hasSecondary: !!hasSecondary,
-                onOpenSecondary,
-                onCloseSecondary,
+                mode: paneMode,
+                onSetSingle: onSetPaneSingle,
+                onSetHorizontal: onSetPaneHorizontal,
+                onSetVertical: onSetPaneVertical,
               }
             : undefined
         }

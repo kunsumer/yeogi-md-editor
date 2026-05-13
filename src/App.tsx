@@ -84,6 +84,7 @@ export default function App() {
   const { focusedPaneId, primary, secondary } = useLayout();
   const paneSplit = useLayout((s) => s.paneSplit);
   const setPaneSplit = useLayout.getState().setPaneSplit;
+  const splitOrientation = useLayout((s) => s.splitOrientation);
   const focusedPane = focusedPaneId === "primary" ? primary : secondary;
   const activeDocId = focusedPane?.activeTabId ?? null;
   const active = documents.find((d) => d.id === activeDocId) ?? null;
@@ -737,6 +738,38 @@ export default function App() {
           setViewMode(currentMode === "wysiwyg" ? "edit" : "wysiwyg");
           break;
         }
+        case "view:split-editor-horizontal": {
+          // ⌥⌘\\ — toggles side-by-side. If we're already in horizontal
+          // split, collapse back to single. If we're in vertical split,
+          // rotate to horizontal. If single, open the active doc on the
+          // right.
+          const layout = useLayout.getState();
+          if (layout.secondary && layout.splitOrientation === "horizontal") {
+            layout.closeSecondary();
+            break;
+          }
+          layout.setSplitOrientation("horizontal");
+          if (!layout.secondary) {
+            const docId = layout.primary.activeTabId;
+            if (docId) layout.openToTheSide(docId);
+          }
+          break;
+        }
+        case "view:split-editor-vertical": {
+          // ⇧⌥⌘\\ — toggles stacked. Same idea as the horizontal toggle
+          // but for the vertical axis.
+          const layout = useLayout.getState();
+          if (layout.secondary && layout.splitOrientation === "vertical") {
+            layout.closeSecondary();
+            break;
+          }
+          layout.setSplitOrientation("vertical");
+          if (!layout.secondary) {
+            const docId = layout.primary.activeTabId;
+            if (docId) layout.openToTheSide(docId);
+          }
+          break;
+        }
         // view:theme:<id> — handled before the switch via the startsWith
         // branch below. Keeping the switch clean of a dozen cases.
         case "file:save":
@@ -1053,18 +1086,15 @@ export default function App() {
   const showFolder = folderVisible;
   const showToc = tocVisible && active != null;
 
+  // Outer grid: optional folder + outline columns, then the editor area
+  // as a single trailing column. The primary/secondary split lives in a
+  // nested grid inside the editor area so we can switch its axis
+  // (horizontal = columns, vertical = rows) without touching the outer
+  // sidebars layout.
   const templateParts: string[] = [];
   if (showFolder) templateParts.push(`${folderWidth}px`, "4px");
   if (showToc) templateParts.push(`${tocWidth}px`, "4px");
-  if (secondary) {
-    templateParts.push(
-      `minmax(320px, ${paneSplit}fr)`,
-      "4px",
-      `minmax(320px, ${1 - paneSplit}fr)`,
-    );
-  } else {
-    templateParts.push("minmax(320px, 1fr)");
-  }
+  templateParts.push("minmax(320px, 1fr)");
 
   const bodyStyle: React.CSSProperties = {
     flex: 1,
@@ -1072,6 +1102,33 @@ export default function App() {
     display: "grid",
     gridTemplateColumns: templateParts.join(" "),
   };
+
+  // Editor area: holds primary + (optional) divider + secondary.
+  // When `secondary` is null this stays a single-cell grid; otherwise we
+  // pick rows or columns depending on splitOrientation.
+  const editorAreaStyle: React.CSSProperties = secondary
+    ? splitOrientation === "vertical"
+      ? {
+          display: "grid",
+          minWidth: 0,
+          minHeight: 0,
+          gridTemplateRows: `minmax(160px, ${paneSplit}fr) 4px minmax(160px, ${1 - paneSplit}fr)`,
+        }
+      : {
+          display: "grid",
+          minWidth: 0,
+          minHeight: 0,
+          gridTemplateColumns: `minmax(320px, ${paneSplit}fr) 4px minmax(320px, ${1 - paneSplit}fr)`,
+        }
+    : {
+        display: "grid",
+        minWidth: 0,
+        minHeight: 0,
+      };
+
+  const paneMode: "single" | "horizontal" | "vertical" = !secondary
+    ? "single"
+    : splitOrientation;
 
   const paneProps = {
     documents,
@@ -1193,59 +1250,71 @@ export default function App() {
             />
           </>
         )}
-        <EditorPane
-          pane={primary}
-          isFocused={focusedPaneId === "primary"}
-          otherPaneActiveTabId={secondary?.activeTabId ?? null}
-          {...paneProps}
-          searchOpen={searchOpen}
-          searchReplace={searchReplace}
-          searchFocusSeq={searchFocusSeq}
-          onSearchClose={() => setSearchOpen(false)}
-          onEditorReady={(view) => {
-            viewRef.current = view;
-          }}
-          updateStatus={updater.status}
-          onUpdateInstall={(u) => updater.applyUpdate(u)}
-          onUpdateDismiss={updater.dismiss}
-          onConflictKeep={async () => {
-            if (!active) return;
-            useDocuments.getState().setConflict(active.id, null);
-            if (flushRef.current) await flushRef.current();
-          }}
-          onConflictReload={async () => {
-            if (!active?.path) return;
-            const r = await fsRead(active.path);
-            useDocuments
-              .getState()
-              .replaceContentFromDisk(active.id, { content: r.content, mtimeMs: r.mtime_ms });
-          }}
-          hasSecondary={!!secondary}
-          onOpenSecondary={() => {
-            // Split using whichever doc is active in primary; without one
-            // there's nothing meaningful to mirror, so we bail.
-            const docId = primary.activeTabId;
-            if (!docId) return;
-            useLayout.getState().openToTheSide(docId);
-          }}
-          onCloseSecondary={() => useLayout.getState().closeSecondary()}
-        />
-        {secondary && (
-          <>
-            <ResizeHandle
-              width={Math.round(paneSplit * 1000)}
-              min={200}
-              max={800}
-              onChange={(w) => setPaneSplit(w / 1000)}
-            />
-            <EditorPane
-              pane={secondary}
-              isFocused={focusedPaneId === "secondary"}
-              otherPaneActiveTabId={primary.activeTabId}
-              {...paneProps}
-            />
-          </>
-        )}
+        <div style={editorAreaStyle}>
+          <EditorPane
+            pane={primary}
+            isFocused={focusedPaneId === "primary"}
+            otherPaneActiveTabId={secondary?.activeTabId ?? null}
+            {...paneProps}
+            searchOpen={searchOpen}
+            searchReplace={searchReplace}
+            searchFocusSeq={searchFocusSeq}
+            onSearchClose={() => setSearchOpen(false)}
+            onEditorReady={(view) => {
+              viewRef.current = view;
+            }}
+            updateStatus={updater.status}
+            onUpdateInstall={(u) => updater.applyUpdate(u)}
+            onUpdateDismiss={updater.dismiss}
+            onConflictKeep={async () => {
+              if (!active) return;
+              useDocuments.getState().setConflict(active.id, null);
+              if (flushRef.current) await flushRef.current();
+            }}
+            onConflictReload={async () => {
+              if (!active?.path) return;
+              const r = await fsRead(active.path);
+              useDocuments
+                .getState()
+                .replaceContentFromDisk(active.id, { content: r.content, mtimeMs: r.mtime_ms });
+            }}
+            paneMode={paneMode}
+            onSetPaneSingle={() => useLayout.getState().closeSecondary()}
+            onSetPaneHorizontal={() => {
+              const layout = useLayout.getState();
+              layout.setSplitOrientation("horizontal");
+              if (!layout.secondary) {
+                const docId = layout.primary.activeTabId;
+                if (docId) layout.openToTheSide(docId);
+              }
+            }}
+            onSetPaneVertical={() => {
+              const layout = useLayout.getState();
+              layout.setSplitOrientation("vertical");
+              if (!layout.secondary) {
+                const docId = layout.primary.activeTabId;
+                if (docId) layout.openToTheSide(docId);
+              }
+            }}
+          />
+          {secondary && (
+            <>
+              <ResizeHandle
+                width={Math.round(paneSplit * 1000)}
+                min={200}
+                max={800}
+                axis={splitOrientation === "vertical" ? "y" : "x"}
+                onChange={(w) => setPaneSplit(w / 1000)}
+              />
+              <EditorPane
+                pane={secondary}
+                isFocused={focusedPaneId === "secondary"}
+                otherPaneActiveTabId={primary.activeTabId}
+                {...paneProps}
+              />
+            </>
+          )}
+        </div>
       </div>
       <StatusBar
         saveState={active?.saveState ?? "idle"}

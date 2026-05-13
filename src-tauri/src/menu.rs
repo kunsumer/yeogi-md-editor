@@ -179,6 +179,17 @@ pub fn build_menu<R: Runtime>(
         )
         .separator()
         .item(
+            &MenuItemBuilder::with_id("view:split-editor-horizontal", "Split Editor (Side by Side)")
+                .accelerator("Alt+CmdOrCtrl+Backslash")
+                .build(app)?,
+        )
+        .item(
+            &MenuItemBuilder::with_id("view:split-editor-vertical", "Split Editor (Stacked)")
+                .accelerator("Shift+Alt+CmdOrCtrl+Backslash")
+                .build(app)?,
+        )
+        .separator()
+        .item(
             &MenuItemBuilder::with_id("view:toggle-edit-mode", "Toggle Edit / WYSIWYG")
                 .accelerator("CmdOrCtrl+E")
                 .build(app)?,
