@@ -90,6 +90,10 @@ export function useActiveHeading(
         detach = bindWysiwyg(scroller, root, headingsRef, setActiveIndex);
         return true;
       }
+      // Don't capture the view in a closure — StrictMode (and any
+      // future re-mount path) can destroy it between bind and tick.
+      // bindEdit reads `editorViewRef.current` on every tick instead,
+      // so it always sees the live view in the DOM.
       const view = editorViewRef.current;
       if (!view) {
         debug("Edit tryBind FAIL — view ref is null");
@@ -100,7 +104,7 @@ export function useActiveHeading(
         scrollTop: view.scrollDOM?.scrollTop,
         docLines: view.state?.doc.lines,
       });
-      detach = bindEdit(view, headingsRef, setActiveIndex);
+      detach = bindEdit(editorViewRef, headingsRef, setActiveIndex);
       return true;
     }
 
@@ -223,21 +227,16 @@ function bindWysiwyg(
 }
 
 function bindEdit(
-  view: EditorView,
+  viewRef: { current: EditorView | null },
   headingsRef: { current: Heading[] },
   setActiveIndex: (next: number | ((prev: number) => number)) => void,
 ): () => void {
   let tickCount = 0;
-  // CodeMirror exposes the currently rendered range as `view.viewport`
-  // — `view.viewport.from` is the document position at the top of the
-  // visible viewport, updated by CodeMirror itself on every scroll /
-  // selection change / content edit. Reading that directly bypasses
-  // any `scrollTop` / `lineBlockAtHeight` plumbing in the shell.
-  //
-  // No rAF indirection, no event listeners: a 100 ms interval polls
-  // viewport.from, converts to a 1-indexed line, and updates if it
-  // changed. Two property reads per tick when nothing's moving;
-  // negligible cost.
+  // Read `viewRef.current` on every tick so we always see the live
+  // EditorView in the DOM, not a captured stale one. StrictMode's
+  // dev-mode double-mount can destroy a freshly created view between
+  // setup and the first tick; capturing in a closure would leave the
+  // hook bound to the dead instance forever.
   let cancelled = false;
   let lastTopLine = -2;
 
@@ -247,10 +246,10 @@ function bindEdit(
       debug("Edit tick #" + tickCount + " cancelled");
       return;
     }
-    // EditorView could be torn down between ticks; guard against a
-    // use-after-destroy.
-    if (!view.state) {
-      debug("Edit tick #" + tickCount + " view.state null");
+    const view = viewRef.current;
+    if (!view || !view.state) {
+      // No live view yet (or just torn down). Keep polling — the next
+      // tick may pick up a fresh view if Editor finishes mounting.
       return;
     }
     // Log every 10th tick (~1s) regardless of early-exit so we can
