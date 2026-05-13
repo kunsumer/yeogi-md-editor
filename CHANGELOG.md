@@ -2,6 +2,17 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.4.15 — 2026-05-13
+
+### New
+
+- **The Outline panel highlights the section you're currently reading.** A subtle red wash + 2px left bar marks the heading that's at the top of the viewport, so you can tell at a glance where you are in a long doc. Works in both **WYSIWYG** (walks the rendered `<h*>` elements) and **Edit** mode (reads the top line from CodeMirror's scroll viewport). The active row also bumps font weight one notch and forces full text colour, so a deep H4/H5 is still legible when it's the section you're in.
+- **Extensionless text files now show in the file explorer.** Files like `.env`, `Dockerfile`, `Makefile`, `LICENSE`, and `Procfile` previously disappeared because the explorer filtered by extension. The folder lister now sniffs the first 4 KB of any extensionless file: if there are no NUL bytes, it surfaces. Extensionless binaries (lock files, compiled blobs) are still filtered out. Files with recognized text extensions are unaffected — they pass through the existing allow-list without any read.
+
+### Fixed
+
+- **Outline highlight no longer drifts when the doc has hidden `<h*>` elements.** YAML frontmatter, raw HTML headings inside table cells, and footnote-section labels can render as DOM `<h*>` elements that don't have a row in the Outline. The first cut paired DOM headings to TOC entries positionally, so one "extra" shifted every later highlight by one row. The pairing is now slug + level, mirroring `jumpToHeading`'s resolution.
+
 ## v0.4.14 — 2026-05-11
 
 ### Code-signing
