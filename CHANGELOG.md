@@ -2,19 +2,47 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.5.1 — 2026-05-13
+
+### Fixed
+
+- **Outline highlight finally works in Edit mode.** v0.5.0 claimed the fix but didn't actually land it: a stale-view-ref bug (React StrictMode's dev double-mount destroys the first `EditorView` between the hook's setup and its first tick, leaving the hook reading from a detached DOM forever) meant `view.viewport.from` stayed pinned at 0 no matter how far the user scrolled. The hook now reads the EditorView ref fresh on every event instead of capturing it in a closure, so a re-mounted view is picked up the next time the user interacts. Scroll-event driven now (no perpetual polling); a one-shot 5-second startup interval covers session-restored scrollTop.
+
+## v0.5.0 — 2026-05-13
+
+The Outline now reliably tracks where you are in the doc, in both view modes, in any file.
+
+### Fixed
+
+- **Outline "you are here" highlight now works in every document.** v0.4.15 introduced the highlight, v0.4.16 patched the Tiptap mount race — but the highlight still bailed silently on any file with YAML frontmatter (e.g. the bundled `Welcome.md`). Root cause: without `remark-frontmatter`, the parser was reading the closing `---` of a `---\n…\n---` block as a setext-H2 underline for the YAML body, emitting a phantom depth-2 heading whose text was `"title: …\nauthor: …"`. That phantom lived in the headings array but had no `<h*>` counterpart in the WYSIWYG DOM, so the slug-based mapping walk got stuck on it and every later heading mapped to "no match". Frontmatter now parses as a single `yaml` node and is filtered out of the heading list before mapping starts.
+- **Outline highlight now works in Edit mode too.** The first cut bound a `scroll` listener to CodeMirror's `view.scrollDOM`, which wasn't catching scroll events reliably in our shell. Swapped to a `requestAnimationFrame` poll that samples `scrollDOM.scrollTop` once per frame — early-exits when nothing changed, so the steady-state cost is a single property read per frame.
+
+### Changed
+
+- **Outline highlight is now far quieter.** The first treatment was a pink background wash + a 2px brand-red left bar + a font-weight bump — it read as "selected" and pulled the eye away from the document you were reading. Now: no background, no font-weight change, just a thin 1px left bar in muted brand red and a slight text-colour bump for the active row. Just-noticeable-enough when you glance at the Outline; invisible when you're not looking for it.
+
+## v0.4.16 — 2026-05-13
+
+### New
+
+- **Side-by-side and stacked pane splits.** A pair of icons at the right end of the active pane's tab strip opens a second editor pane. Side-by-side gives you the panes left/right; stacked gives you top/bottom. The new pane starts empty so you can pick what to load via "Create blank document / Open file(s)… / Open folder…". Each pane keeps its own tabs, focus, and view-mode toggle; closing the last tab in the secondary pane collapses back to single-column.
+- **Keyboard shortcuts for splits.** **⌥⌘\\** toggles a side-by-side split; **⇧⌥⌘\\** toggles a stacked split. Same orientation again collapses back to single. Both shortcuts are now in View → Split Editor.
+- **MIT license + open-source repo metadata.** The project now ships a proper MIT `LICENSE` file alongside the source (`github.com/kunsumer/yeogi-md-editor`). Already advertised on the landing page, just formalized in the repo so re-distributors and packagers can do their thing.
+
+### Fixed
+
+- **Outline now reliably highlights the section you're currently reading** in both WYSIWYG and Edit. The first cut of the feature shipped in v0.4.15 had a race: Tiptap's editor mounts asynchronously, and the highlight hook ran its initial DOM lookup before the headings had been rendered, then never retried. Now we retry for the first ~30 frames after the doc opens, and a `MutationObserver` on the ProseMirror root catches heading nodes inserted after the eager lookup so the map stays in sync.
+
 ## v0.4.15 — 2026-05-13
 
 ### New
 
 - **The Outline panel highlights the section you're currently reading.** A subtle red wash + 2px left bar marks the heading that's at the top of the viewport, so you can tell at a glance where you are in a long doc. Works in both **WYSIWYG** (walks the rendered `<h*>` elements) and **Edit** mode (reads the top line from CodeMirror's scroll viewport). The active row also bumps font weight one notch and forces full text colour, so a deep H4/H5 is still legible when it's the section you're in.
-- **The explorer's Reload button shows real progress.** The ⟳ icon spins until every visible folder tree has actually re-fetched from disk, then stops upright on the next full rotation — so even an instant reload is visibly acknowledged. VoiceOver hears "Reloading folder contents…" / "Folder contents reloaded", and Reduce Motion users get a static accent highlight instead of the spin.
 - **Extensionless text files now show in the file explorer.** Files like `.env`, `Dockerfile`, `Makefile`, `LICENSE`, and `Procfile` previously disappeared because the explorer filtered by extension. The folder lister now sniffs the first 4 KB of any extensionless file: if there are no NUL bytes, it surfaces. Extensionless binaries (lock files, compiled blobs) are still filtered out. Files with recognized text extensions are unaffected — they pass through the existing allow-list without any read.
 
 ### Fixed
 
 - **Outline highlight no longer drifts when the doc has hidden `<h*>` elements.** YAML frontmatter, raw HTML headings inside table cells, and footnote-section labels can render as DOM `<h*>` elements that don't have a row in the Outline. The first cut paired DOM headings to TOC entries positionally, so one "extra" shifted every later highlight by one row. The pairing is now slug + level, mirroring `jumpToHeading`'s resolution.
-- **Opening a document no longer lands you at the bottom.** The WYSIWYG editor auto-focused the caret at the *end* of the content, scrolling every freshly opened file to its last line. Files now open at the top with the caret on the first text position — and for documents that start with YAML frontmatter (or a Mermaid/math block), typing immediately after opening no longer silently deletes that block.
-- **External file changes keep your caret in place.** When a watched file was rewritten on disk and silently reloaded, the caret quietly jumped to the end of the document, so the next keystroke landed at the bottom. The caret now stays at (or as near as possible to) where it was.
 
 ## v0.4.14 — 2026-05-11
 
