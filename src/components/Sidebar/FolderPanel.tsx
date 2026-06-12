@@ -4,6 +4,7 @@ import { FileTreeContextMenu } from "../FileTree/FileTreeContextMenu";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { PromptDialog } from "../WysiwygEditor/PromptDialog";
 import { AsidePanel } from "./AsidePanel";
+import { CloseIcon } from "../icons";
 import { MAX_OPEN_FOLDERS } from "../../state/documents";
 import {
   fsCountRecursive,
@@ -57,6 +58,13 @@ interface Props {
 }
 
 /**
+ * One full rotation of the Reload button's spin animation. MUST match the
+ * `aside-reload-spin` duration in index.css — the stop timer rounds the
+ * spin up to whole rotations so the icon halts upright.
+ */
+const RELOAD_SPIN_CYCLE_MS = 700;
+
+/**
  * Returns the deepest open root that contains `docPath`, so when a folder
  * tree is nested inside another open root we light up the more specific
  * one. Returns null when the active doc lives outside every open folder.
@@ -93,6 +101,107 @@ export function FolderPanel({
   const [query, setQuery] = useState("");
   const [reloadSeq, setReloadSeq] = useState(0);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Feedback for the toolbar Reload button: the icon spins from the click
+  // until every visible FileTree has re-fetched. Completion is driven by
+  // real reports from the trees — but a local refetch is near-instant, so
+  // the spin alone would be invisible. `reloadSpinning` therefore persists
+  // past completion just long enough to finish a WHOLE rotation (the icon
+  // also stops upright instead of mid-turn). The spin never stops before
+  // the real work is done.
+  //
+  // Two pieces of state because they answer different questions:
+  //   reloadAnnounce — what is actually happening (live region + aria-busy)
+  //   reloadSpinning — what the icon shows (includes the rotation tail)
+  const [reloadAnnounce, setReloadAnnounce] = useState<
+    "idle" | "reloading" | "done"
+  >("idle");
+  const [reloadSpinning, setReloadSpinning] = useState(false);
+  // When the CSS animation started, i.e. when data-reload-state flipped to
+  // "reloading" — the rotation tail is computed relative to this so the
+  // icon always halts at a whole-rotation boundary.
+  const spinStartRef = useRef<number | null>(null);
+  // Which roots we're still waiting on, tagged with the seq they belong
+  // to so late reports from a superseded reload can't corrupt a newer one.
+  const reloadTrackRef = useRef<{ seq: number; pending: Set<string> } | null>(
+    null,
+  );
+  const reloadSpinTimerRef = useRef<number | null>(null);
+  // On unmount mid-reload, the child FileTrees' effect cleanups run AFTER
+  // ours (React tears down parent passive effects first) and their
+  // cancellation reports can drain pending → finishReload — which would
+  // schedule a spin-tail timer nothing clears. The flag makes finishReload
+  // a no-op once we're gone.
+  const unmountedRef = useRef(false);
+  useEffect(() => {
+    // Reset on EVERY setup, not just initialized once: React.StrictMode
+    // (dev) mounts → unmounts → remounts, and a cleanup-only effect would
+    // leave the flag stuck at true after the remount — finishReload would
+    // then never schedule the stop timer and the icon would spin forever.
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      if (reloadSpinTimerRef.current != null) {
+        window.clearTimeout(reloadSpinTimerRef.current);
+      }
+    };
+  }, []);
+
+  function finishReload() {
+    reloadTrackRef.current = null;
+    if (unmountedRef.current) return;
+    setReloadAnnounce("done");
+    // Let the icon complete its current rotation before stopping.
+    const started = spinStartRef.current ?? performance.now();
+    const elapsed = performance.now() - started;
+    const tail = RELOAD_SPIN_CYCLE_MS - (elapsed % RELOAD_SPIN_CYCLE_MS);
+    if (reloadSpinTimerRef.current != null) {
+      window.clearTimeout(reloadSpinTimerRef.current);
+    }
+    reloadSpinTimerRef.current = window.setTimeout(() => {
+      reloadSpinTimerRef.current = null;
+      spinStartRef.current = null;
+      setReloadSpinning(false);
+      setReloadAnnounce("idle");
+    }, tail);
+  }
+
+  function handleReloadClick() {
+    // A new reload supersedes a still-running spin tail — kill its pending
+    // stop timer, or it would fire mid-flight and halt the spinner while
+    // trees are still fetching.
+    if (reloadSpinTimerRef.current != null) {
+      window.clearTimeout(reloadSpinTimerRef.current);
+      reloadSpinTimerRef.current = null;
+    }
+    const nextSeq = reloadSeq + 1;
+    setReloadSeq(nextSeq);
+    // Only (re)stamp the animation start when the icon is actually idle —
+    // re-clicking mid-spin doesn't restart the CSS animation, so the
+    // whole-rotation math must stay anchored to the original start.
+    if (spinStartRef.current == null) {
+      spinStartRef.current = performance.now();
+    }
+    setReloadSpinning(true);
+    setReloadAnnounce("reloading");
+    // Collapsed groups unmount their FileTree — they can't reload now and
+    // will re-fetch from disk anyway when re-expanded, so only the visible
+    // trees are worth waiting on. With none visible there's nothing to
+    // await: report done immediately (the icon still shows one rotation).
+    const visible = allRoots.filter((p) => !collapsedFolders.has(p));
+    if (visible.length === 0) {
+      finishReload();
+      return;
+    }
+    reloadTrackRef.current = { seq: nextSeq, pending: new Set(visible) };
+  }
+
+  function handleTreeReloadDone(root: string, seq: number) {
+    const track = reloadTrackRef.current;
+    if (!track || seq !== track.seq) return;
+    track.pending.delete(root);
+    if (track.pending.size === 0) finishReload();
+  }
 
   // Per-tree expand/collapse counters. Maps from folder root → seq number.
   // Bumping a single root's counter only re-runs the expand/collapse effect
@@ -201,11 +310,23 @@ export function FolderPanel({
         type="button"
         aria-label="Reload folders"
         title="Reload folder contents from disk"
-        onClick={() => setReloadSeq((n) => n + 1)}
+        onClick={handleReloadClick}
         className="aside-header-btn"
+        data-reload-state={reloadSpinning ? "reloading" : "idle"}
+        aria-busy={reloadAnnounce === "reloading"}
       >
         <ReloadIcon />
       </button>
+      {/* Polite announcement of the REAL work state (not the cosmetic
+          rotation tail) so VoiceOver users get the same "it actually
+          reloaded" signal. */}
+      <span role="status" className="visually-hidden">
+        {reloadAnnounce === "reloading"
+          ? "Reloading folder contents…"
+          : reloadAnnounce === "done"
+            ? "Folder contents reloaded"
+            : ""}
+      </span>
       <button
         type="button"
         aria-label={`Expand all in ${selectedFolder ? selectedFolder.split("/").pop() : "the selected folder"}`}
@@ -328,6 +449,7 @@ export function FolderPanel({
                 expandAllSeq={expandByPath.get(p) ?? 0}
                 collapseAllSeq={collapseByPath.get(p) ?? 0}
                 reloadSeq={reloadSeq}
+                onReloadDone={handleTreeReloadDone}
                 onOpenFile={onOpenFile}
               />
             ))}
@@ -530,6 +652,7 @@ function FolderGroup({
   expandAllSeq,
   collapseAllSeq,
   reloadSeq,
+  onReloadDone,
   onOpenFile,
 }: {
   root: string;
@@ -550,6 +673,8 @@ function FolderGroup({
   expandAllSeq: number;
   collapseAllSeq: number;
   reloadSeq: number;
+  /** Forwarded to the FileTree so reload completion reports back up. */
+  onReloadDone?(root: string, seq: number): void;
   onOpenFile(path: string, opts?: { toSide: boolean }): void;
 }) {
   const basename = root.split("/").pop() ?? root;
@@ -648,6 +773,7 @@ function FolderGroup({
             expandAllSeq={expandAllSeq}
             collapseAllSeq={collapseAllSeq}
             reloadSeq={reloadSeq}
+            onReloadDone={onReloadDone}
           />
         </div>
       )}
@@ -655,11 +781,11 @@ function FolderGroup({
   );
 }
 
-// All header icons share the same 13 × 13 render size, 14-unit viewBox,
+// All header icons share the same 14 × 14 render size, 14-unit viewBox,
 // and 1.5 stroke so they line up visually in the action row.
 const HEADER_ICON = {
-  width: 13,
-  height: 13,
+  width: 14,
+  height: 14,
   viewBox: "0 0 14 14",
   fill: "none",
   stroke: "currentColor",
@@ -679,46 +805,49 @@ function SearchIcon() {
 }
 
 function ReloadIcon() {
-  // Three-quarter circular arrow with a small arrowhead on the sweep end.
-  // Reads as the standard "refresh" glyph used in browsers / macOS Finder.
-  // The arc opens at the top-right so the arrowhead points that way.
+  // ⟳ — clockwise open-circle arrow, resting at the same angle as the
+  // Unicode glyph: the gap sits on the RIGHT (head just above 3 o'clock,
+  // tail at ~4:30), with a tangential V arrowhead pointing down-right
+  // along the direction of travel. Geometry: circle center (7, 7), r 4.4,
+  // 300° sweep from +45° to −15°; the V's wings are ±30° off the tangent.
   return (
     <svg {...HEADER_ICON}>
-      <path d="M 11 4 A 4 4 0 1 0 12 7.5" />
-      <polyline points="11 2 11 4 9 4" />
+      <path d="M 10.11 10.11 A 4.4 4.4 0 1 1 11.25 5.86" />
+      <polyline points="9.42 4.07 11.25 5.86 11.94 3.4" />
     </svg>
   );
 }
 
 function OpenFolderIcon() {
-  // Outlined folder: four rounded outer corners + a smooth quarter-arc
-  // curve where the tab meets the body top. Closed single path, so
-  // strokeLinejoin has nothing to do — the curves carry the roundness.
+  // Outlined folder. The tab's drop to the body top is 1.8 units (~1.7px
+  // at render size) — deep enough that the silhouette still reads as
+  // "folder" instead of a rounded blob at 14px.
   return (
     <svg {...HEADER_ICON}>
-      <path d="M 3 4 H 5.5 Q 7 4 7 5 H 11 Q 12 5 12 6 V 10 Q 12 11 11 11 H 3 Q 2 11 2 10 V 5 Q 2 4 3 4 Z" />
+      <path d="M 1.5 10.5 V 4 Q 1.5 3 2.5 3 H 5.3 L 7 4.8 H 11.5 Q 12.5 4.8 12.5 5.8 V 10.5 Q 12.5 11.5 11.5 11.5 H 2.5 Q 1.5 11.5 1.5 10.5 Z" />
     </svg>
   );
 }
 
 function ExpandAllIcon() {
-  // Bar on top + open chevron pointing DOWN. The chevron is two line
-  // segments meeting at the bottom point — no base edge — so it reads as
-  // a tick/caret, matching VS Code's "expand all" convention.
+  // Stacked double chevron pointing DOWN — the established "unfold all"
+  // idiom (VS Code unfold, JetBrains expand-all). Two strokes of motion
+  // in the same direction read as "all levels", where the old single
+  // chevron + bar mushed into an ambiguous glyph at this size.
   return (
     <svg {...HEADER_ICON}>
-      <line x1="2.5" y1="3" x2="11.5" y2="3" />
-      <polyline points="3 6.5 7 11.5 11 6.5" />
+      <polyline points="3 2.8 7 6.3 11 2.8" />
+      <polyline points="3 7.7 7 11.2 11 7.7" />
     </svg>
   );
 }
 
 function CollapseAllIcon() {
-  // Bar on top + open chevron pointing UP.
+  // Stacked double chevron pointing UP — "fold all".
   return (
     <svg {...HEADER_ICON}>
-      <line x1="2.5" y1="3" x2="11.5" y2="3" />
-      <polyline points="3 11.5 7 6.5 11 11.5" />
+      <polyline points="3 6.3 7 2.8 11 6.3" />
+      <polyline points="3 11.2 7 7.7 11 11.2" />
     </svg>
   );
 }
@@ -738,11 +867,3 @@ function ChevronIcon({ open }: { open: boolean }) {
   );
 }
 
-function CloseIcon() {
-  return (
-    <svg {...HEADER_ICON}>
-      <line x1="3.5" y1="3.5" x2="10.5" y2="10.5" />
-      <line x1="10.5" y1="3.5" x2="3.5" y2="10.5" />
-    </svg>
-  );
-}

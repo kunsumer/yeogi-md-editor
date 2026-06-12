@@ -2,6 +2,21 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.5.2 — 2026-06-12
+
+### New
+
+- **The explorer's Reload button shows real progress.** The ⟳ icon spins until every visible folder tree has actually re-fetched from disk, then stops upright on the next full rotation — so even an instant reload is visibly acknowledged. VoiceOver hears "Reloading folder contents…" / "Folder contents reloaded", and Reduce Motion users get a static accent highlight instead of the spin.
+
+### Fixed
+
+- **Opening a document no longer lands you at the bottom.** The WYSIWYG editor auto-focused the caret at the *end* of the content, scrolling every freshly opened file to its last line. Files now open at the top with the caret on the first text position — and for documents that start with YAML frontmatter (or a Mermaid/math block), typing immediately after opening no longer silently deletes that block.
+- **External file changes keep your caret in place.** When a watched file was rewritten on disk and silently reloaded, the caret quietly jumped to the end of the document, so the next keystroke landed at the bottom. The caret now stays at (or as near as possible to) where it was.
+
+### Changed
+
+- **Crisper explorer icons.** The reload glyph is now a proper ⟳ (and stops at that exact pose), the folder has a real tab, expand/collapse-all are double chevrons, and every close X in the app — panel, folder, tab, search — shares one consistent icon, with the panel-close set apart by a divider.
+
 ## v0.5.1 — 2026-05-13
 
 ### Fixed

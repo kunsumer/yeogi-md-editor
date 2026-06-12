@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { CloseIcon } from "../icons";
 import type { Pane, PaneId } from "../../state/layout";
 import type { Document } from "../../state/documents";
 import { TabContextMenu } from "./TabContextMenu";
@@ -515,7 +516,7 @@ export function TabBar({
               }}
               style={closeBtnStyle}
             >
-              ×
+              <CloseIcon size={12} />
             </button>
           </div>
         );

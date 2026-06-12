@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { CloseIcon } from "../icons";
 
 interface Props {
   title: string;
@@ -59,15 +60,33 @@ export function AsidePanel({ title, ariaLabel, action, onClose, children }: Prop
         </span>
         {action}
         {onClose && (
-          <button
-            type="button"
-            aria-label={`Close ${ariaLabel}`}
-            title="Close panel"
-            onClick={onClose}
-            className="aside-header-btn"
-          >
-            <CloseIcon />
-          </button>
+          <>
+            {action != null && (
+              // The X dismisses the PANEL — it's window chrome, not one of
+              // the panel's own actions. The hairline divider groups the
+              // action icons away from it so the two don't read as one row
+              // of equivalent buttons.
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 1,
+                  height: 14,
+                  background: "var(--border-strong)",
+                  margin: "0 3px",
+                  flexShrink: 0,
+                }}
+              />
+            )}
+            <button
+              type="button"
+              aria-label={`Close ${ariaLabel}`}
+              title="Close panel"
+              onClick={onClose}
+              className="aside-header-btn"
+            >
+              <CloseIcon />
+            </button>
+          </>
         )}
       </header>
       <div
@@ -84,22 +103,3 @@ export function AsidePanel({ title, ariaLabel, action, onClose, children }: Prop
   );
 }
 
-function CloseIcon() {
-  // Match the 13 × 13 / 14-unit viewBox used by the other header icons.
-  return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 14 14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <line x1="3.5" y1="3.5" x2="10.5" y2="10.5" />
-      <line x1="10.5" y1="3.5" x2="3.5" y2="10.5" />
-    </svg>
-  );
-}

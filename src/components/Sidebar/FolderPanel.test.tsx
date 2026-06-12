@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { StrictMode } from "react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { FolderPanel } from "./FolderPanel";
 
 vi.mock("../../lib/ipc/commands", () => ({
@@ -143,5 +144,218 @@ describe("FolderPanel", () => {
     }));
     expect(aria).toContainEqual({ label: "me", current: null });
     expect(aria).toContainEqual({ label: "repo", current: "true" });
+  });
+});
+
+describe("FolderPanel reload feedback", () => {
+  it("spins while reloading, announces completion, then stops upright", async () => {
+    render(<FolderPanel {...baseProps({ folder: "/root" })} />);
+    // Wait for the group header so the initial tree fetch isn't racing
+    // the reload below.
+    await screen.findByText("root");
+
+    const btn = screen.getByRole("button", { name: "Reload folders" });
+    expect(btn).toHaveAttribute("data-reload-state", "idle");
+    expect(btn).toHaveAttribute("aria-busy", "false");
+
+    fireEvent.click(btn);
+
+    // The in-progress state is immediate and must be visible + announced
+    // (the mocked fetch can't resolve until the test yields a microtask,
+    // so this is deterministic).
+    expect(btn).toHaveAttribute("data-reload-state", "reloading");
+    expect(btn).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Reloading folder contents…",
+    );
+
+    // Honest completion: announced only after the tree's refetch reports
+    // back. The icon keeps spinning a little longer — it finishes the
+    // current rotation — but the WORK state (live region + aria-busy)
+    // flips at the real completion moment.
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Folder contents reloaded",
+      );
+    });
+    expect(btn).toHaveAttribute("aria-busy", "false");
+    expect(btn).toHaveAttribute("data-reload-state", "reloading");
+
+    // The spin tail is transient — the icon stops at the next whole
+    // rotation and the announcement clears.
+    await waitFor(
+      () => expect(btn).toHaveAttribute("data-reload-state", "idle"),
+      { timeout: 3000 },
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("");
+  });
+
+  it("does not hang when every folder group is collapsed", async () => {
+    render(<FolderPanel {...baseProps({ folder: "/root" })} />);
+    await screen.findByText("root");
+
+    // Collapse the group — its FileTree unmounts, so no tree will report.
+    fireEvent.click(screen.getByRole("button", { name: "Collapse folder" }));
+
+    const btn = screen.getByRole("button", { name: "Reload folders" });
+    fireEvent.click(btn);
+
+    // Nothing was mounted to reload; the spin still shows one rotation
+    // for feedback, completion is announced, and the icon stops instead
+    // of spinning forever.
+    expect(btn).toHaveAttribute("data-reload-state", "reloading");
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Folder contents reloaded",
+      );
+    });
+    await waitFor(
+      () => expect(btn).toHaveAttribute("data-reload-state", "idle"),
+      { timeout: 3000 },
+    );
+  });
+
+  it("announces completion only after ALL visible trees report (multi-root)", async () => {
+    const { fsList } = await import("../../lib/ipc/commands");
+    const fsListMock = vi.mocked(fsList);
+    render(
+      <FolderPanel
+        {...baseProps({ folder: "/a", extraFolders: ["/b"] })}
+      />,
+    );
+    await screen.findByText("a");
+    await screen.findByText("b");
+
+    // Reload fetches hang until each root is released explicitly.
+    const release = new Map<string, () => void>();
+    fsListMock.mockImplementation(
+      (p: string) =>
+        new Promise((resolve) => {
+          release.set(p, () => resolve([]));
+        }),
+    );
+
+    const btn = screen.getByRole("button", { name: "Reload folders" });
+    fireEvent.click(btn);
+    expect(btn).toHaveAttribute("data-reload-state", "reloading");
+
+    // First tree reporting is NOT completion — /b is still fetching.
+    release.get("/a")!();
+    await act(async () => {});
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Reloading folder contents…",
+    );
+
+    release.get("/b")!();
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Folder contents reloaded",
+      );
+    });
+    // Restore the suite-wide default so later tests' mount fetches resolve.
+    fsListMock.mockImplementation(async () => []);
+  });
+
+  it("ignores stale reports from a superseded reload (rapid double-click)", async () => {
+    const { fsList } = await import("../../lib/ipc/commands");
+    const fsListMock = vi.mocked(fsList);
+    render(<FolderPanel {...baseProps({ folder: "/root" })} />);
+    await screen.findByText("root");
+
+    let release!: () => void;
+    fsListMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = () => resolve([]);
+        }),
+    );
+
+    const btn = screen.getByRole("button", { name: "Reload folders" });
+    // Two clicks in a row: the second bumps the seq, which re-runs the
+    // tree's reload effect — its cleanup fires a cancellation report for
+    // the FIRST seq. That stale report must not drain the new tracker
+    // into a false "reloaded" announcement.
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    await act(async () => {});
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Reloading folder contents…",
+    );
+
+    // Completing the second reload's fetch is what finishes it.
+    release();
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Folder contents reloaded",
+      );
+    });
+    // Restore the suite-wide default so later tests' mount fetches resolve.
+    fsListMock.mockImplementation(async () => []);
+  });
+
+  it("stops spinning under React.StrictMode (the app renders inside it)", async () => {
+    // StrictMode mounts → unmounts → remounts in dev. A cleanup that sets
+    // an "unmounted" flag without the setup resetting it leaves the flag
+    // stuck at true — finishReload then never schedules the stop timer
+    // and the icon spins forever. Render exactly like main.tsx does.
+    render(
+      <StrictMode>
+        <FolderPanel {...baseProps({ folder: "/root" })} />
+      </StrictMode>,
+    );
+    await screen.findByText("root");
+
+    const btn = screen.getByRole("button", { name: "Reload folders" });
+    fireEvent.click(btn);
+    expect(btn).toHaveAttribute("data-reload-state", "reloading");
+
+    await waitFor(
+      () => expect(btn).toHaveAttribute("data-reload-state", "idle"),
+      { timeout: 3000 },
+    );
+  });
+
+  it("is not stopped mid-flight by the previous reload's spin-tail timer", async () => {
+    const { fsList } = await import("../../lib/ipc/commands");
+    const fsListMock = vi.mocked(fsList);
+    render(<FolderPanel {...baseProps({ folder: "/root" })} />);
+    await screen.findByText("root");
+
+    const btn = screen.getByRole("button", { name: "Reload folders" });
+
+    // First reload completes normally → completion announced, the
+    // spin-tail stop timer is armed.
+    fireEvent.click(btn);
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Folder contents reloaded",
+      );
+    });
+
+    // Second reload starts DURING the tail and hangs longer than the
+    // remainder of the rotation window.
+    let release!: () => void;
+    fsListMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () => resolve([]);
+        }),
+    );
+    fireEvent.click(btn);
+    expect(btn).toHaveAttribute("data-reload-state", "reloading");
+
+    // Ride out the stale timer's window — the spinner must survive it.
+    await new Promise((r) => setTimeout(r, 1000));
+    expect(btn).toHaveAttribute("data-reload-state", "reloading");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Reloading folder contents…",
+    );
+
+    release();
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Folder contents reloaded",
+      );
+    });
   });
 });

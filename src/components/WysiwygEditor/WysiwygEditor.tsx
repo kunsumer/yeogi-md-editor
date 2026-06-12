@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import type { Editor } from "@tiptap/react";
+import { Selection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import { ResizableImage } from "./nodes/ResizableImage";
 import { TableCell, TableHeader, TableRow } from "@tiptap/extension-table";
@@ -259,10 +260,27 @@ export function WysiwygEditor({
       },
     },
     editable: !readOnly,
-    // Auto-focus on mount so a freshly-opened doc (blank or otherwise) lands
-    // with a caret ready. `"end"` puts the caret after existing content;
-    // for an empty doc that's position 0, i.e. "ready to type."
-    autofocus: !readOnly ? "end" : false,
+    // Focus on mount so a freshly-opened doc (blank or otherwise) lands
+    // with the caret ready at the TOP of the document. Deliberately not
+    // Tiptap's `autofocus` option: `"end"` scrolled every opened file to
+    // the bottom, and any autofocus value dispatches an async
+    // scrollIntoView — pointless for a caret at position 0, and the
+    // trigger for the latent JSDOM scrollToSelection crash that App.tsx's
+    // stable split-icon handlers work around. `scrollIntoView: false`
+    // keeps the viewport at the top.
+    autofocus: false,
+    onCreate({ editor }) {
+      if (readOnly) return;
+      // Land the caret on the first TEXT position — never a NodeSelection.
+      // focus("start") resolves Selection.atStart, which is a NodeSelection
+      // when the doc begins with a selectable atom (frontmatter — rendered
+      // display:none —, mermaid, math, a leading image), and typing over a
+      // focused NodeSelection REPLACES the node: open-then-type would
+      // silently delete it. textOnly=true skips atoms; a doc with no text
+      // position at all simply isn't focused programmatically.
+      const first = Selection.findFrom(editor.state.doc.resolve(0), 1, true);
+      if (first) editor.commands.focus(first.from, { scrollIntoView: false });
+    },
     content,
     onUpdate({ editor }) {
       const md = getMarkdown(editor);
@@ -285,10 +303,26 @@ export function WysiwygEditor({
   useEffect(() => {
     if (!editor) return;
     if (content === lastEmittedRef.current) return;
+    // Capture the caret before the swap: core setContent rebuilds the doc
+    // with a single full-range replaceWith, and mapping through that step
+    // sends ANY inner position to the END of the new content — leaving a
+    // silent "next keystroke lands at the bottom" trap after a
+    // watcher-driven reload. Restore the nearest text position at the old
+    // offset (clamped) afterwards; exact mapping is impossible anyway
+    // since the content changed underneath us.
+    const prevHead = editor.state.selection.head;
     // Parse the incoming markdown; `emitUpdate: false` prevents an onUpdate
     // feedback loop from the programmatic set.
     editor.commands.setContent(content, { emitUpdate: false });
     lastEmittedRef.current = content;
+    const { doc, tr } = editor.state;
+    const $pos = doc.resolve(Math.min(prevHead, doc.content.size));
+    // textOnly=true: never restore onto an atom as a NodeSelection (typing
+    // over one replaces it). Backward first so the caret stays at or above
+    // the old spot rather than jumping past inserted content.
+    const sel =
+      Selection.findFrom($pos, -1, true) ?? Selection.findFrom($pos, 1, true);
+    if (sel) editor.view.dispatch(tr.setSelection(sel));
   }, [content, editor]);
 
   // Mirror PreviewPane: external web/mailto links open in the default

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { CloseIcon } from "../icons";
 import type { Editor } from "@tiptap/react";
 import {
   replaceAll,
@@ -171,7 +172,7 @@ export function WysiwygSearchBar({
           aria-label="Close find"
           title="Close (Esc)"
         >
-          ✕
+          <CloseIcon size={12} />
         </button>
       </div>
       {withReplace && (
