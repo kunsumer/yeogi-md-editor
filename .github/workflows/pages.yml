@@ -56,3 +56,26 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      # Ping IndexNow so Bing (and the AI search engines that lean on
+      # Bing's index — Copilot, ChatGPT search) pick up the new content
+      # within minutes instead of waiting for the next natural crawl.
+      # IndexNow keys are public-by-design (the spec requires the key
+      # file to be hosted on the same domain as a public ownership
+      # marker), so the key value lives in the repo, not in a secret.
+      - name: Ping IndexNow
+        if: success()
+        run: |
+          curl --fail --silent --show-error -o /tmp/indexnow.out -w "HTTP %{http_code}\n" \
+            -X POST "https://api.indexnow.org/indexnow" \
+            -H "Content-Type: application/json; charset=utf-8" \
+            --data '{
+              "host": "kunsumer.github.io",
+              "key": "944245707965ec28b68434a79a1d4477",
+              "keyLocation": "https://kunsumer.github.io/yeogi-md-editor/944245707965ec28b68434a79a1d4477.txt",
+              "urlList": [
+                "https://kunsumer.github.io/yeogi-md-editor/"
+              ]
+            }'
+          echo "--- response body ---"
+          cat /tmp/indexnow.out || true

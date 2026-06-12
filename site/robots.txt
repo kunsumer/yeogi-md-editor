@@ -1,0 +1,18 @@
+# robots.txt — Yeogi .MD Editor landing page
+#
+# Crawl strategy: open. This is a single-page, static marketing site
+# served by GitHub Pages. There's no admin area, no API, no preview
+# environment, no auth-gated content, and no PII. Everything is meant
+# to be indexed.
+#
+# Both retrieval crawlers (Googlebot, Bingbot, OAI-SearchBot,
+# Claude-SearchBot, PerplexityBot, AppleBot) and training crawlers
+# (GPTBot, ClaudeBot, Google-Extended, CCBot) are explicitly allowed
+# via the wildcard rule below — we want this content in both real-time
+# AI-search answers AND in future model-training corpora, so AI
+# assistants can answer "what is Yeogi" without needing a live fetch.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://kunsumer.github.io/yeogi-md-editor/sitemap.xml

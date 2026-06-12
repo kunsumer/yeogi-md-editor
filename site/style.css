@@ -268,6 +268,76 @@ code {
   font-weight: 600;
 }
 
+/* ---------- Compare ---------- */
+
+.compare {
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 64px 24px;
+}
+.compare-inner {
+  max-width: 960px;
+  margin: 0 auto;
+}
+.compare-intro {
+  text-align: center;
+  font-size: 15.5px;
+  color: var(--text-muted);
+  max-width: 720px;
+  margin: 0 auto 32px;
+  line-height: 1.6;
+}
+.compare-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+}
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+  min-width: 720px;
+}
+.compare-table th,
+.compare-table td {
+  padding: 12px 14px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.compare-table thead th {
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--text);
+  background: var(--bg);
+  border-bottom-width: 2px;
+}
+.compare-table thead th:nth-child(2) {
+  color: var(--brand-red);
+}
+.compare-table tbody th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg);
+  white-space: nowrap;
+}
+.compare-table tbody tr:last-child th,
+.compare-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.compare-table td strong {
+  color: var(--brand-red);
+}
+.compare-note {
+  font-size: 12.5px;
+  color: var(--text-faint);
+  text-align: center;
+  margin-top: 16px;
+  line-height: 1.5;
+}
+
 /* ---------- Screenshots ---------- */
 
 .screenshots {
@@ -304,6 +374,137 @@ code {
   color: var(--text-muted);
   text-align: center;
   line-height: 1.5;
+}
+
+/* ---------- FAQ ---------- */
+
+.faq {
+  background: var(--bg-elev);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 64px 24px;
+}
+.faq-inner {
+  max-width: 760px;
+  margin: 0 auto;
+}
+.faq details {
+  border-bottom: 1px solid var(--border);
+  padding: 18px 4px;
+}
+.faq details:first-of-type {
+  border-top: 1px solid var(--border);
+}
+.faq summary {
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after {
+  content: "+";
+  color: var(--brand-red);
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.faq details[open] summary::after { content: "−"; }
+.faq details p {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.65;
+}
+.faq details p code {
+  font-size: 13.5px;
+}
+
+/* ---------- Lightbox ---------- */
+
+.screenshot img {
+  cursor: zoom-in;
+}
+.screenshot img:focus-visible {
+  outline: 3px solid var(--brand-red);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+body.lightbox-open {
+  overflow: hidden;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.86);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  cursor: zoom-out;
+  padding: 32px 24px;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+.lightbox.is-open {
+  display: flex;
+  opacity: 1;
+}
+.lightbox-figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+  max-height: 100%;
+  gap: 14px;
+}
+.lightbox-img {
+  max-width: min(1400px, 96vw);
+  max-height: 85vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--radius);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  display: block;
+}
+.lightbox-caption {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 14px;
+  text-align: center;
+  max-width: 720px;
+  line-height: 1.5;
+}
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 140ms;
+}
+.lightbox-close:hover,
+.lightbox-close:focus-visible {
+  background: rgba(255, 255, 255, 0.24);
+  outline: none;
 }
 
 /* ---------- Why ---------- */

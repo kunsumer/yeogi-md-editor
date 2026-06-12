@@ -3,14 +3,176 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Yeogi .MD Editor — A Markdown editor for macOS that does all seven things</title>
-<meta name="description" content="A macOS Markdown editor with a real WYSIWYG view, side-by-side panes, multi-folder explorer, drag-reorder tabs, and right-click context menus that actually do work. Free, code-signed, auto-updating." />
+<title>Free WYSIWYG Markdown Editor for macOS · Yeogi .MD Editor</title>
+<meta name="description" content="WYSIWYG editing, side-by-side panes, real folder tree, and drag-reorder tabs. Free, code-signed, and auto-updating. Download for macOS — no subscription." />
 <meta property="og:title" content="Yeogi .MD Editor" />
-<meta property="og:description" content="A macOS Markdown editor that does all seven things you actually want." />
-<meta property="og:image" content="icon.png" />
+<meta property="og:description" content="Free, open-source WYSIWYG Markdown editor for macOS — with side-by-side panes and a real folder tree." />
+<meta property="og:image" content="https://kunsumer.github.io/yeogi-md-editor/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Yeogi .MD Editor — the red app icon next to the headline 'Yeogi .MD Editor', the subhead 'WYSIWYG editing, side-by-side panes, a real folder tree.', and the labels FREE · OPEN SOURCE · macOS" />
+<meta property="og:url" content="https://kunsumer.github.io/yeogi-md-editor/" />
+<meta property="og:site_name" content="Yeogi .MD Editor" />
+<meta property="og:locale" content="en_US" />
 <meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Yeogi .MD Editor" />
+<meta name="twitter:description" content="Free, open-source WYSIWYG Markdown editor for macOS — with side-by-side panes and a real folder tree." />
+<meta name="twitter:image" content="https://kunsumer.github.io/yeogi-md-editor/og-image.png" />
+<meta name="twitter:image:alt" content="Yeogi .MD Editor — the red app icon next to the headline 'Yeogi .MD Editor', the subhead 'WYSIWYG editing, side-by-side panes, a real folder tree.', and the labels FREE · OPEN SOURCE · macOS" />
+<link rel="canonical" href="https://kunsumer.github.io/yeogi-md-editor/" />
 <link rel="icon" href="icon.png" type="image/png" />
 <link rel="stylesheet" href="style.css" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://kunsumer.github.io/yeogi-md-editor/#organization",
+      "name": "Yeogi .MD Editor",
+      "url": "https://kunsumer.github.io/yeogi-md-editor/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://kunsumer.github.io/yeogi-md-editor/icon.png"
+      },
+      "sameAs": [
+        "https://github.com/kunsumer/yeogi-md-editor"
+      ],
+      "founder": { "@id": "https://kunsumer.github.io/yeogi-md-editor/#person" }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://kunsumer.github.io/yeogi-md-editor/#person",
+      "name": "Kun Soo Han",
+      "url": "https://github.com/kunsumer",
+      "sameAs": ["https://github.com/kunsumer"]
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://kunsumer.github.io/yeogi-md-editor/#website",
+      "url": "https://kunsumer.github.io/yeogi-md-editor/",
+      "name": "Yeogi .MD Editor",
+      "description": "Free WYSIWYG Markdown editor for macOS — side-by-side panes, multi-folder explorer, drag-reorder tabs, Apple-notarized auto-updater.",
+      "publisher": { "@id": "https://kunsumer.github.io/yeogi-md-editor/#organization" },
+      "inLanguage": "en"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://kunsumer.github.io/yeogi-md-editor/#software",
+      "name": "Yeogi .MD Editor",
+      "description": "A free, open-source, native macOS Markdown editor with a real WYSIWYG view, side-by-side panes, multi-folder explorer, drag-reorder tabs, right-click context menus, and an Apple-notarized auto-updater.",
+      "url": "https://kunsumer.github.io/yeogi-md-editor/",
+      "downloadUrl": "https://github.com/kunsumer/yeogi-md-editor/releases/latest",
+      "applicationCategory": "DeveloperApplication",
+      "applicationSubCategory": "Markdown Editor",
+      "operatingSystem": "macOS",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": "https://kunsumer.github.io/yeogi-md-editor/icon.png",
+      "screenshot": [
+        "https://kunsumer.github.io/yeogi-md-editor/screenshots/00-side-by-side.png",
+        "https://kunsumer.github.io/yeogi-md-editor/screenshots/02-right-click-menu.png",
+        "https://kunsumer.github.io/yeogi-md-editor/screenshots/03-tabs.png",
+        "https://kunsumer.github.io/yeogi-md-editor/screenshots/04-math-mermaid.png"
+      ],
+      "author": { "@id": "https://kunsumer.github.io/yeogi-md-editor/#person" },
+      "publisher": { "@id": "https://kunsumer.github.io/yeogi-md-editor/#organization" },
+      "isAccessibleForFree": true,
+      "featureList": [
+        "WYSIWYG editing of Markdown, with one-click toggle to the source view",
+        "Per-document autosave (toggle on or off per file)",
+        "Document outline panel with click-to-jump headings",
+        "Side-by-side panes for two documents",
+        "Multi-folder explorer (up to five folders open at once)",
+        "Drag-reorder tabs",
+        "Right-click context menus on files and folders",
+        "Apple-notarized auto-updater",
+        "Wiki-links with auto-create and backlinks",
+        "Inline math (KaTeX) and Mermaid diagrams",
+        "10 built-in themes",
+        "Print, Export to PDF, and Export to HTML"
+      ]
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is Yeogi .MD Editor?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yeogi .MD Editor is a free, open-source Markdown editor for macOS. It edits Markdown in a real WYSIWYG view, opens two documents side by side, and shows up to five folders at once in its file explorer. It is built natively for macOS with Tauri 2 (Rust + WebView), signed with an Apple Developer ID, and notarized by Apple."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Yeogi .MD Editor free?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Yeogi .MD Editor is free to download and use. It is open source on GitHub, has no subscription, no in-app purchases, and no ads. It does not collect telemetry; the only network call it makes is to GitHub to check for new releases."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Yeogi a free Typora alternative?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Yeogi covers Typora's main draw — true WYSIWYG editing of Markdown, with tables, headings, code blocks, and math rendered inline as you type — and adds a real folder tree, side-by-side document panes, drag-reorder tabs, and right-click file management. Typora costs $14.99; Yeogi is free and open source."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How is Yeogi different from Obsidian?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Obsidian shows a separate preview pane next to source-mode Markdown; Yeogi renders Markdown in place and lets you type directly into it (toggle to source mode with Command+E whenever you want). Yeogi also opens up to five folders at once without requiring a vault structure, while Obsidian works inside one vault at a time. Both support wiki-links and backlinks."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Yeogi support side-by-side documents?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Yeogi opens two editor panes side by side in the same window, each with its own tab strip and its own WYSIWYG/source toggle. The keyboard shortcut Command+Backslash opens the current tab in the other pane, and tabs can be dragged between panes."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What macOS versions does Yeogi support?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yeogi runs on macOS 10.13 (High Sierra) or later. It ships as a universal binary for both Apple Silicon (M-series) and Intel Macs, downloaded as a single signed .dmg from GitHub Releases."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Yeogi signed and notarized by Apple?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Every release is signed with an Apple Developer ID Application certificate and notarized by Apple's notarytool service before being published. Gatekeeper accepts it on first launch without the 'unidentified developer' warning, and the auto-updater verifies each new build with a Tauri minisign signature."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Yeogi support wiki-links, math, and Mermaid diagrams?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Yeogi supports wiki-links with auto-create and backlinks, inline and display math via KaTeX, and Mermaid diagrams including flowchart, sequence, state, gantt, quadrant, and ER. A render-only Mermaid preprocessor also auto-fixes the most common ways LLMs produce broken Mermaid syntax."
+      }
+    }
+  ]
+}
+</script>
 </head>
 <body>
 
@@ -30,12 +192,13 @@
 <main>
 
 <section class="hero">
-  <img src="icon.png" alt="" class="hero-logo" width="96" height="96" />
-  <h1>A Markdown editor that does <em>all</em> seven things you actually want.</h1>
+  <img src="icon.png" alt="Yeogi .MD Editor app icon" class="hero-logo" width="96" height="96" />
+  <h1>A free <em>WYSIWYG</em> Markdown editor for macOS.</h1>
   <p class="hero-tag">
+    <strong>Yeogi .MD Editor is a free, open-source Markdown editor for macOS.</strong>
     Rendered + editable WYSIWYG. Side-by-side panes. Real folder tree.
     Multiple folders open at once. Drag-reorder tabs. Right-click that
-    actually works. Free.
+    actually works.
   </p>
   <div class="hero-cta">
     <a id="download" href="https://github.com/kunsumer/yeogi-md-editor/releases/latest" class="btn-primary">
@@ -62,6 +225,28 @@
         syntax-highlighted — and you can put your cursor in the middle
         of any of them and just type. ⌘E flips to source mode whenever
         you want to see the actual Markdown.
+      </p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-icon">⇌</div>
+      <h3>WYSIWYG ⇄ Edit, with autosave</h3>
+      <p>
+        A visible toggle in the toolbar flips between rendered WYSIWYG
+        and the raw Markdown source on the same buffer — keyboard ⌘E
+        does the same thing. Autosave is per-document, so you can leave
+        it on for the draft and off for the file you're just auditing.
+      </p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-icon">☰</div>
+      <h3>Document outline</h3>
+      <p>
+        A live outline of every heading in the open document, indented
+        by depth (H1 → H6), pinned to the side. Click any entry to jump
+        straight to that section; collapse the panel when you don't
+        need it.
       </p>
     </div>
 
@@ -130,9 +315,87 @@
       <li>Native menu bar with Open Recent, Find &amp; Replace, Zoom, Themes</li>
       <li>Print / Export to PDF · Export to HTML</li>
       <li>File watcher — external changes show up live, conflict banner for unsaved-edit collisions</li>
-      <li>Per-document autosave (toggle per file)</li>
       <li>Session restore — tabs, panes, focus all come back on relaunch</li>
     </ul>
+  </div>
+</section>
+
+<section class="compare">
+  <div class="compare-inner">
+    <h2 class="section-title">How it compares</h2>
+    <p class="compare-intro">
+      If you've outgrown <a href="https://typora.io" rel="noopener">Typora</a>,
+      looked at <a href="https://obsidian.md" rel="noopener">Obsidian</a> but wanted real inline WYSIWYG,
+      tried <a href="https://bear.app" rel="noopener">Bear</a> but missed the folder tree, or like
+      <a href="https://ia.net/writer" rel="noopener">iA Writer</a>'s polish but want something free and open source — Yeogi was built for the gap.
+    </p>
+    <div class="compare-table-wrap">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th scope="col"></th>
+            <th scope="col">Yeogi .MD Editor</th>
+            <th scope="col">Typora</th>
+            <th scope="col">Obsidian</th>
+            <th scope="col">Bear</th>
+            <th scope="col">iA Writer</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Price</th>
+            <td><strong>Free</strong></td>
+            <td>$14.99</td>
+            <td>Free / paid for commercial use</td>
+            <td>Free + $14.99 / yr Pro</td>
+            <td>$29.99</td>
+          </tr>
+          <tr>
+            <th scope="row">Inline WYSIWYG editing</th>
+            <td>✓</td>
+            <td>✓</td>
+            <td>Live Preview</td>
+            <td>Styled source</td>
+            <td>Source only</td>
+          </tr>
+          <tr>
+            <th scope="row">Real folder tree</th>
+            <td>✓</td>
+            <td>✗</td>
+            <td>Vault-only</td>
+            <td>✗</td>
+            <td>Single folder</td>
+          </tr>
+          <tr>
+            <th scope="row">Multi-folder explorer</th>
+            <td>✓ Up to 5 folders</td>
+            <td>✗</td>
+            <td>One vault at a time</td>
+            <td>✗</td>
+            <td>One folder at a time</td>
+          </tr>
+          <tr>
+            <th scope="row">Side-by-side panes</th>
+            <td>✓</td>
+            <td>✗</td>
+            <td>✓</td>
+            <td>✗</td>
+            <td>✗</td>
+          </tr>
+          <tr>
+            <th scope="row">Open source</th>
+            <td>✓</td>
+            <td>✗</td>
+            <td>✗</td>
+            <td>✗</td>
+            <td>✗</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="compare-note">
+      Comparison reflects each app's default editor mode and standard licensing as of mid-2026. Check the vendor sites for current pricing and feature changes.
+    </p>
   </div>
 </section>
 
@@ -158,16 +421,54 @@
   </div>
 </section>
 
+<section class="faq">
+  <div class="faq-inner">
+    <h2 class="section-title">Frequently asked</h2>
+    <details>
+      <summary>What is Yeogi .MD Editor?</summary>
+      <p>Yeogi .MD Editor is a free, open-source Markdown editor for macOS. It edits Markdown in a real WYSIWYG view, opens two documents side by side, and shows up to five folders at once in its file explorer. It is built natively for macOS with Tauri 2 (Rust + WebView), signed with an Apple Developer ID, and notarized by Apple.</p>
+    </details>
+    <details>
+      <summary>Is Yeogi .MD Editor free?</summary>
+      <p>Yes. Yeogi .MD Editor is free to download and use. It is open source on GitHub, has no subscription, no in-app purchases, and no ads. It does not collect telemetry; the only network call it makes is to GitHub to check for new releases.</p>
+    </details>
+    <details>
+      <summary>Is Yeogi a free Typora alternative?</summary>
+      <p>Yes. Yeogi covers Typora's main draw — true WYSIWYG editing of Markdown, with tables, headings, code blocks, and math rendered inline as you type — and adds a real folder tree, side-by-side document panes, drag-reorder tabs, and right-click file management. Typora costs $14.99; Yeogi is free and open source.</p>
+    </details>
+    <details>
+      <summary>How is Yeogi different from Obsidian?</summary>
+      <p>Obsidian shows a separate preview pane next to source-mode Markdown; Yeogi renders Markdown in place and lets you type directly into it (toggle to source mode with ⌘E whenever you want). Yeogi also opens up to five folders at once without requiring a vault structure, while Obsidian works inside one vault at a time. Both support wiki-links and backlinks.</p>
+    </details>
+    <details>
+      <summary>Does Yeogi support side-by-side documents?</summary>
+      <p>Yes. Yeogi opens two editor panes side by side in the same window, each with its own tab strip and its own WYSIWYG/source toggle. The keyboard shortcut ⌘\ opens the current tab in the other pane, and tabs can be dragged between panes.</p>
+    </details>
+    <details>
+      <summary>What macOS versions does Yeogi support?</summary>
+      <p>Yeogi runs on macOS 10.13 (High Sierra) or later. It ships as a universal binary for both Apple Silicon (M-series) and Intel Macs, downloaded as a single signed .dmg from GitHub Releases.</p>
+    </details>
+    <details>
+      <summary>Is Yeogi signed and notarized by Apple?</summary>
+      <p>Yes. Every release is signed with an Apple Developer ID Application certificate and notarized by Apple's notarytool service before being published. Gatekeeper accepts it on first launch without the "unidentified developer" warning, and the auto-updater verifies each new build with a Tauri minisign signature.</p>
+    </details>
+    <details>
+      <summary>Does Yeogi support wiki-links, math, and Mermaid diagrams?</summary>
+      <p>Yes. Yeogi supports wiki-links (<code>[[Note Name]]</code>) with auto-create and backlinks, inline and display math via KaTeX, and Mermaid diagrams including flowchart, sequence, state, gantt, quadrant, and ER. A render-only Mermaid preprocessor also auto-fixes the most common ways LLMs produce broken Mermaid syntax.</p>
+    </details>
+  </div>
+</section>
+
 <section class="why">
   <div class="why-inner">
     <h2 class="section-title">Why this exists</h2>
     <p>
-      I write a lot of Markdown. Every editor I'd tried picked three of
-      the seven things I cared about and called it a feature set. Obsidian
+      I write a lot of Markdown. Every editor I'd tried picked a handful
+      of the features I cared about and called it a feature set. Obsidian
       has folders but the rendered view is half-rendered. Bear is gorgeous
       but no folder tree. Typora is the actual WYSIWYG editor that works,
-      but no folder explorer, no tabs, no side-by-side. So I built
-      something with all seven, and now I use it every day.
+      but no folder explorer, no tabs, no side-by-side. So I built one
+      with all of them, and now I use it every day.
     </p>
     <p>
       Yeogi is built with <a href="https://tauri.app">Tauri 2</a> (Rust +
@@ -218,6 +519,116 @@
     .catch(() => {
       /* keep the fallback link; nothing to do */
     });
+</script>
+
+<script>
+  // Lightbox for the Screenshots section. Click (or Enter/Space) on
+  // any .screenshot img to open it full-size; click overlay, press
+  // Escape, or use the × button to close. No external library, no
+  // CDN — matches the page's no-tracking, no-deps posture.
+  (function () {
+    var thumbs = document.querySelectorAll(".screenshot img");
+    if (!thumbs.length) return;
+
+    // Build the overlay once, reuse for every image. Uses createElement
+    // throughout (no innerHTML) since the content is fully under our
+    // control but the linter rightly enforces the safer pattern.
+    var overlay = document.createElement("div");
+    overlay.className = "lightbox";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "Enlarged screenshot");
+
+    var closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "lightbox-close";
+    closeBtn.setAttribute("aria-label", "Close enlarged screenshot");
+    closeBtn.textContent = "×"; // ×
+
+    var figure = document.createElement("figure");
+    figure.className = "lightbox-figure";
+
+    var bigImg = document.createElement("img");
+    bigImg.className = "lightbox-img";
+    bigImg.alt = "";
+
+    var cap = document.createElement("figcaption");
+    cap.className = "lightbox-caption";
+
+    figure.appendChild(bigImg);
+    figure.appendChild(cap);
+    overlay.appendChild(closeBtn);
+    overlay.appendChild(figure);
+    document.body.appendChild(overlay);
+
+    var lastTrigger = null;
+
+    function open(thumb) {
+      lastTrigger = thumb;
+      bigImg.src = thumb.currentSrc || thumb.src;
+      bigImg.alt = thumb.alt || "";
+      var fig = thumb.closest("figure");
+      var figcap = fig ? fig.querySelector("figcaption") : null;
+      cap.textContent = figcap ? figcap.textContent.trim() : "";
+      overlay.classList.add("is-open");
+      document.body.classList.add("lightbox-open");
+      closeBtn.focus();
+    }
+    function close() {
+      overlay.classList.remove("is-open");
+      document.body.classList.remove("lightbox-open");
+      setTimeout(function () { bigImg.src = ""; }, 200);
+      if (lastTrigger) lastTrigger.focus();
+    }
+
+    thumbs.forEach(function (thumb) {
+      thumb.setAttribute("tabindex", "0");
+      thumb.setAttribute("role", "button");
+      thumb.setAttribute("aria-label",
+        "Enlarge screenshot: " + (thumb.alt || ""));
+      thumb.addEventListener("click", function () { open(thumb); });
+      thumb.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          open(thumb);
+        }
+      });
+    });
+
+    overlay.addEventListener("click", function (e) {
+      // Click on the image itself: ignore (so right-click → Save works).
+      if (e.target === bigImg) return;
+      close();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && overlay.classList.contains("is-open")) close();
+    });
+  })();
+</script>
+
+<!-- GoatCounter — privacy-first analytics (no cookies, no PII, no
+     fingerprinting). Only fires on the deployed site; never counts
+     local dev visits (file:// or localhost). Also tracks Download
+     button clicks as a custom event so we can correlate visits with
+     actual downloads without instrumenting GitHub itself. -->
+<script data-goatcounter="https://kunsumer.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+<script>
+  (function () {
+    var host = location.hostname;
+    if (location.protocol === "file:" || host === "localhost" || host === "127.0.0.1") return;
+    var btn = document.getElementById("download");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      if (window.goatcounter && window.goatcounter.count) {
+        window.goatcounter.count({
+          path: "download-button-click",
+          title: "Download button clicked",
+          event: true,
+        });
+      }
+    });
+  })();
 </script>
 
 </body>
