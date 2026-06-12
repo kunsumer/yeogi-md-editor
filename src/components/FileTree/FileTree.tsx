@@ -31,6 +31,13 @@ interface Props {
    * app show up without a folder-pick roundtrip. Expanded state is preserved.
    */
   reloadSeq?: number;
+  /**
+   * Called exactly once per reloadSeq bump when that reload is no longer
+   * in flight — either the refetch finished or it was cancelled (tree
+   * unmounted / superseded by a newer seq). Lets the owner show honest
+   * "reload finished" feedback without ever stranding its tracking.
+   */
+  onReloadDone?(root: string, seq: number): void;
 }
 
 const rowStyle: React.CSSProperties = {
@@ -144,7 +151,14 @@ export function FileTree({
   expandAllSeq = 0,
   collapseAllSeq = 0,
   reloadSeq = 0,
+  onReloadDone,
 }: Props) {
+  // Read through a ref inside the reload effect so an inline callback
+  // prop doesn't widen that effect's deps — it must fire only on
+  // reloadSeq changes (re-running it mid-flight would falsely report
+  // the in-flight reload as done via the cleanup path).
+  const onReloadDoneRef = useRef(onReloadDone);
+  onReloadDoneRef.current = onReloadDone;
   // Right-click menu state — null when no menu is open. The entry is
   // captured at click time so the actions don't need to re-resolve it
   // from the DOM later.
@@ -307,6 +321,15 @@ export function FileTree({
     if (reloadSeq === lastReloadSeqRef.current) return;
     lastReloadSeqRef.current = reloadSeq;
     let cancelled = false;
+    // Settle exactly once per seq — on completion OR cancellation (the
+    // cleanup below). Owners use this for "reload finished" feedback;
+    // double-reporting or never-reporting would wedge their tracking.
+    let reported = false;
+    const report = () => {
+      if (reported) return;
+      reported = true;
+      onReloadDoneRef.current?.(root, reloadSeq);
+    };
     (async () => {
       // Snapshot the cache keys so we know what to re-fetch even if the
       // cache mutates underneath us mid-loop.
@@ -332,9 +355,11 @@ export function FileTree({
         for (const p of prev) if (next.has(p)) filtered.add(p);
         return filtered;
       });
+      report();
     })();
     return () => {
       cancelled = true;
+      report();
     };
     // `cache` is intentionally read-through a snapshot, not a reactive dep —
     // we want each reloadSeq bump to fire exactly once regardless of

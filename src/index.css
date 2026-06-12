@@ -198,6 +198,45 @@ a:focus-visible {
   background: rgba(9, 105, 218, 0.1);
 }
 
+/* Reload-folders feedback: the icon spins while the trees re-fetch and
+   stops only after completion, rounded up to a whole rotation so the spin
+   is visible even for instant local refetches. Duration MUST match
+   RELOAD_SPIN_CYCLE_MS in FolderPanel.tsx. */
+@keyframes aside-reload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.aside-header-btn[data-reload-state="reloading"] svg {
+  animation: aside-reload-spin 700ms linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .aside-header-btn[data-reload-state="reloading"] svg {
+    animation: none;
+  }
+  /* Static busy cue: the toolbar's active-state treatment (full-contrast
+     accent + tint). Dimming the icon would read as "disabled" — the
+     opposite of busy — and a 50% dim fails the 3:1 non-text contrast
+     minimum for a state indicator. */
+  .aside-header-btn[data-reload-state="reloading"] {
+    color: var(--accent);
+    background: rgba(9, 105, 218, 0.1);
+  }
+}
+
+/* Screen-reader-only text (e.g. live-region announcements). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Filter input inside the Files panel. Sits just below the basename row. */
 .aside-filter-input {
   width: 100%;
