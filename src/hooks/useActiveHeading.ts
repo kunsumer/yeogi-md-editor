@@ -31,6 +31,12 @@ import { slugify } from "../lib/slug";
  * `headings` content is read through a ref so the listener doesn't
  * rebind on every keystroke; the effect only re-binds when the
  * heading count or the view mode changes.
+ *
+ * Tiptap's `useEditor` and CodeMirror's mount are both async — the
+ * DOM elements / EditorView we need may not exist when this effect
+ * first runs. We try once eagerly, then fall back to a short rAF
+ * poll (~30 frames, half a second) so the listener attaches as soon
+ * as the editor lands in the DOM.
  */
 export function useActiveHeading(
   headings: Heading[],
@@ -54,130 +60,197 @@ export function useActiveHeading(
       return;
     }
 
-    let rafId: number | null = null;
+    let detach: (() => void) | null = null;
+    let pollRafId: number | null = null;
+    let pollAttempts = 0;
 
-    if (viewMode === "wysiwyg") {
-      const scroller = document.querySelector<HTMLElement>(".wysiwyg-scroll");
-      const root = document.querySelector<HTMLElement>(
-        ".wysiwyg-content .ProseMirror",
-      );
-      if (!scroller || !root) {
-        setActiveIndex(-1);
-        return;
-      }
-
-      // Cache: which `<h*>` element corresponds to which entry in
-      // headings[]. Rebuilt when the headings array identity changes
-      // (App.tsx parses the doc on every keystroke so the array is
-      // a fresh reference whenever heading text or order changes).
-      // `domToHeadings[i]` is the headings[] index for DOM heading
-      // `domEls[i]`, or -1 if that DOM heading has no TOC counterpart
-      // (frontmatter, table cells, raw HTML headings, etc.).
-      let cachedHeadings: Heading[] | null = null;
-      let domEls: HTMLElement[] = [];
-      let domToHeadings: number[] = [];
-
-      function rebuildMap() {
-        if (!root) return;
-        const hs = headingsRef.current;
-        domEls = Array.from(
-          root.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6"),
+    function tryBind(): boolean {
+      if (viewMode === "wysiwyg") {
+        const scroller = document.querySelector<HTMLElement>(".wysiwyg-scroll");
+        const root = document.querySelector<HTMLElement>(
+          ".wysiwyg-content .ProseMirror",
         );
-        // Two-pointer walk: both DOM and headings[] follow doc order.
-        // DOM may have extras (hidden frontmatter heading, raw-HTML
-        // heading inside a table cell, etc.); skip those without
-        // advancing j. headings[] shouldn't have entries with no DOM
-        // counterpart (every mdast heading renders), so we never need
-        // to advance j without consuming a DOM element.
-        domToHeadings = new Array(domEls.length).fill(-1);
-        let j = 0;
-        for (let i = 0; i < domEls.length; i++) {
-          if (j >= hs.length) break;
-          const tagLevel = Number(domEls[i].tagName.slice(1));
-          const domSlug = slugify(domEls[i].textContent ?? "");
-          if (tagLevel === hs[j].level && domSlug === slugify(hs[j].text)) {
-            domToHeadings[i] = j;
-            j++;
-          }
-          // else: DOM heading is an extra — leave domToHeadings[i] = -1
-          // and don't advance j (the next DOM heading may match hs[j]).
+        if (!scroller || !root) return false;
+        detach = bindWysiwyg(scroller, root, headingsRef, setActiveIndex);
+        return true;
+      }
+      // Don't capture the view in a closure — StrictMode (and any
+      // future re-mount path) can destroy it between bind and tick.
+      // bindEdit reads `editorViewRef.current` on every event instead,
+      // so it always sees the live view in the DOM.
+      if (!editorViewRef.current) return false;
+      detach = bindEdit(editorViewRef, headingsRef, setActiveIndex);
+      return true;
+    }
+
+    if (!tryBind()) {
+      // Editor isn't in the DOM yet (Tiptap's `useEditor` is async; the
+      // CodeMirror EditorView ref populates from a child effect). Poll
+      // a handful of frames — typically lands on frame 1 or 2 — then
+      // give up to avoid hanging onto an rAF forever for a dead pane.
+      const pollOnce = () => {
+        pollRafId = null;
+        if (tryBind()) return;
+        if (pollAttempts++ < 30) {
+          pollRafId = requestAnimationFrame(pollOnce);
         }
-        cachedHeadings = hs;
-      }
-
-      function computeWysiwyg() {
-        rafId = null;
-        if (!scroller || !root) return;
-        // Rebuild the slug map if the headings array reference has
-        // changed since the last frame (typing into a heading rewrites
-        // the array; structural changes also force a rebind via the
-        // headingsLen dep — but text-only edits don't, so we check
-        // identity here).
-        if (headingsRef.current !== cachedHeadings) rebuildMap();
-        const sRect = scroller.getBoundingClientRect();
-        const threshold = sRect.top + 80;
-        let last = -1;
-        for (let i = 0; i < domEls.length; i++) {
-          if (domEls[i].getBoundingClientRect().top <= threshold) {
-            if (domToHeadings[i] >= 0) last = domToHeadings[i];
-          } else {
-            break;
-          }
-        }
-        setActiveIndex((prev) => (prev === last ? prev : last));
-      }
-
-      function onScroll() {
-        if (rafId !== null) return;
-        rafId = requestAnimationFrame(computeWysiwyg);
-      }
-
-      scroller.addEventListener("scroll", onScroll, { passive: true });
-      rafId = requestAnimationFrame(computeWysiwyg);
-
-      return () => {
-        scroller.removeEventListener("scroll", onScroll);
-        if (rafId !== null) cancelAnimationFrame(rafId);
       };
+      pollRafId = requestAnimationFrame(pollOnce);
     }
-
-    // Edit mode — CodeMirror.
-    const view = editorViewRef.current;
-    if (!view) {
-      setActiveIndex(-1);
-      return;
-    }
-    const scroller = view.scrollDOM;
-
-    function computeEdit() {
-      rafId = null;
-      // The EditorView could be torn down between the scroll event and
-      // the next frame; guard against a use-after-destroy.
-      if (!view || !view.state) return;
-      const block = view.lineBlockAtHeight(scroller.scrollTop);
-      const topLine = view.state.doc.lineAt(block.from).number; // 1-indexed
-      const hs = headingsRef.current;
-      let last = -1;
-      for (let i = 0; i < hs.length; i++) {
-        if (hs[i].line <= topLine) last = i;
-        else break;
-      }
-      setActiveIndex((prev) => (prev === last ? prev : last));
-    }
-
-    function onScroll() {
-      if (rafId !== null) return;
-      rafId = requestAnimationFrame(computeEdit);
-    }
-
-    scroller.addEventListener("scroll", onScroll, { passive: true });
-    rafId = requestAnimationFrame(computeEdit);
 
     return () => {
-      scroller.removeEventListener("scroll", onScroll);
-      if (rafId !== null) cancelAnimationFrame(rafId);
+      if (pollRafId !== null) cancelAnimationFrame(pollRafId);
+      detach?.();
     };
   }, [headingsLen, viewMode, editorViewRef]);
 
   return activeIndex;
+}
+
+function bindWysiwyg(
+  scroller: HTMLElement,
+  root: HTMLElement,
+  headingsRef: { current: Heading[] },
+  setActiveIndex: (next: number | ((prev: number) => number)) => void,
+): () => void {
+  let rafId: number | null = null;
+  let cachedHeadings: Heading[] | null = null;
+  let domEls: HTMLElement[] = [];
+  let domToHeadings: number[] = [];
+  let mapDirty = true;
+
+  function rebuildMap() {
+    const hs = headingsRef.current;
+    domEls = Array.from(
+      root.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6"),
+    );
+    // Two-pointer walk: both DOM and headings[] follow doc order.
+    // DOM may have extras (hidden frontmatter heading, raw-HTML
+    // heading inside a table cell, etc.); skip those without
+    // advancing j. headings[] shouldn't have entries with no DOM
+    // counterpart (every mdast heading renders), so we never need
+    // to advance j without consuming a DOM element.
+    domToHeadings = new Array(domEls.length).fill(-1);
+    let j = 0;
+    for (let i = 0; i < domEls.length; i++) {
+      if (j >= hs.length) break;
+      const tagLevel = Number(domEls[i].tagName.slice(1));
+      const domSlug = slugify(domEls[i].textContent ?? "");
+      if (tagLevel === hs[j].level && domSlug === slugify(hs[j].text)) {
+        domToHeadings[i] = j;
+        j++;
+      }
+      // else: DOM heading is an extra — leave domToHeadings[i] = -1
+      // and don't advance j (the next DOM heading may match hs[j]).
+    }
+    cachedHeadings = hs;
+    mapDirty = false;
+  }
+
+  function compute() {
+    rafId = null;
+    if (
+      mapDirty ||
+      headingsRef.current !== cachedHeadings ||
+      // Defensive: if Tiptap finished mounting heading nodes after
+      // the last rebuild, the cached domEls is stale. Detect via a
+      // cheap "did the DOM gain or lose <h*> elements?" check.
+      root.querySelectorAll("h1,h2,h3,h4,h5,h6").length !== domEls.length
+    ) {
+      rebuildMap();
+    }
+    const sRect = scroller.getBoundingClientRect();
+    const threshold = sRect.top + 80;
+    let last = -1;
+    for (let i = 0; i < domEls.length; i++) {
+      if (domEls[i].getBoundingClientRect().top <= threshold) {
+        if (domToHeadings[i] >= 0) last = domToHeadings[i];
+      } else {
+        break;
+      }
+    }
+    setActiveIndex((prev: number) => (prev === last ? prev : last));
+  }
+
+  function onScroll() {
+    if (rafId !== null) return;
+    rafId = requestAnimationFrame(compute);
+  }
+
+  // ProseMirror populates the editor's children asynchronously
+  // (Tiptap's `useEditor` resolves on a microtask and content nodes
+  // can stream in across a frame or two). A MutationObserver on the
+  // root flags the heading map as dirty whenever a child changes,
+  // so the next compute frame picks up newly-rendered <h*> elements.
+  // Scoped to direct children + heading-text edits — *not* subtree —
+  // to keep the callback cheap and prevent re-mapping on every
+  // paragraph keystroke deep in the doc.
+  const observer = new MutationObserver(() => {
+    mapDirty = true;
+    if (rafId === null) rafId = requestAnimationFrame(compute);
+  });
+  observer.observe(root, { childList: true });
+
+  scroller.addEventListener("scroll", onScroll, { passive: true });
+  rafId = requestAnimationFrame(compute);
+
+  return () => {
+    observer.disconnect();
+    scroller.removeEventListener("scroll", onScroll);
+    if (rafId !== null) cancelAnimationFrame(rafId);
+  };
+}
+
+function bindEdit(
+  viewRef: { current: EditorView | null },
+  headingsRef: { current: Heading[] },
+  setActiveIndex: (next: number | ((prev: number) => number)) => void,
+): () => void {
+  // Scroll-event driven. Reads `viewRef.current` fresh on every call
+  // so a re-mounted EditorView (e.g. StrictMode's dev double-mount)
+  // is picked up the next time the user interacts.
+  let cancelled = false;
+  let lastTopLine = -2;
+
+  function compute() {
+    if (cancelled) return;
+    const view = viewRef.current;
+    if (!view || !view.state) return;
+    const topPos = view.viewport.from;
+    const topLine = view.state.doc.lineAt(topPos).number; // 1-indexed
+    if (topLine === lastTopLine) return;
+    lastTopLine = topLine;
+    const hs = headingsRef.current;
+    let last = -1;
+    for (let i = 0; i < hs.length; i++) {
+      if (hs[i].line <= topLine) last = i;
+      else break;
+    }
+    setActiveIndex((prev: number) => (prev === last ? prev : last));
+  }
+
+  // Listen at the document root with capture-phase so a scroll on any
+  // descendant element (the live `.cm-scroller`, no matter which
+  // EditorView owns it) wakes us up. `scroll` doesn't bubble on
+  // elements, but the capture phase fires regardless.
+  document.addEventListener("scroll", compute, { capture: true, passive: true });
+
+  // Startup safety net: until the user actually scrolls, we still
+  // want the initial position to land (e.g. session-restored scroll
+  // > 0). Poll for the first ~5 s, then stop. After that, the scroll
+  // listener handles everything.
+  let startupTicks = 0;
+  const startupInterval = window.setInterval(() => {
+    compute();
+    if (++startupTicks >= 25) window.clearInterval(startupInterval);
+  }, 200);
+  // Kick off immediately too so the initial render isn't a blank
+  // highlight for 200 ms.
+  compute();
+
+  return () => {
+    cancelled = true;
+    window.clearInterval(startupInterval);
+    document.removeEventListener("scroll", compute, { capture: true });
+  };
 }

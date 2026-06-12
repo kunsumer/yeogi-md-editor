@@ -56,6 +56,14 @@ interface Props {
   // ConflictBanner handlers.
   onConflictKeep?: () => void;
   onConflictReload?: () => void;
+
+  // Pane-layout toolbar group. The caller decides which pane gets the
+  // icons (whichever sits at the top-right of the window — primary
+  // when single or stacked, secondary when side-by-side); the EditorPane
+  // itself just renders them when the props are supplied.
+  paneMode?: "single" | "horizontal" | "vertical";
+  onSetPaneHorizontal?: () => void;
+  onSetPaneVertical?: () => void;
 }
 
 const mainStyle: React.CSSProperties = {
@@ -104,6 +112,9 @@ export function EditorPane({
   onUpdateDismiss,
   onConflictKeep,
   onConflictReload,
+  paneMode,
+  onSetPaneHorizontal,
+  onSetPaneVertical,
 }: Props) {
   const active = documents.find((d) => d.id === pane.activeTabId) ?? null;
 
@@ -145,6 +156,15 @@ export function EditorPane({
         onReload={onReloadTab}
         onCreateBlank={onCreateBlank}
         onOpenFiles={onOpenFiles}
+        paneSplit={
+          paneMode && onSetPaneHorizontal && onSetPaneVertical
+            ? {
+                mode: paneMode,
+                onSetHorizontal: onSetPaneHorizontal,
+                onSetVertical: onSetPaneVertical,
+              }
+            : undefined
+        }
       />
       <TopBar
         pane={pane}

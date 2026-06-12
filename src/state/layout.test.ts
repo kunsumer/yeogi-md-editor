@@ -177,6 +177,69 @@ describe("useLayout (secondary pane)", () => {
     expect(useLayout.getState().focusedPaneId).toBe("secondary");
   });
 
+  it("closeSecondary collapses to single pane and refocuses primary", () => {
+    useLayout.getState().openInFocusedPane("doc-a");
+    useLayout.getState().openToTheSide("doc-b");
+    expect(useLayout.getState().secondary).not.toBeNull();
+    expect(useLayout.getState().focusedPaneId).toBe("secondary");
+    useLayout.getState().closeSecondary();
+    const s = useLayout.getState();
+    expect(s.secondary).toBeNull();
+    expect(s.focusedPaneId).toBe("primary");
+    // Primary's tab stack is untouched.
+    expect(s.primary.tabs).toEqual(["doc-a"]);
+  });
+
+  it("closeSecondary is a no-op when there is no secondary", () => {
+    useLayout.getState().openInFocusedPane("doc-a");
+    expect(useLayout.getState().secondary).toBeNull();
+    useLayout.getState().closeSecondary();
+    expect(useLayout.getState().secondary).toBeNull();
+    expect(useLayout.getState().focusedPaneId).toBe("primary");
+  });
+
+  it("splitOrientation defaults to horizontal and setSplitOrientation flips it", () => {
+    expect(useLayout.getState().splitOrientation).toBe("horizontal");
+    useLayout.getState().setSplitOrientation("vertical");
+    expect(useLayout.getState().splitOrientation).toBe("vertical");
+    useLayout.getState().setSplitOrientation("horizontal");
+    expect(useLayout.getState().splitOrientation).toBe("horizontal");
+  });
+
+  it("setSplitOrientation is a no-op when the value already matches", () => {
+    // Sanity check: re-setting the same orientation doesn't trip a state
+    // update or alter other layout fields.
+    useLayout.getState().setSplitOrientation("horizontal");
+    useLayout.getState().openInFocusedPane("doc-a");
+    useLayout.getState().openToTheSide("doc-b");
+    const before = useLayout.getState();
+    useLayout.getState().setSplitOrientation("horizontal");
+    const after = useLayout.getState();
+    expect(after.secondary).toBe(before.secondary);
+    expect(after.focusedPaneId).toBe(before.focusedPaneId);
+  });
+
+  it("openEmptyToTheSide creates an empty secondary in the given orientation", () => {
+    useLayout.getState().openInFocusedPane("doc-a");
+    useLayout.getState().openEmptyToTheSide("vertical");
+    const s = useLayout.getState();
+    expect(s.secondary).not.toBeNull();
+    expect(s.secondary!.tabs).toEqual([]);
+    expect(s.secondary!.activeTabId).toBeNull();
+    expect(s.splitOrientation).toBe("vertical");
+    expect(s.focusedPaneId).toBe("secondary");
+  });
+
+  it("openEmptyToTheSide is a no-op when a secondary already exists", () => {
+    useLayout.getState().openInFocusedPane("doc-a");
+    useLayout.getState().openToTheSide("doc-b");
+    const before = useLayout.getState().secondary;
+    useLayout.getState().openEmptyToTheSide("vertical");
+    const after = useLayout.getState();
+    // Existing secondary's tabs untouched (open-empty does NOT replace).
+    expect(after.secondary).toBe(before);
+  });
+
   it("setPaneSplit clamps to [0.2, 0.8]", () => {
     useLayout.getState().setPaneSplit(0.05);
     expect(useLayout.getState().paneSplit).toBe(0.2);

@@ -1,6 +1,7 @@
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
+import remarkFrontmatter from "remark-frontmatter";
 import { visit } from "unist-util-visit";
 import type { Root, Heading as MdastHeading, Text } from "mdast";
 
@@ -17,7 +18,17 @@ export interface Block {
   line: number;
 }
 
-const parser = unified().use(remarkParse).use(remarkGfm);
+// `remark-frontmatter` is critical here — without it, a YAML fence
+// like `---\ntitle: …\n---` is parsed as `thematicBreak + paragraph +
+// thematicBreak`, but the closing `---` is read as a setext-H2
+// underline for the paragraph above it. That produces a phantom
+// heading whose text is the YAML body — present in `headings[]` but
+// invisible in the WYSIWYG DOM (which has a custom frontmatter pill
+// node) — which then poisons slug-based DOM ↔ headings mapping in
+// `useActiveHeading`. With the plugin, the whole block becomes a
+// single `yaml` node that `extractBlocks` already filters out, and
+// `extractHeadings` simply doesn't see any heading inside it.
+const parser = unified().use(remarkParse).use(remarkFrontmatter, ["yaml", "toml"]).use(remarkGfm);
 
 export function extractHeadings(md: string): Heading[] {
   const tree = parser.parse(md) as Root;

@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 export type PaneId = "primary" | "secondary";
 export type ViewMode = "edit" | "wysiwyg";
+export type SplitOrientation = "horizontal" | "vertical";
 
 export interface Pane {
   id: PaneId;
@@ -15,6 +16,13 @@ interface LayoutState {
   secondary: Pane | null;
   focusedPaneId: PaneId;
   paneSplit: number;
+  /**
+   * "horizontal" = panes sit side-by-side (vertical divider between them);
+   * "vertical" = panes stack top/bottom (horizontal divider). Only
+   * meaningful when `secondary` is non-null; persists between splits so
+   * reopening a side-by-side keeps the user's last choice.
+   */
+  splitOrientation: SplitOrientation;
 
   openInFocusedPane(docId: string): void;
   openToTheSide(docId: string): void;
@@ -33,6 +41,24 @@ interface LayoutState {
    */
   reorderTabs(paneId: PaneId, docId: string, beforeId: string | null): void;
   setPaneSplit(fraction: number): void;
+  /**
+   * Collapse the secondary pane back to single-pane view. Tabs in
+   * secondary are dropped without closing their underlying documents
+   * (the docs may still be open in primary). Focus moves to primary.
+   * No-op when there is no secondary.
+   */
+  closeSecondary(): void;
+  /** Switch the divider axis. Layout-only; tabs and focus are unchanged. */
+  setSplitOrientation(orientation: SplitOrientation): void;
+  /**
+   * Open an empty secondary pane in the given orientation. Used by the
+   * split icons in the tab strip: the user opens a panel first, then
+   * picks a file via the new pane's EmptyState ("Open file…" / "Create
+   * blank document"). Focus moves to secondary. No-op when secondary
+   * already exists — call `setSplitOrientation` first to rotate if
+   * needed.
+   */
+  openEmptyToTheSide(orientation: SplitOrientation): void;
 }
 
 const emptyPrimary: Pane = {
@@ -56,6 +82,7 @@ export const useLayout = create<LayoutState>((set, get) => ({
   secondary: null,
   focusedPaneId: "primary",
   paneSplit: 0.5,
+  splitOrientation: "horizontal",
 
   openInFocusedPane(docId) {
     const { primary, secondary, focusedPaneId } = get();
@@ -174,6 +201,30 @@ export const useLayout = create<LayoutState>((set, get) => ({
       return;
     }
     setPane(set, paneId, { ...pane, tabs: nextTabs });
+  },
+
+  closeSecondary() {
+    if (!get().secondary) return;
+    set({ secondary: null, focusedPaneId: "primary" });
+  },
+
+  setSplitOrientation(orientation) {
+    if (get().splitOrientation === orientation) return;
+    set({ splitOrientation: orientation });
+  },
+
+  openEmptyToTheSide(orientation) {
+    if (get().secondary) return;
+    set({
+      secondary: {
+        id: "secondary",
+        tabs: [],
+        activeTabId: null,
+        viewMode: "wysiwyg",
+      },
+      splitOrientation: orientation,
+      focusedPaneId: "secondary",
+    });
   },
 
   closeTab(paneId, docId) {
