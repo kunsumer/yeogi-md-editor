@@ -1,0 +1,74 @@
+name: stats
+
+# Daily snapshot of .dmg download counts. Appends one row per release
+# per day to docs/stats/downloads.csv and commits to main. The commit
+# only touches docs/stats/**, which is outside pages.yml's path filter,
+# so it does NOT trigger a Pages redeploy -- no loop.
+#
+# This workflow only consumes trusted inputs: the GitHub-issued token
+# and github.repository (just the repo slug). No untrusted event
+# payload (issue titles, PR bodies, commit messages) is interpolated
+# into shell, so the standard workflow-injection class doesn't apply.
+#
+# Idempotent: if today's date already appears in the CSV, the workflow
+# exits without committing. Safe to run manually via workflow_dispatch.
+
+on:
+  schedule:
+    - cron: "5 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stats
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    env:
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Append today's row(s) to downloads.csv
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p docs/stats
+          FILE=docs/stats/downloads.csv
+          DATE=$(date -u +%Y-%m-%d)
+
+          if [ ! -f "$FILE" ]; then
+            echo "date,tag,downloads" > "$FILE"
+          fi
+
+          if grep -q "^${DATE}," "$FILE"; then
+            echo "Row(s) for ${DATE} already present; skipping."
+            exit 0
+          fi
+
+          gh api "repos/${REPO}/releases" --paginate \
+            --jq '.[] | [.tag_name, ([.assets[] | select(.name | endswith(".dmg")) | .download_count] | add // 0)] | @tsv' \
+            | awk -v d="$DATE" 'BEGIN{OFS=","} {print d, $1, $2}' \
+            >> "$FILE"
+
+          echo "Wrote rows for ${DATE}:"
+          grep "^${DATE}," "$FILE"
+
+      - name: Commit if changed
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/stats/downloads.csv
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          DATE=$(date -u +%Y-%m-%d)
+          git commit -m "stats: download snapshot ${DATE}"
+          git push
