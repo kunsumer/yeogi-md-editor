@@ -162,6 +162,7 @@
 
 /* Scroll container for the editor surface. */
 .wysiwyg-scroll {
+  position: relative;
   flex: 1;
   min-height: 0;
   min-width: 0;
@@ -1163,4 +1164,27 @@
 .wysiwyg-content dl.deflist dd {
   margin: 0.15em 0 0.4em 1.6em;
   color: var(--text);
+}
+
+/* Editor zoom affordance button — anchored inside .wysiwyg-scroll. */
+.wysiwyg-zoom-btn {
+  position: absolute;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: zoom-in;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  opacity: 0.92;
+}
+.wysiwyg-zoom-btn:hover {
+  opacity: 1;
+  background: var(--bg-hover);
 }
