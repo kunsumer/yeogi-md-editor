@@ -1,6 +1,6 @@
 # Desktop: Raise-on-Open + Preview Zoom — Design
 
-**Status:** design (approved 2026-06-17), pending written-spec review
+**Status:** ✅ implemented (2026-06-17) via subagent-driven TDD. Full suite 254 green, tsc + cargo build clean. Code-review fixes applied (WKWebView wheel-zoom, focus-on-open, pointercancel, aria-label). Interactive confirmation (window-raise on Finder open; scroll-zoom in the real WebView) pending user verification on a bundled run.
 **Platform:** macOS desktop (the shipped Mac app on `main`). No mobile/Android involvement.
 
 Two small, independent desktop features, built together on one branch
