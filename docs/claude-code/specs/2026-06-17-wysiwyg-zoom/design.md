@@ -1,6 +1,6 @@
 # WYSIWYG Click-to-Zoom for Diagrams & Images — Design
 
-**Status:** design (approved 2026-06-17), pending written-spec review
+**Status:** ✅ implemented (2026-06-17) via subagent-driven TDD. Full suite 261 green, tsc + build clean. Code-review fixes applied (hide-on-pointer-leave, :focus-visible). Node views untouched.
 **Platform:** macOS desktop. Builds on `2026-06-17-desktop-zoom-and-focus` (the
 `Lightbox` shipped in v0.5.3 for the Preview window).
 
