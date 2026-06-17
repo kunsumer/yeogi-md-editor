@@ -2,6 +2,12 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.5.4 — 2026-06-17
+
+### New
+
+- **Zoom diagrams and images right in the editor.** Hover a Mermaid diagram or an image in the WYSIWYG editor and click the **⤢** button that appears in its corner to open it fullscreen — scroll (or the −/+ controls) to zoom, drag to pan, double-click to toggle fit ↔ 200%, and Esc / click-outside / ✕ to close. Previously this zoom viewer was only reachable from the separate Preview window. Plain click still selects and resizes images exactly as before.
+
 ## v0.5.3 — 2026-06-17
 
 ### New
