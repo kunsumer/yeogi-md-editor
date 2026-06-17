@@ -3,6 +3,8 @@ import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { renderMarkdown } from "../lib/markdown/pipeline";
 import { safeReplaceChildren } from "../lib/safeInsertHtml";
+import { Lightbox } from "../components/Lightbox/Lightbox";
+import { attachZoomTargets, type ZoomTarget } from "../components/Lightbox/attachZoomTargets";
 import "../components/PreviewPane/preview-content.css";
 
 interface Props {
@@ -11,7 +13,9 @@ interface Props {
 
 export function Preview({ docId }: Props) {
   const [orphan, setOrphan] = useState(false);
+  const [zoom, setZoom] = useState<ZoomTarget | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const zoomCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const unlisten = listen<{ id: string; content: string }>(
@@ -22,12 +26,17 @@ export function Preview({ docId }: Props) {
         if (!hostRef.current) return;
         safeReplaceChildren(hostRef.current, html);
         attachCopyButtons(hostRef.current);
+        // Re-tag zoom targets after each render; drop the previous wiring.
+        zoomCleanupRef.current?.();
+        zoomCleanupRef.current = attachZoomTargets(hostRef.current, setZoom);
       },
     );
     const unorphan = listen("editor:closed", () => setOrphan(true));
     return () => {
       unlisten.then((fn) => fn());
       unorphan.then((fn) => fn());
+      zoomCleanupRef.current?.();
+      zoomCleanupRef.current = null;
     };
   }, [docId]);
 
@@ -55,6 +64,13 @@ export function Preview({ docId }: Props) {
         </div>
       )}
       <div ref={hostRef} className="preview-content" onClick={onHostClick} />
+      {zoom && (
+        <Lightbox
+          image={"image" in zoom ? zoom.image : undefined}
+          svg={"svg" in zoom ? zoom.svg : undefined}
+          onClose={() => setZoom(null)}
+        />
+      )}
     </div>
   );
 }
