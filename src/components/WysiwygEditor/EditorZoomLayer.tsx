@@ -26,6 +26,12 @@ export function EditorZoomLayer({ editor }: Props) {
   const [pos, setPos] = useState<BtnPos | null>(null);
   const [zoom, setZoom] = useState<ZoomTarget | null>(null);
   const hideTimer = useRef<number | null>(null);
+  // scheduleHide / cancelHide close over the timer + setPos inside the effect;
+  // expose them via refs so the button's own mouse handlers drive the same
+  // hide logic (the editor `mouseout` listener doesn't fire when the pointer
+  // leaves the button into empty scroll-margin).
+  const scheduleHideRef = useRef<() => void>(() => {});
+  const cancelHideRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     const root = editor.view.dom as HTMLElement;
@@ -41,6 +47,8 @@ export function EditorZoomLayer({ editor }: Props) {
       cancelHide();
       hideTimer.current = window.setTimeout(() => setPos(null), 150);
     };
+    cancelHideRef.current = cancelHide;
+    scheduleHideRef.current = scheduleHide;
 
     const onOver = (e: Event) => {
       const t = e.target as HTMLElement;
@@ -78,12 +86,8 @@ export function EditorZoomLayer({ editor }: Props) {
           className="wysiwyg-zoom-btn"
           aria-label="Zoom in"
           style={{ top: pos.top, left: pos.left }}
-          onMouseEnter={() => {
-            if (hideTimer.current != null) {
-              window.clearTimeout(hideTimer.current);
-              hideTimer.current = null;
-            }
-          }}
+          onMouseEnter={() => cancelHideRef.current()}
+          onMouseLeave={() => scheduleHideRef.current()}
           onClick={() => {
             const t = zoomTargetFromElement(pos.el);
             if (t) setZoom(t);

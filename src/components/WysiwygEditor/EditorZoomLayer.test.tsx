@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import { EditorZoomLayer } from "./EditorZoomLayer";
 
@@ -32,5 +32,16 @@ describe("EditorZoomLayer", () => {
     fireEvent.mouseOver(dom.querySelector("svg")!);
     fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
     expect(screen.getByRole("dialog", { name: "Diagram viewer" })).toBeInTheDocument();
+  });
+
+  it("hides the button shortly after the pointer leaves it", async () => {
+    const { editor, dom } = makeEditor(`<img src="/a.png" alt="A">`);
+    render(<EditorZoomLayer editor={editor} />);
+    fireEvent.mouseOver(dom.querySelector("img")!);
+    const btn = screen.getByRole("button", { name: "Zoom in" });
+    fireEvent.mouseLeave(btn);
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Zoom in" })).toBeNull(),
+    );
   });
 });
