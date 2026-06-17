@@ -94,6 +94,7 @@ import { usePreferences } from "../../state/preferences";
 import { stripPrivateUseArea } from "../../lib/stripPrivateUseArea";
 import { Toolbar } from "./Toolbar";
 import { WysiwygSearchBar } from "./WysiwygSearchBar";
+import { EditorZoomLayer } from "./EditorZoomLayer";
 import { MathBlock, MathInline } from "./nodes/MathNodes";
 import { Mermaid } from "./nodes/Mermaid";
 import { Frontmatter } from "./nodes/Frontmatter";
@@ -424,6 +425,7 @@ export function WysiwygEditor({
       )}
       <div className="wysiwyg-scroll">
         <EditorContent editor={editor} className="wysiwyg-content preview-content" />
+        {editor && <EditorZoomLayer editor={editor} />}
       </div>
     </div>
   );
