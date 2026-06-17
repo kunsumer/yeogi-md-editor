@@ -6,7 +6,7 @@ pub mod menu;
 
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 use crate::watcher::{Watcher, WatcherEvent};
 
@@ -99,6 +99,16 @@ pub fn run() {
                     .collect();
                 if !paths.is_empty() {
                     let _ = app.emit("files-opened", paths);
+                    // Bring the app forward so the user can see the file
+                    // they just opened from Finder / `open`. Best-effort:
+                    // unminimize + show + focus covers background, minimized,
+                    // and cold-launch-by-Finder. set_focus activates the app
+                    // on macOS.
+                    if let Some(win) = app.get_webview_window("main") {
+                        let _ = win.unminimize();
+                        let _ = win.show();
+                        let _ = win.set_focus();
+                    }
                 }
             }
         });
