@@ -2,6 +2,13 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.5.3 — 2026-06-17
+
+### New
+
+- **The window comes to the front when you open a file from outside the app.** Opening a `.md` from Finder ("Open With") or the `open` command now raises and focuses the window — so you can see the file you just opened instead of wondering whether it worked. Covers the app being in the background, minimized, or launched fresh by the open.
+- **Zoom into images and Mermaid diagrams in the Preview window.** Click any image or diagram in a preview to open it in a fullscreen viewer: scroll (or use the −/+ controls) to zoom, double-click to toggle fit ↔ 200%, drag to pan, and press Esc, click the backdrop, or hit ✕ to close.
+
 ## v0.5.2 — 2026-06-12
 
 ### New
