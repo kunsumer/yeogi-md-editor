@@ -23,6 +23,8 @@ export function Lightbox({ image, svg, onClose }: Props) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ x: number; y: number } | null>(null);
   const svgHostRef = useRef<HTMLDivElement | null>(null);
+  const backdropRef = useRef<HTMLDivElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (svg && svgHostRef.current) safeReplaceChildrenWithSvg(svgHostRef.current, svg);
@@ -39,10 +41,27 @@ export function Lightbox({ image, svg, onClose }: Props) {
   }, []);
   const reset = useCallback(() => { setScale(1); setOffset({ x: 0, y: 0 }); }, []);
 
-  function onWheel(e: React.WheelEvent) {
-    e.preventDefault();
-    zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1);
-  }
+  // Fix #1: React's synthetic onWheel binds a PASSIVE listener at the document
+  // root, so preventDefault() is a no-op in WKWebView and the page scrolls
+  // under the lightbox while zooming. Attach a non-passive native listener to
+  // the backdrop instead so scroll-to-zoom actually suppresses page scroll.
+  useEffect(() => {
+    const el = backdropRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1);
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, [zoomBy]);
+
+  // Fix #2: move focus into the dialog on open (matches ConfirmDialog) so
+  // keyboard + screen-reader users land on a meaningful control.
+  useEffect(() => {
+    closeRef.current?.focus();
+  }, []);
+
   function onDoubleClick() {
     if (scale === 1) setScale(2);
     else reset();
@@ -60,18 +79,18 @@ export function Lightbox({ image, svg, onClose }: Props) {
 
   return (
     <div
+      ref={backdropRef}
       className="lightbox-backdrop"
       role="dialog"
       aria-modal="true"
-      aria-label="Image viewer"
+      aria-label={image ? "Image viewer" : "Diagram viewer"}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      onWheel={onWheel}
     >
       <div className="lightbox-controls" role="toolbar" aria-label="Zoom controls">
         <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.25)}>−</button>
         <span className="lightbox-pct" aria-live="polite">{Math.round(scale * 100)}%</span>
         <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1.25)}>+</button>
-        <button type="button" aria-label="Close viewer" onClick={onClose}>✕</button>
+        <button type="button" ref={closeRef} aria-label="Close viewer" onClick={onClose}>✕</button>
       </div>
       <div
         className="lightbox-stage"
@@ -79,6 +98,7 @@ export function Lightbox({ image, svg, onClose }: Props) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
         style={{
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
           cursor: scale > 1 ? "grab" : "default",

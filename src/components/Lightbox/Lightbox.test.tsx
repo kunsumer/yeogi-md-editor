@@ -32,4 +32,9 @@ describe("Lightbox", () => {
     fireEvent.click(screen.getByRole("dialog"));
     expect(onClose).toHaveBeenCalledTimes(3);
   });
+
+  it("moves focus to the close button on open", () => {
+    render(<Lightbox image={{ src: "/a.png", alt: "A" }} onClose={() => {}} />);
+    expect(screen.getByRole("button", { name: "Close viewer" })).toHaveFocus();
+  });
 });
