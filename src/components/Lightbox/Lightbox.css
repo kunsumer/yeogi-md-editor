@@ -1,0 +1,48 @@
+.lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.lightbox-stage {
+  transform-origin: center center;
+  will-change: transform;
+  user-select: none;
+  touch-action: none;
+}
+.lightbox-stage img,
+.lightbox-svg svg {
+  max-width: 90vw;
+  max-height: 90vh;
+  display: block;
+}
+.lightbox-svg svg { width: auto; height: auto; }
+.lightbox-controls {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  padding: 6px 10px;
+  z-index: 1001;
+}
+.lightbox-controls button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.lightbox-controls button:hover { background: rgba(255, 255, 255, 0.22); }
+.lightbox-pct { color: #fff; font-size: 13px; min-width: 46px; text-align: center; }
