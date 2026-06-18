@@ -2,6 +2,12 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.5.6 — 2026-06-18
+
+### Fixed
+
+- **Zooming a Mermaid diagram with text labels no longer shows an XML error.** Diagrams that use HTML labels embed a bare `<br>` (valid HTML, invalid XML); the zoom viewer re-parsed the diagram as strict XML and choked with an "Opening and ending tag mismatch: br" banner over a half-drawn diagram. The viewer now clones the already-rendered diagram directly instead of re-parsing it, so it shows exactly what the document shows.
+
 ## v0.5.5 — 2026-06-18
 
 ### Fixed
