@@ -21,6 +21,21 @@
   display: block;
 }
 .lightbox-svg svg { width: auto; height: auto; }
+/* Mermaid SVGs are transparent and themed to contrast against the document's
+   --bg surface (the .preview-content .mermaid card). The lightbox backdrop is
+   near-black, so without a matching surface the diagram's lines/text vanish
+   (dark-on-dark in light themes, washed-out in dark themes). Give the SVG the
+   same "paper" card as in-document. Images are opaque and don't need it. */
+.lightbox-svg {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+}
+.lightbox-svg svg {
+  max-width: 84vw;
+  max-height: 84vh;
+}
 .lightbox-controls {
   position: fixed;
   top: 12px;
