@@ -67,7 +67,7 @@ export function Preview({ docId }: Props) {
       {zoom && (
         <Lightbox
           image={"image" in zoom ? zoom.image : undefined}
-          svg={"svg" in zoom ? zoom.svg : undefined}
+          svgEl={"svgEl" in zoom ? zoom.svgEl : undefined}
           onClose={() => setZoom(null)}
         />
       )}

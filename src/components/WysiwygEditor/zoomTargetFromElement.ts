@@ -12,7 +12,7 @@ export function zoomTargetFromElement(el: Element): ZoomTarget | null {
   }
   if (el.classList.contains("mermaid")) {
     const svg = el.querySelector("svg");
-    if (svg) return { svg: svg.outerHTML };
+    if (svg) return { svgEl: svg };
   }
   return null;
 }

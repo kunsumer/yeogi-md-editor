@@ -1,7 +1,7 @@
 /** What the Lightbox needs to display a clicked target. */
 export type ZoomTarget =
   | { image: { src: string; alt: string } }
-  | { svg: string };
+  | { svgEl: SVGSVGElement };
 
 /**
  * Tag every <img> and Mermaid <svg> inside a rendered preview `host` as
@@ -32,7 +32,7 @@ export function attachZoomTargets(
     const handler = (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      onOpen({ svg: svg.outerHTML });
+      onOpen({ svgEl: svg });
     };
     svg.addEventListener("click", handler);
     cleanups.push(() => svg.removeEventListener("click", handler));

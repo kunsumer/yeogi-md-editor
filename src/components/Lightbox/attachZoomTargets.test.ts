@@ -25,7 +25,8 @@ describe("attachZoomTargets", () => {
     const onOpen = vi.fn();
     attachZoomTargets(el, onOpen);
     el.querySelector("svg")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(onOpen).toHaveBeenCalledWith({ svg: expect.stringContaining("<svg") });
+    const arg = onOpen.mock.calls[0][0];
+    expect("svgEl" in arg && (arg as { svgEl: SVGSVGElement }).svgEl.tagName.toLowerCase()).toBe("svg");
   });
 
   it("cleanup removes the click handlers", () => {

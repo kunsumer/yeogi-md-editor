@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { safeReplaceChildrenWithSvg } from "../../lib/safeInsertHtml";
 import "./Lightbox.css";
 
 interface Props {
   image?: { src: string; alt: string };
-  svg?: string;
+  svgEl?: SVGSVGElement;
   onClose(): void;
 }
 
@@ -18,7 +17,7 @@ const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n
  * either an <img> (by src) or a Mermaid SVG (inserted via the app's SVG
  * sanitizer). Owns only zoom/pan state — no app/store coupling.
  */
-export function Lightbox({ image, svg, onClose }: Props) {
+export function Lightbox({ image, svgEl, onClose }: Props) {
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ x: number; y: number } | null>(null);
@@ -27,8 +26,10 @@ export function Lightbox({ image, svg, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    if (svg && svgHostRef.current) safeReplaceChildrenWithSvg(svgHostRef.current, svg);
-  }, [svg]);
+    if (svgEl && svgHostRef.current) {
+      svgHostRef.current.replaceChildren(svgEl.cloneNode(true));
+    }
+  }, [svgEl]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -105,7 +106,7 @@ export function Lightbox({ image, svg, onClose }: Props) {
         }}
       >
         {image && <img src={image.src} alt={image.alt} draggable={false} />}
-        {svg && <div ref={svgHostRef} className="lightbox-svg" />}
+        {svgEl && <div ref={svgHostRef} className="lightbox-svg" />}
       </div>
     </div>
   );

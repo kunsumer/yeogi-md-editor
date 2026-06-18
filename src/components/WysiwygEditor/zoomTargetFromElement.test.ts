@@ -15,7 +15,7 @@ describe("zoomTargetFromElement", () => {
 
   it("maps a .mermaid block (with svg) to an svg target", () => {
     const t = zoomTargetFromElement(el(`<div class="mermaid"><svg id="m"><rect/></svg></div>`));
-    expect(t && "svg" in t && t.svg).toContain("<svg");
+    expect(t && "svgEl" in t && t.svgEl.tagName.toLowerCase()).toBe("svg");
   });
 
   it("returns null for a .mermaid block that has no svg yet", () => {
