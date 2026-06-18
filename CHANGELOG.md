@@ -2,6 +2,12 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.5.5 — 2026-06-18
+
+### Fixed
+
+- **Zoomed Mermaid diagrams are legible again in the fullscreen viewer.** The zoom overlay placed the (transparent) diagram straight onto its dark backdrop, so the diagram's lines and labels blended into the background — effectively invisible in light themes and washed-out in dark ones. The viewer now shows diagrams on the same surface card they use inline in the document, restoring contrast in every theme. (Images were unaffected.)
+
 ## v0.5.4 — 2026-06-17
 
 ### New
