@@ -792,29 +792,17 @@ function CodeIcon() {
   );
 }
 function HighlightIcon() {
-  // Upright marker: short bristle strokes on top, rounded-rect body, and a
-  // yellow wedge tip below the body. Reads as a highlighter icon at 16×16
-  // and the color-coded yellow tip makes the intent unmistakable.
+  // Word / Google Docs convention: a tilted chisel-tip marker above a
+  // yellow swatch bar. The bar carries the color cue; the marker body
+  // stays currentColor like the rest of the ribbon.
   return (
-    <svg
-      width={16}
-      height={16}
-      viewBox="0 0 16 16"
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {/* Three short felt-tip bristle strokes at the cap. */}
-      <line x1="6" y1="1.5" x2="6" y2="3" />
-      <line x1="8" y1="1.5" x2="8" y2="3" />
-      <line x1="10" y1="1.5" x2="10" y2="3" />
-      {/* Marker body — rounded rectangle. */}
-      <rect x="4.5" y="3" width="7" height="8" rx="1" />
-      {/* Yellow triangular tip pointing down. */}
-      <path d="M4.5 11 L11.5 11 L8 15 Z" fill="#facc15" />
+    <svg {...ICON}>
+      {/* Marker body at ~45°, cap at top-right. */}
+      <path d="M9.8 1.8 L14.2 6.2 L10.4 10 L6 5.6 Z" />
+      {/* Chisel tip narrowing toward the page. */}
+      <path d="M6 5.6 L10.4 10 L7.6 11.4 L4.6 8.4 Z" />
+      {/* Yellow highlight swatch. */}
+      <rect x="2" y="13.2" width="12" height="1.8" rx="0.9" fill="#facc15" stroke="none" />
     </svg>
   );
 }
@@ -864,12 +852,20 @@ function TaskIcon() {
   );
 }
 function QuoteIcon() {
+  // Solid ❝ double quotation mark — the universal blockquote glyph. The
+  // previous bar-plus-lines drawing was too easy to confuse with the
+  // align / list icons two groups over. Each mark is one filled path:
+  // a curled top sweeping into a squared bowl.
+  const mark = (x0: number) =>
+    `M${x0} 8.6 C ${x0} 5.2 ${x0 + 1.8} 3.4 ${x0 + 4.6} 3 ` +
+    `L ${x0 + 4.9} 4.4 C ${x0 + 3} 4.9 ${x0 + 2.1} 5.9 ${x0 + 2} 7.4 ` +
+    `L ${x0 + 3.2} 7.4 C ${x0 + 4.3} 7.4 ${x0 + 5} 8.1 ${x0 + 5} 9.2 ` +
+    `L ${x0 + 5} 11.2 C ${x0 + 5} 12.3 ${x0 + 4.3} 13 ${x0 + 3.2} 13 ` +
+    `L ${x0 + 1.8} 13 C ${x0 + 0.7} 13 ${x0} 12.3 ${x0} 11.2 Z`;
   return (
     <svg {...ICON}>
-      <line x1="3" y1="3" x2="3" y2="13" strokeWidth="1.6" />
-      <line x1="7" y1="5" x2="14" y2="5" />
-      <line x1="7" y1="8" x2="14" y2="8" />
-      <line x1="7" y1="11" x2="12" y2="11" />
+      <path d={mark(2)} fill="currentColor" stroke="none" />
+      <path d={mark(9)} fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -883,9 +879,13 @@ function BlockCodeIcon() {
   );
 }
 function HrIcon() {
+  // Rule line with faint text lines above and below — "a divider between
+  // paragraphs." A bare dash read as a minus sign.
   return (
     <svg {...ICON}>
-      <line x1="2" y1="8" x2="14" y2="8" strokeWidth="1.4" />
+      <line x1="4" y1="4" x2="12" y2="4" opacity="0.4" />
+      <line x1="1.5" y1="8" x2="14.5" y2="8" strokeWidth="1.6" />
+      <line x1="4" y1="12" x2="12" y2="12" opacity="0.4" />
     </svg>
   );
 }
@@ -977,104 +977,133 @@ function RedoIcon() {
     </svg>
   );
 }
+// Table icons share one grammar: column/row *bands* give the table
+// context (a lone rectangle read as a door / window, not a column), a
+// `+` badge sits at the insertion point, and an `×` sits on the band
+// being removed. Delete-table strikes a real grid.
 function ColBeforeIcon() {
   return (
     <svg {...ICON}>
-      <rect x="7" y="2" width="7" height="12" rx="1" />
-      <line x1="2.5" y1="8" x2="4.5" y2="8" strokeWidth="1.4" />
-      <line x1="3.5" y1="6.5" x2="3.5" y2="9.5" strokeWidth="1.4" />
+      {/* existing columns, pushed right */}
+      <rect x="7.5" y="2.5" width="3" height="11" rx="0.8" />
+      <rect x="12" y="2.5" width="3" height="11" rx="0.8" />
+      {/* + at the insertion point (left of the table) */}
+      <line x1="1.5" y1="8" x2="5" y2="8" strokeWidth="1.4" />
+      <line x1="3.25" y1="6.25" x2="3.25" y2="9.75" strokeWidth="1.4" />
     </svg>
   );
 }
 function ColAfterIcon() {
   return (
     <svg {...ICON}>
-      <rect x="2" y="2" width="7" height="12" rx="1" />
-      <line x1="11.5" y1="8" x2="13.5" y2="8" strokeWidth="1.4" />
-      <line x1="12.5" y1="6.5" x2="12.5" y2="9.5" strokeWidth="1.4" />
+      <rect x="1" y="2.5" width="3" height="11" rx="0.8" />
+      <rect x="5.5" y="2.5" width="3" height="11" rx="0.8" />
+      <line x1="11" y1="8" x2="14.5" y2="8" strokeWidth="1.4" />
+      <line x1="12.75" y1="6.25" x2="12.75" y2="9.75" strokeWidth="1.4" />
     </svg>
   );
 }
 function ColDeleteIcon() {
   return (
     <svg {...ICON}>
-      <rect x="5" y="2" width="6" height="12" rx="1" />
-      <line x1="6" y1="6" x2="10" y2="10" strokeWidth="1.4" stroke="currentColor" />
-      <line x1="10" y1="6" x2="6" y2="10" strokeWidth="1.4" stroke="currentColor" />
+      <rect x="1.5" y="2.5" width="3" height="11" rx="0.8" />
+      <rect x="11.5" y="2.5" width="3" height="11" rx="0.8" />
+      {/* × where the removed column was — same slot-badge grammar as the
+          + on the insert icons */}
+      <line x1="5.9" y1="5.9" x2="10.1" y2="10.1" strokeWidth="1.5" />
+      <line x1="10.1" y1="5.9" x2="5.9" y2="10.1" strokeWidth="1.5" />
     </svg>
   );
 }
 function RowBeforeIcon() {
   return (
     <svg {...ICON}>
-      <rect x="2" y="7" width="12" height="7" rx="1" />
-      <line x1="8" y1="2.5" x2="8" y2="4.5" strokeWidth="1.4" />
-      <line x1="6.5" y1="3.5" x2="9.5" y2="3.5" strokeWidth="1.4" />
+      {/* existing rows, pushed down */}
+      <rect x="2.5" y="7.5" width="11" height="3" rx="0.8" />
+      <rect x="2.5" y="12" width="11" height="3" rx="0.8" />
+      {/* + at the insertion point (above the table) */}
+      <line x1="8" y1="1.5" x2="8" y2="5" strokeWidth="1.4" />
+      <line x1="6.25" y1="3.25" x2="9.75" y2="3.25" strokeWidth="1.4" />
     </svg>
   );
 }
 function RowAfterIcon() {
   return (
     <svg {...ICON}>
-      <rect x="2" y="2" width="12" height="7" rx="1" />
-      <line x1="8" y1="11.5" x2="8" y2="13.5" strokeWidth="1.4" />
-      <line x1="6.5" y1="12.5" x2="9.5" y2="12.5" strokeWidth="1.4" />
+      <rect x="2.5" y="1" width="11" height="3" rx="0.8" />
+      <rect x="2.5" y="5.5" width="11" height="3" rx="0.8" />
+      <line x1="8" y1="11" x2="8" y2="14.5" strokeWidth="1.4" />
+      <line x1="6.25" y1="12.75" x2="9.75" y2="12.75" strokeWidth="1.4" />
     </svg>
   );
 }
 function RowDeleteIcon() {
   return (
     <svg {...ICON}>
-      <rect x="2" y="5" width="12" height="6" rx="1" />
-      <line x1="6" y1="6" x2="10" y2="10" strokeWidth="1.4" />
-      <line x1="10" y1="6" x2="6" y2="10" strokeWidth="1.4" />
+      <rect x="2.5" y="1.5" width="11" height="3" rx="0.8" />
+      <rect x="2.5" y="11.5" width="11" height="3" rx="0.8" />
+      {/* × where the removed row was */}
+      <line x1="5.9" y1="5.9" x2="10.1" y2="10.1" strokeWidth="1.5" />
+      <line x1="10.1" y1="5.9" x2="5.9" y2="10.1" strokeWidth="1.5" />
     </svg>
   );
 }
 function TableDeleteIcon() {
   return (
     <svg {...ICON}>
+      {/* a real grid (muted) so the strike reads "delete table", not
+          "close window" */}
       <rect x="1.5" y="2.5" width="13" height="11" rx="1" />
-      <line x1="4" y1="5" x2="12" y2="13" strokeWidth="1.4" />
-      <line x1="12" y1="5" x2="4" y2="13" strokeWidth="1.4" />
+      <line x1="1.5" y1="8" x2="14.5" y2="8" opacity="0.45" />
+      <line x1="8" y1="2.5" x2="8" y2="13.5" opacity="0.45" />
+      <line x1="3.5" y1="4.5" x2="12.5" y2="11.5" strokeWidth="1.6" />
+      <line x1="12.5" y1="4.5" x2="3.5" y2="11.5" strokeWidth="1.6" />
     </svg>
   );
 }
 function MermaidIcon() {
+  // Org-chart with elbow connectors — the conventional "diagram" glyph.
+  // The previous version connected the boxes with diagonals, which made
+  // it read as a molecule rather than a flowchart.
   return (
     <svg {...ICON}>
-      <rect x="6" y="1.5" width="4" height="3" rx="0.5" />
-      <rect x="1.5" y="10.5" width="4" height="3" rx="0.5" />
-      <rect x="10.5" y="10.5" width="4" height="3" rx="0.5" />
-      <line x1="8" y1="4.5" x2="3.5" y2="10.5" />
-      <line x1="8" y1="4.5" x2="12.5" y2="10.5" />
+      <rect x="5.5" y="1.5" width="5" height="3.5" rx="0.8" />
+      <rect x="1.5" y="11" width="5" height="3.5" rx="0.8" />
+      <rect x="9.5" y="11" width="5" height="3.5" rx="0.8" />
+      <path d="M8 5 V8.25" />
+      <path d="M4 11 V8.25 H12 V11" />
     </svg>
   );
 }
 function WikiIcon() {
-  // Double-bracket glyph reading as the Obsidian/Logseq `[[ ]]` wiki-link
-  // syntax. Four distinct brackets — the previous version packed the two
-  // halves too tightly and the horizontal caps vanished, reading as `||`.
+  // The Obsidian/Logseq `[[ ]]` wiki-link syntax. Shorter, chunkier
+  // brackets than before (height 9, caps 2.2, strokeWidth 1.4) with a
+  // real gap between the pairs — the tall thin version collapsed into
+  // `⌷⌷` at ribbon size.
   return (
-    <svg {...ICON}>
+    <svg {...ICON} strokeWidth={1.4}>
       {/* [[ — outer then inner */}
-      <path d="M4 3 H2 V13 H4" />
-      <path d="M7 3 H5 V13 H7" />
+      <path d="M3.7 3.5 H1.5 V12.5 H3.7" />
+      <path d="M6.7 3.5 H4.5 V12.5 H6.7" />
       {/* ]] — inner then outer */}
-      <path d="M9 3 H11 V13 H9" />
-      <path d="M12 3 H14 V13 H12" />
+      <path d="M9.3 3.5 H11.5 V12.5 H9.3" />
+      <path d="M12.3 3.5 H14.5 V12.5 H12.3" />
     </svg>
   );
 }
 function FootnoteIcon() {
-  // Six-pointed asterisk — traditional footnote marker. Sized to sit in the
-  // same ~10 px optical box as the rest of the ribbon icons, and picks up
-  // the shared ICON preset so strokeWidth matches.
+  // A page with body text, a short separator rule, and a muted note line
+  // at the foot — the visual anatomy of a footnote. The bare asterisk
+  // read as "special character," not "insert footnote."
   return (
     <svg {...ICON}>
-      <line x1="8" y1="3" x2="8" y2="13" />
-      <line x1="3.67" y1="5.5" x2="12.33" y2="10.5" />
-      <line x1="12.33" y1="5.5" x2="3.67" y2="10.5" />
+      <rect x="3" y="1.5" width="10" height="13" rx="1.2" />
+      <line x1="5.2" y1="4.5" x2="10.8" y2="4.5" />
+      <line x1="5.2" y1="6.8" x2="10.8" y2="6.8" />
+      {/* footnote separator — the short rule */}
+      <line x1="5.2" y1="9.4" x2="8.2" y2="9.4" />
+      {/* the note itself, lighter */}
+      <line x1="5.2" y1="11.8" x2="10.8" y2="11.8" opacity="0.55" />
     </svg>
   );
 }
