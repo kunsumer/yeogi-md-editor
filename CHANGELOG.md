@@ -2,6 +2,20 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.5.7 — 2026-06-25
+
+### New
+
+- **Open up to 10 folders in the explorer** (was 5). Extra folder roots are lightweight — the tree lists directories lazily — so the old cap was stricter than it needed to be.
+
+### Fixed
+
+- **The tab strip now scrolls to the file you just opened.** With many tabs open, a newly opened file was added (and activated) off-screen to the right, so nothing appeared to happen. The active tab now always scrolls into view — including when switching tabs with ⌘1–9 and after session restore.
+
+### Changed
+
+- **Clearer toolbar icons.** The ambiguous ribbon glyphs were redrawn to match widely used conventions: highlight is now a marker pen with a yellow swatch, blockquote is a ❝ quotation mark, horizontal rule shows a divider between text lines, the Mermaid button is a proper flowchart, wiki-link is a legible `[[ ]]`, footnote is a page with a note at the foot, and the seven table buttons share one visual grammar (columns/rows with a `+` at the insertion point or an `×` where the removed one was). Tooltips, shortcuts, and behavior are unchanged.
+
 ## v0.5.6 — 2026-06-18
 
 ### Fixed
