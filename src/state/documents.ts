@@ -42,11 +42,13 @@ export interface Document {
 
 /**
  * Maximum folders visible in the explorer at once (primary + extras).
- * Extra folders each mount their own FileTree and watcher — letting this
- * grow unbounded would impose real cost on startup + file-event handling.
- * 5 is plenty for typical "notes + project + scratch + reference" layouts.
+ * Each extra root is cheap — FileTree lists lazily (one shallow fsList on
+ * mount; subdirectories load on expand) and folder roots are not watched —
+ * so the cap guards sidebar usability and pathological persisted state,
+ * not performance. 10 covers stacked "notes + projects + reference"
+ * layouts while keeping the panel navigable.
  */
-export const MAX_OPEN_FOLDERS = 5;
+export const MAX_OPEN_FOLDERS = 10;
 
 interface DocumentsState {
   documents: Document[];

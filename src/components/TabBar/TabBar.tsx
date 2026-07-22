@@ -227,6 +227,19 @@ export function TabBar({
   useEffect(() => {
     paneTabsRef.current = pane.tabs;
   }, [pane.tabs]);
+
+  // Keep the active tab visible: when activation changes (new file opened,
+  // ⌘1–9 switch, session restore) the strip may be scrolled elsewhere and
+  // the active tab sitting out of view — anchor it. `block: "nearest"`
+  // stops ancestors from scrolling vertically; the optional call guards
+  // jsdom, which doesn't implement scrollIntoView.
+  useEffect(() => {
+    if (!pane.activeTabId) return;
+    const el = stripRef.current?.querySelector<HTMLElement>(
+      `[data-tab-id="${pane.activeTabId}"]`,
+    );
+    el?.scrollIntoView?.({ inline: "nearest", block: "nearest" });
+  }, [pane.activeTabId]);
   useEffect(() => {
     draggingIdRef.current = draggingId;
   }, [draggingId]);

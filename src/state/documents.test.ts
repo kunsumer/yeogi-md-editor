@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { useDocuments } from "./documents";
+import { useDocuments, MAX_OPEN_FOLDERS } from "./documents";
 import { useLayout } from "./layout";
 
 describe("useDocuments", () => {
@@ -48,6 +48,34 @@ describe("useDocuments", () => {
     const d = useDocuments.getState().documents[0];
     expect(d.isDirty).toBe(false);
     expect(d.savedMtime).toBe(2);
+  });
+});
+
+describe("folder roots cap", () => {
+  beforeEach(() => {
+    useDocuments.setState({ documents: [], folder: "/primary", extraFolders: [] });
+  });
+
+  it("allows 10 folders total (primary + 9 extras)", () => {
+    expect(MAX_OPEN_FOLDERS).toBe(10);
+    const { addExtraFolder } = useDocuments.getState();
+    for (let i = 1; i <= 9; i++) addExtraFolder(`/extra-${i}`);
+    expect(useDocuments.getState().extraFolders).toHaveLength(9);
+  });
+
+  it("addExtraFolder rejects the folder that would exceed the cap", () => {
+    const { addExtraFolder } = useDocuments.getState();
+    for (let i = 1; i <= 9; i++) addExtraFolder(`/extra-${i}`);
+    addExtraFolder("/one-too-many");
+    const s = useDocuments.getState();
+    expect(s.extraFolders).toHaveLength(9);
+    expect(s.extraFolders).not.toContain("/one-too-many");
+  });
+
+  it("setExtraFolders clamps persisted state to the cap", () => {
+    const paths = Array.from({ length: 12 }, (_, i) => `/clamp-${i}`);
+    useDocuments.getState().setExtraFolders(paths);
+    expect(useDocuments.getState().extraFolders).toHaveLength(9);
   });
 });
 

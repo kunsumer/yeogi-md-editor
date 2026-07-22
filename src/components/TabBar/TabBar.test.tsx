@@ -56,6 +56,36 @@ describe("TabBar", () => {
     expect(active?.getAttribute("aria-selected")).toBe("true");
   });
 
+  it("scrolls the newly active tab into view when activation changes", () => {
+    // jsdom doesn't implement scrollIntoView — record the element each
+    // call is bound to so we can assert which tab was anchored.
+    const scrolled: Element[] = [];
+    Element.prototype.scrollIntoView = function () {
+      scrolled.push(this as Element);
+    };
+    const props = {
+      isFocused: true,
+      onActivate: () => {},
+      onClose: () => {},
+      onOpenToSide: () => {},
+      onCreateBlank: () => {},
+      onOpenFiles: () => {},
+    };
+    const { rerender } = render(
+      <TabBar pane={pane} documents={documents} {...props} />,
+    );
+    scrolled.length = 0; // ignore the mount-time anchor
+    // A new file opens: appended at the end of the strip and made active.
+    rerender(
+      <TabBar
+        pane={{ ...pane, tabs: [...pane.tabs, "doc-3"], activeTabId: "doc-3" }}
+        documents={[...documents, makeDoc("doc-3", "/c.md")]}
+        {...props}
+      />,
+    );
+    expect(scrolled[scrolled.length - 1]?.getAttribute("data-tab-id")).toBe("doc-3");
+  });
+
   it("uses muted indicator color when pane is not focused", () => {
     const { container } = render(
       <TabBar
