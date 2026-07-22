@@ -6,7 +6,7 @@ Yeogi .MD Editor
 ## Target
 - platform: macOS
 - minimum OS version: 10.13 (`LSMinimumSystemVersion`); universal binary (x86_64 + arm64)
-- distribution: direct download from GitHub Releases, signed with a stable self-signed identity ("Yeogi Dev Cert"), Tauri-updater verified via minisign. Not notarized — first-launch Gatekeeper warning is expected; right-click → Open clears it.
+- distribution: direct download from GitHub Releases, signed with an Apple Developer ID identity ("Developer ID Application: Kun Soo Han"), notarized + stapled in CI, Tauri-updater verified via minisign. Gatekeeper accepts first launch without a warning.
 
 ## What this repo owns
 - windows / scenes: single main window with a primary + optional secondary editor pane (side-by-side); separate preview windows can be spawned per document via `window_open_preview`
@@ -29,12 +29,12 @@ Yeogi .MD Editor
 ## Real commands
 - install: `pnpm install --frozen-lockfile`
 - dev (run app locally): `pnpm tauri dev`
-- build (release / .app bundle): `pnpm release:build` (uses "Yeogi Dev Cert" if present in keychain, else ad-hoc with a printed warning)
+- build (release / .app bundle): `pnpm release:build` (signs with the Developer ID identity if present in keychain, else ad-hoc with a printed warning)
 - lint: `pnpm tsc --noEmit`  (alias: `pnpm lint`)
 - typecheck: `pnpm tsc --noEmit`
 - unit test: `pnpm vitest run` (or `pnpm test`)
 - integration / UI test: `pnpm test:e2e` (Playwright; rarely run, treat as best-effort)
-- sign / notarize: signing happens in `release-build.sh`. Notarization is not configured — would require an Apple Developer Program membership ($99/yr).
+- sign / notarize: signing happens in `release-build.sh` (Developer ID cert). Notarization runs automatically in the CI release workflow (`release.yml`) via the `APPLE_ID` / `APPLE_TEAM_ID` / `APPLE_APP_SPECIFIC_PASSWORD` secrets — Tauri submits to notarytool, waits for the verdict, and staples the ticket. Known failure mode: Apple returns **403 "A required agreement is missing or has expired"** when the Developer Program License Agreement has been updated (or membership lapsed) — the Account Holder must accept it at developer.apple.com/account, then `gh run rerun <run-id> --failed`. (Hit on v0.5.7, 2026-07-22.)
 
 ## Risk zones
 - file I/O and unsaved changes: autosave is per-document with a debounce (default 800 ms); flush hooks run on `pagehide`. Conflict banner appears when watcher detects external changes to a dirty doc; close/quit prompts unsaved-changes confirmation. Untitled buffers fall through to Save As on first ⌘S.
