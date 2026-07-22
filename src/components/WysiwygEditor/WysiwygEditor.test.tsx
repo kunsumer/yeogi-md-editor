@@ -107,3 +107,61 @@ describe("WysiwygEditor external content sync", () => {
     expect(selection.from).toBe(Selection.atStart(doc).from);
   });
 });
+
+describe("WysiwygEditor clipboard", () => {
+  /** Find the document range of a literal text run (e.g. a cell's text). */
+  function rangeOfText(editor: Editor, text: string): { from: number; to: number } {
+    let found: { from: number; to: number } | null = null;
+    editor.state.doc.descendants((node, pos) => {
+      if (found) return false;
+      if (node.isText && node.text === text) {
+        found = { from: pos, to: pos + text.length };
+        return false;
+      }
+      return true;
+    });
+    if (!found) throw new Error(`text not found in doc: ${text}`);
+    return found;
+  }
+
+  /** Dispatch a `copy` event with a recording clipboardData stub. */
+  function dispatchCopy(editor: Editor): Map<string, string> {
+    const data = new Map<string, string>();
+    const evt = new Event("copy", { bubbles: true, cancelable: true });
+    Object.defineProperty(evt, "clipboardData", {
+      value: {
+        setData: (type: string, value: string) => void data.set(type, value),
+        clearData: () => {},
+      },
+    });
+    editor.view.dom.dispatchEvent(evt);
+    return data;
+  }
+
+  it("puts plain text — not markup — in the text/plain flavor when copying from a table cell", async () => {
+    const { editor } = await mountEditor(
+      "| User agent | Version |\n|---|---|\n| Safari | 17 |\n",
+    );
+    const { from, to } = rangeOfText(editor, "User agent");
+    editor.commands.setTextSelection({ from, to });
+
+    const data = dispatchCopy(editor);
+
+    // The regression: text/plain carried the markdown/HTML serialization
+    // ("<table><tr><td>User agent</td></tr></table>"). Plain-text targets
+    // must receive just the text.
+    expect(data.get("text/plain")).toBe("User agent");
+  });
+
+  it("keeps the rich text/html flavor so tables paste as tables into Word-like targets", async () => {
+    const { editor } = await mountEditor(
+      "| User agent | Version |\n|---|---|\n| Safari | 17 |\n",
+    );
+    const { from, to } = rangeOfText(editor, "User agent");
+    editor.commands.setTextSelection({ from, to });
+
+    const data = dispatchCopy(editor);
+
+    expect(data.get("text/html")).toContain("User agent");
+  });
+});

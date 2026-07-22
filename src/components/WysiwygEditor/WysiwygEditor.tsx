@@ -113,6 +113,7 @@ import {
   DefinitionDescription,
 } from "./nodes/DefinitionList";
 import { postProcessMarkdown } from "./postProcessMarkdown";
+import { CopyAsMarkdown } from "./copyAsMarkdown";
 import TextAlign from "@tiptap/extension-text-align";
 import "./wysiwyg.css";
 import "../PreviewPane/preview-content.css";
@@ -238,8 +239,15 @@ export function WysiwygEditor({
         linkify: false,
         breaks: false,
         transformPastedText: true,
-        transformCopiedText: true,
+        // Keep ⌘C native: text/plain gets the selection's plain TEXT and
+        // text/html the rich DOM (tables paste as real tables into
+        // Word-like targets). `true` replaced text/plain with the markdown
+        // serialization — copying from a table pasted "<table><tr>…" into
+        // plain-text targets. ⇧⌘C (CopyAsMarkdown) is the explicit
+        // copy-the-source path.
+        transformCopiedText: false,
       }),
+      CopyAsMarkdown,
     ],
     editorProps: {
       // Strip Unicode Private Use Area characters (U+E000–U+F8FF) from
