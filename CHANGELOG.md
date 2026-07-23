@@ -2,6 +2,16 @@
 
 All notable changes to Yeogi .MD Editor are documented here. Version numbers follow [Semantic Versioning](https://semver.org/); entries highlight user-visible behavior (new capabilities and bug fixes), not internal refactors or visual tweaks.
 
+## v0.5.8 — 2026-07-23
+
+### Fixed
+
+- **Copying text no longer pastes markup into other apps.** Copying from the WYSIWYG editor put the markdown/HTML serialization on the clipboard — copying "User agent" from a table cell pasted as `<table><tr><td>User agent</td></tr></table>` in plain-text targets. ⌘C is now standard: plain-text apps get just the text, and rich targets (Word, Pages, Google Docs) get real formatting — a copied table pastes as an actual table.
+
+### New
+
+- **⇧⌘C copies the markdown source.** When you *do* want the markdown behind your selection (pipes, `**bold**`, `# headings`, …), press ⇧⌘C — the output matches exactly what the .md file contains. (Edit mode is unchanged: its text is already markdown.)
+
 ## v0.5.7 — 2026-06-25
 
 ### New
