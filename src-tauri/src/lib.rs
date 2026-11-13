@@ -12,8 +12,35 @@ use crate::watcher::{Watcher, WatcherEvent};
 
 pub struct AppState {
     pub watcher: Arc<Mutex<watcher::Watcher>>,
+    pub external_open: Mutex<ExternalOpenState>,
 }
 
+#[derive(Default)]
+pub struct ExternalOpenState {
+    frontend_ready: bool,
+    pending_paths: Vec<String>,
+}
+
+impl ExternalOpenState {
+    /// Queue paths until the webview has installed its event listener. Once
+    /// ready, live opens can be emitted immediately.
+    fn receive(&mut self, paths: Vec<String>) -> Option<Vec<String>> {
+        if self.frontend_ready {
+            Some(paths)
+        } else {
+            self.pending_paths.extend(paths);
+            None
+        }
+    }
+
+    /// Atomically switch to live delivery and drain files received during
+    /// startup. Keeping both operations under one lock closes the gap where
+    /// a Finder open could otherwise arrive between them.
+    fn mark_frontend_ready(&mut self) -> Vec<String> {
+        self.frontend_ready = true;
+        std::mem::take(&mut self.pending_paths)
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -41,6 +68,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .manage(AppState {
             watcher: watcher.clone(),
+            external_open: Mutex::new(ExternalOpenState::default()),
         })
         .on_menu_event(|app, event| {
             let _ = app.emit("menu", event.id().0.clone());
@@ -83,6 +111,7 @@ pub fn run() {
             commands::fs_count_recursive,
             commands::shell_reveal_in_finder,
             commands::shell_open_in_terminal,
+            commands::external_open_ready,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
@@ -98,7 +127,24 @@ pub fn run() {
                     .map(|p| p.to_string_lossy().to_string())
                     .collect();
                 if !paths.is_empty() {
-                    let _ = app.emit("files-opened", paths);
+                    // On a cold launch macOS can deliver RunEvent::Opened
+                    // before React has mounted and subscribed. Buffer those
+                    // paths; external_open_ready drains them after the
+                    // frontend listener is installed. Once ready, preserve
+                    // the existing live event path for subsequent opens.
+                    let paths_to_emit = {
+                        let state = app.state::<AppState>();
+                        let result = match state.external_open.lock() {
+                            Ok(mut external_open) => external_open.receive(paths),
+                            // If the mutex is poisoned, emitting is still a
+                            // better fallback than silently dropping files.
+                            Err(_) => Some(paths),
+                        };
+                        result
+                    };
+                    if let Some(paths) = paths_to_emit {
+                        let _ = app.emit("files-opened", paths);
+                    }
                     // Bring the app forward so the user can see the file
                     // they just opened from Finder / `open`. Best-effort:
                     // unminimize + show + focus covers background, minimized,
@@ -112,4 +158,33 @@ pub fn run() {
                 }
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ExternalOpenState;
+
+    #[test]
+    fn external_opens_are_queued_until_frontend_is_ready() {
+        let mut state = ExternalOpenState::default();
+
+        assert_eq!(state.receive(vec!["/first.md".into()]), None);
+        assert_eq!(state.receive(vec!["/second.md".into()]), None);
+        assert_eq!(
+            state.mark_frontend_ready(),
+            vec!["/first.md".to_string(), "/second.md".to_string()]
+        );
+        assert!(state.mark_frontend_ready().is_empty());
+    }
+
+    #[test]
+    fn external_opens_are_delivered_live_after_frontend_is_ready() {
+        let mut state = ExternalOpenState::default();
+        assert!(state.mark_frontend_ready().is_empty());
+
+        assert_eq!(
+            state.receive(vec!["/live.md".into()]),
+            Some(vec!["/live.md".to_string()])
+        );
+    }
 }
