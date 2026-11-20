@@ -4,6 +4,17 @@ use crate::fs;
 use crate::types::{DirEntry, FileRead, FileWritten, FsError};
 use crate::AppState;
 
+/// Signal that the frontend has installed its `files-opened` listener and
+/// return any paths macOS delivered while the webview was still starting.
+#[tauri::command]
+pub fn external_open_ready(state: State<AppState>) -> Result<Vec<String>, FsError> {
+    let mut external_open = state
+        .external_open
+        .lock()
+        .map_err(|_| FsError::Io("external-open mutex poisoned".into()))?;
+    Ok(external_open.mark_frontend_ready())
+}
+
 #[tauri::command]
 pub fn fs_read(path: String) -> Result<FileRead, FsError> {
     fs::read(&path)

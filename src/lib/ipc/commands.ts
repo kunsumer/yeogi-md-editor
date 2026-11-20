@@ -89,6 +89,14 @@ export async function watcherSubscribe(path: string): Promise<void> {
 }
 
 /**
+ * Tell the native layer that the `files-opened` listener is installed and
+ * retrieve files macOS delivered before the webview finished mounting.
+ */
+export async function externalOpenReady(): Promise<string[]> {
+  return invoke("external_open_ready");
+}
+
+/**
  * First-run welcome file seeding. On the Rust side, copies the bundled
  * welcome.md into ~/Documents/Yeogi .MD Editor/Welcome.md (idempotent —
  * never overwrites) and returns its absolute path.
