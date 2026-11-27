@@ -14,6 +14,7 @@ import { LinkTooltip } from "./components/LinkTooltip";
 import { Tutorial } from "./components/Tutorial";
 import {
   ensureWelcomeFile,
+  externalOpenReady,
   fsList,
   fsRead,
   fsWrite,
@@ -585,20 +586,40 @@ export default function App() {
     });
   }, []);
 
-  // Finder "Open With" routes through RunEvent::Opened on the Rust side,
-  // which emits "files-opened" with the selected paths. Wire each through
-  // the normal openFile flow; openDocument dedupes by path.
+  // Finder "Open With" routes through RunEvent::Opened on the Rust side.
+  // Install the live listener first, then atomically mark the frontend ready
+  // and drain files that arrived during cold startup. This ordering prevents
+  // the initial macOS open event from being lost before React mounts.
   useEffect(() => {
-    const p = listen<string[]>("files-opened", async (e) => {
-      for (const path of e.payload) {
+    let cancelled = false;
+
+    async function openExternalFiles(paths: string[]) {
+      for (const path of paths) {
         try {
           await openFile(path);
         } catch (err) {
           console.warn("files-opened: skipping", path, err);
         }
       }
-    });
+    }
+
+    const p = listen<string[]>("files-opened", (e) => openExternalFiles(e.payload)).then(
+      async (unlisten) => {
+        if (cancelled) {
+          unlisten();
+          return unlisten;
+        }
+        try {
+          const pendingPaths = await externalOpenReady();
+          if (!cancelled) await openExternalFiles(pendingPaths);
+        } catch (err) {
+          console.warn("external-open readiness failed", err);
+        }
+        return unlisten;
+      },
+    );
     return () => {
+      cancelled = true;
       p.then((fn) => fn());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

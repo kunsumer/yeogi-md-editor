@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
 import { useDocuments } from "./state/documents";
 import { useLayout } from "./state/layout";
+import { listen } from "@tauri-apps/api/event";
+import { externalOpenReady, fsRead, watcherSubscribe } from "./lib/ipc/commands";
 
 // --- Tauri shims (App.tsx calls listen/open/save/etc which require the
 //     Tauri runtime; they are no-ops in jsdom tests) -----------------------
@@ -30,6 +32,7 @@ vi.mock("./lib/ipc/commands", () => ({
   fsRead: vi.fn(() => Promise.resolve({ content: "", mtime_ms: 0, encoding: "utf-8" })),
   fsWrite: vi.fn(() => Promise.resolve({ mtime_ms: 0 })),
   watcherSubscribe: vi.fn(() => Promise.resolve()),
+  externalOpenReady: vi.fn(() => Promise.resolve([])),
   syncMenuState: vi.fn(() => Promise.resolve()),
 }));
 
@@ -62,6 +65,9 @@ vi.mock("./hooks/useWatcherEvents", () => ({
 // -------------------------------------------------------------------------
 
 beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(listen).mockImplementation(() => Promise.resolve(() => {}));
+  vi.mocked(externalOpenReady).mockResolvedValue([]);
   useDocuments.setState({ documents: [], folder: null });
   useLayout.setState({
     primary: { id: "primary", tabs: [], activeTabId: null, viewMode: "wysiwyg" },
@@ -70,6 +76,50 @@ beforeEach(() => {
     paneSplit: 0.5,
   });
   localStorage.clear();
+});
+
+describe("App — external file opens", () => {
+  it("registers the live listener before requesting cold-launch paths", async () => {
+    localStorage.setItem("yeogi-md-editor:welcome-shown", "true");
+    let finishListening: ((unlisten: () => void) => void) | undefined;
+    vi.mocked(listen).mockImplementationOnce(
+      () => new Promise((resolve) => {
+        finishListening = resolve;
+      }),
+    );
+
+    render(<App />);
+    expect(externalOpenReady).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finishListening?.(() => {});
+    });
+
+    await waitFor(() => expect(externalOpenReady).toHaveBeenCalledOnce());
+  });
+
+  it("opens paths buffered during a cold launch", async () => {
+    localStorage.setItem("yeogi-md-editor:welcome-shown", "true");
+    vi.mocked(externalOpenReady).mockResolvedValueOnce(["/cold-launch.md"]);
+    vi.mocked(fsRead).mockResolvedValueOnce({
+      content: "# Opened from Finder",
+      mtime_ms: 42,
+      encoding: "utf-8",
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(fsRead).toHaveBeenCalledWith("/cold-launch.md"));
+    expect(watcherSubscribe).toHaveBeenCalledWith("/cold-launch.md");
+    expect(useDocuments.getState().documents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "/cold-launch.md",
+          content: "# Opened from Finder",
+        }),
+      ]),
+    );
+  });
 });
 
 describe("App — two panes", () => {
@@ -93,9 +143,7 @@ describe("App — two panes", () => {
   });
 });
 
-import { fireEvent } from "@testing-library/react";
 import { usePreferences } from "./state/preferences";
-import { act } from "@testing-library/react";
 
 it("Outline switches when focus moves between panes", async () => {
   function makeDoc(id: string, path: string, content: string) {
